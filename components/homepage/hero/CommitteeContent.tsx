@@ -102,22 +102,23 @@ function MemberCard({ member, size = 'small' }: { member: CommitteeMember; size?
 
 export function CommitteeContent() {
   return (
-    <div className="w-full max-w-6xl mx-auto h-full flex flex-col px-4">
-      {/* Mobile Layout - FULLY VERTICAL, NO SCROLL CONTAINER */}
-      <div className="md:hidden flex flex-col">
-        {/* Space for particle text */}
-        <div className="h-[32vh]" />
-        
-        {/* Cards - NO overflow scroll */}
-        <div className="space-y-3 pb-4">
-          {/* Office Bearers - fully vertical */}
+    <div className="w-full max-w-6xl mx-auto h-full flex flex-col px-4 overflow-hidden">
+      {/* Section Title */}
+      <h2 className="text-xl md:text-4xl font-bold text-[#25406b] text-center pt-4 md:pt-12 mb-3 md:mb-8">
+        Organising <span className="text-[#852016]">Committee</span>
+      </h2>
+
+      {/* Mobile Layout - Compact, NO SCROLL */}
+      <div className="md:hidden flex flex-col flex-1">
+        {/* Cards - compact spacing */}
+        <div className="space-y-2 pb-2">
+          {/* Office Bearers - compact */}
           {committeeData.map((group) => (
-            <div key={group.title} className="bg-white/60 backdrop-blur-sm rounded-xl p-3 border border-[#ebc975]/30">
-              <h3 className="text-xs font-bold text-[#852016] mb-2 pb-1.5 border-b border-[#ebc975]/30">
+            <div key={group.title} className="bg-white/60 backdrop-blur-sm rounded-lg p-2 border border-[#ebc975]/30">
+              <h3 className="text-[10px] font-bold text-[#852016] mb-1.5 pb-1 border-b border-[#ebc975]/30">
                 {group.title}
               </h3>
-              {/* Vertical stack for members */}
-              <div className="space-y-2.5">
+              <div className="space-y-1.5">
                 {group.members.map((member) => (
                   <MemberCard key={member.name} member={member} size="small" />
                 ))}
@@ -125,29 +126,28 @@ export function CommitteeContent() {
             </div>
           ))}
 
-          {/* Organizing Chairs - fully vertical */}
-          {organizingChairs.map((member) => (
-            <div key={member.name} className="bg-gradient-to-br from-[#25406b]/10 to-[#852016]/10 backdrop-blur-sm rounded-xl p-4 border border-[#ebc975]/30">
-              <MemberCard member={member} size="large" />
-            </div>
-          ))}
+          {/* Organizing Chairs - side by side on mobile */}
+          <div className="grid grid-cols-2 gap-2">
+            {organizingChairs.map((member) => (
+              <div key={member.name} className="bg-gradient-to-br from-[#25406b]/10 to-[#852016]/10 backdrop-blur-sm rounded-lg p-2 border border-[#ebc975]/30">
+                <MemberCard member={member} size="large" />
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
       {/* Desktop Layout */}
-      <div className="hidden md:flex md:flex-col md:h-full">
-        {/* Space for particle text */}
-        <div className="h-[50vh]" />
-        
+      <div className="hidden md:flex md:flex-col md:flex-1">
         {/* Cards */}
-        <div className="flex-1 flex flex-col justify-start">
-          <div className="grid grid-cols-3 gap-4 mb-3">
+        <div className="flex flex-col justify-center flex-1">
+          <div className="grid grid-cols-3 gap-4 mb-6">
             {committeeData.map((group) => (
-              <div key={group.title} className="bg-white/50 backdrop-blur-sm rounded-xl p-3 border border-[#ebc975]/20">
-                <h3 className="text-sm font-bold text-[#852016] mb-2 pb-1.5 border-b border-[#ebc975]/30">
+              <div key={group.title} className="bg-white/50 backdrop-blur-sm rounded-xl p-4 border border-[#ebc975]/20">
+                <h3 className="text-sm font-bold text-[#852016] mb-3 pb-2 border-b border-[#ebc975]/30">
                   {group.title}
                 </h3>
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {group.members.map((member) => (
                     <MemberCard key={member.name} member={member} size="small" />
                   ))}
@@ -156,9 +156,9 @@ export function CommitteeContent() {
             ))}
           </div>
 
-          <div className="flex justify-center gap-6">
+          <div className="flex justify-center gap-8">
             {organizingChairs.map((member) => (
-              <div key={member.name} className="bg-gradient-to-br from-[#25406b]/10 to-[#852016]/10 backdrop-blur-sm rounded-xl p-4 border border-[#ebc975]/30">
+              <div key={member.name} className="bg-gradient-to-br from-[#25406b]/10 to-[#852016]/10 backdrop-blur-sm rounded-xl p-5 border border-[#ebc975]/30">
                 <MemberCard member={member} size="large" />
               </div>
             ))}

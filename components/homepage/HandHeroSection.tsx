@@ -674,175 +674,63 @@ export function HandHeroSection() {
         onLeaveBack: () => pricingContentRef.current?.classList.remove('active'),
       });
 
-      // Committee section - dramatic reformation AFTER entering section
-      let committeeAnimationInProgress = false;
-      
-      const animateToCommittee = () => {
-        // Prevent multiple triggers while animation is in progress
-        if (committeeAnimationInProgress) return;
-        committeeAnimationInProgress = true;
-        
-        const states = sceneRef.current?.states;
-        if (!states) return;
-        
-        // Kill ALL existing animations to prevent conflicts
-        if (morphTweenRef.current) {
-          morphTweenRef.current.kill();
-          morphTweenRef.current = null;
-        }
-        if (opacityTweenRef.current) {
-          opacityTweenRef.current.kill();
-          opacityTweenRef.current = null;
-        }
-        if (positionTweenRef.current) {
-          positionTweenRef.current.kill();
-          positionTweenRef.current = null;
-        }
-        if (rotationTweenRef.current) {
-          rotationTweenRef.current.kill();
-          rotationTweenRef.current = null;
-        }
-        if (scaleTweenRef.current) {
-          scaleTweenRef.current.kill();
-          scaleTweenRef.current = null;
-        }
-        
-        // Set state BEFORE any animation starts
-        currentGestureRef.current = 'committee';
-        isMorphingRef.current = true;
-        
-        // Reset disperse offsets completely
-        for (let i = 0; i < disperseOffsets.length; i++) {
-          disperseOffsets[i] = 0;
-        }
-        
-        // Position point cloud for committee text - set immediately
-        points.position.set(0, committeeYPos, 0);
-        points.rotation.set(0, 0, 0);
-        points.scale.setScalar(1);
-        targetTransformRef.current = { x: 0, y: committeeYPos, rotX: 0, rotY: 0, rotZ: 0, scale: 1 };
-        
-        const committeeState = states.committee;
-        const positions = geometry.attributes.position.array as Float32Array;
-        
-        // Create a copy of current positions as starting point
-        const startPositions = new Float32Array(positions.length);
-        for (let i = 0; i < positions.length; i++) {
-          startPositions[i] = positions[i];
-        }
-        
-        // Start with low opacity
-        material.opacity = 0.3;
-        
-        // Fade in opacity smoothly
-        opacityTweenRef.current = gsap.to(material, { 
-          opacity: 0.95, 
-          duration: 2, 
-          ease: 'power2.out' 
-        });
-        
-        // Morph particles into text - use a simple object for the tween
-        const tweenObj = { progress: 0 };
-        
-        morphTweenRef.current = gsap.to(tweenObj, {
-          progress: 1,
-          duration: 2.5,
-          ease: 'power2.out',
-          onUpdate: () => {
-            const t = tweenObj.progress;
-            // Interpolate from start positions to committee state
-            for (let i = 0; i < positions.length; i++) {
-              positions[i] = startPositions[i] + (committeeState[i] - startPositions[i]) * t;
-            }
-            geometry.attributes.position.needsUpdate = true;
-          },
-          onComplete: () => {
-            // Ensure final positions are EXACTLY the committee state
-            for (let i = 0; i < positions.length; i++) {
-              positions[i] = committeeState[i];
-            }
-            geometry.attributes.position.needsUpdate = true;
-            
-            // Clear morphing flag AFTER setting final positions
-            isMorphingRef.current = false;
-            committeeAnimationInProgress = false;
-            
-            // Fade in content after text is fully formed
-            setTimeout(() => {
-              committeeContentRef.current?.classList.add('active');
-            }, 200);
-          },
-        });
-      };
-      
-      // Instant hide function for committee particles
-      const hideCommitteeParticles = () => {
-        // Kill any ongoing animations
-        if (morphTweenRef.current) morphTweenRef.current.kill();
-        if (opacityTweenRef.current) opacityTweenRef.current.kill();
-        
-        // Instantly hide particles
-        material.opacity = 0;
-        isMorphingRef.current = false;
-        committeeAnimationInProgress = false;
-      };
-      
+      // Committee section - simple content visibility only (no particles)
       ScrollTrigger.create({
         trigger: committeeSectionRef.current,
         start: mobile ? 'top 70%' : 'top 60%',
         end: mobile ? 'bottom 30%' : 'bottom 40%',
-        onEnter: animateToCommittee,
+        onEnter: () => {
+          committeeContentRef.current?.classList.add('active');
+        },
         onEnterBack: () => {
-          // Reset flag and re-animate when coming back
-          committeeAnimationInProgress = false;
-          animateToCommittee();
+          committeeContentRef.current?.classList.add('active');
         },
         onLeave: () => {
-          // Hide content and INSTANTLY hide particles when leaving committee
           committeeContentRef.current?.classList.remove('active');
-          hideCommitteeParticles();
         },
         onLeaveBack: () => {
           committeeContentRef.current?.classList.remove('active');
-          committeeAnimationInProgress = false;
           morph('dissolve');
         },
       });
 
-      // Explore Hyderabad section - Content loads immediately, Charminar forms after delay
-      let exploreAnimationInProgress = false;
-      let charminarFormTimeout: NodeJS.Timeout | null = null;
+      // Explore Hyderabad section - Simple: form on enter, only dissolve when leaving
+      let charminarVisible = false;
+      let charminarForming = false;
       
       const formCharminar = () => {
-        if (exploreAnimationInProgress) return;
-        exploreAnimationInProgress = true;
+        console.log('🟢 formCharminar called', { charminarVisible, charminarForming });
         
         const states = sceneRef.current?.states;
         const charminarColorsData = sceneRef.current?.charminarColors;
         if (!states || !charminarColorsData) {
           console.log('Charminar data not loaded yet');
-          exploreAnimationInProgress = false;
           return;
         }
+        
+        // If already visible or currently forming, don't restart
+        if (charminarVisible || charminarForming) {
+          console.log('🟢 Skipping - already visible or forming');
+          return;
+        }
+        
+        charminarForming = true;
+        console.log('🟢 Starting Charminar formation');
         
         // Kill all existing animations
         if (morphTweenRef.current) morphTweenRef.current.kill();
         if (opacityTweenRef.current) opacityTweenRef.current.kill();
         if (colorTweenRef.current) colorTweenRef.current.kill();
-        if (positionTweenRef.current) positionTweenRef.current.kill();
-        if (rotationTweenRef.current) rotationTweenRef.current.kill();
-        if (scaleTweenRef.current) scaleTweenRef.current.kill();
         
         currentGestureRef.current = 'explore';
         isMorphingRef.current = true;
-        isInteractiveRef.current = true;
         
         // Reset disperse offsets
         for (let i = 0; i < disperseOffsets.length; i++) {
           disperseOffsets[i] = 0;
         }
         
-        // Position for center of screen - use mobile config
+        // Position for center of screen - SET IMMEDIATELY
         const posX = charminarConf.positionX;
         const posY = charminarConf.positionY;
         const scale = charminarConf.scale;
@@ -859,21 +747,20 @@ export function HandHeroSection() {
         };
         
         const exploreState = states.explore;
+        const dissolveState = states.dissolve;
         const positions = geometry.attributes.position.array as Float32Array;
         const colorAttr = geometry.attributes.color.array as Float32Array;
         
-        // Start from dissolved/scattered state - use dissolve positions as starting point
-        const dissolveState = states.dissolve;
+        // ALWAYS reset to dissolve state first for consistent animation
         for (let i = 0; i < positions.length; i++) {
           positions[i] = dissolveState[i];
         }
         geometry.attributes.position.needsUpdate = true;
         
-        // Copy current positions as start
-        const startPositions = new Float32Array(positions.length);
+        // Copy dissolve positions as start
+        const startPositions = new Float32Array(dissolveState);
         const startColors = new Float32Array(colorAttr.length);
-        for (let i = 0; i < positions.length; i++) {
-          startPositions[i] = positions[i];
+        for (let i = 0; i < colorAttr.length; i++) {
           startColors[i] = colorAttr[i];
         }
         
@@ -882,19 +769,23 @@ export function HandHeroSection() {
         material.color.setHex(0xffffff);
         material.needsUpdate = true;
         
-        // Start from 0 opacity and fade in
+        // Start from 0 opacity
         material.opacity = 0;
+        console.log('🟢 Starting opacity tween');
         opacityTweenRef.current = gsap.to(material, {
           opacity: 0.95,
-          duration: 2,
-          ease: 'power2.out'
+          duration: 1.5,
+          ease: 'power2.out',
+          onComplete: () => {
+            console.log('🟢 Opacity tween complete');
+          }
         });
         
         // Morph positions and colors
         const tweenObj = { progress: 0 };
         morphTweenRef.current = gsap.to(tweenObj, {
           progress: 1,
-          duration: 2.5,
+          duration: 2,
           ease: 'power2.out',
           onUpdate: () => {
             const t = tweenObj.progress;
@@ -913,92 +804,75 @@ export function HandHeroSection() {
             }
             geometry.attributes.position.needsUpdate = true;
             geometry.attributes.color.needsUpdate = true;
-            
             isMorphingRef.current = false;
-            exploreAnimationInProgress = false;
+            charminarForming = false;
+            charminarVisible = true;
           },
         });
       };
       
-      const onEnterExplore = () => {
-        // Show content immediately
-        exploreContentRef.current?.classList.add('active');
+      const hideCharminar = () => {
+        console.log('🔴 hideCharminar called', { charminarVisible, charminarForming });
         
-        // First ensure any previous particles are dissolved
+        // Reset flags
+        charminarVisible = false;
+        charminarForming = false;
+        
+        // Kill all existing animations
         if (morphTweenRef.current) morphTweenRef.current.kill();
         if (opacityTweenRef.current) opacityTweenRef.current.kill();
         
-        // Hide particles immediately to clear committee text
+        // Instant hide
         material.opacity = 0;
-        
-        // Form Charminar after delay (gives time for dissolve to complete)
-        if (charminarFormTimeout) clearTimeout(charminarFormTimeout);
-        charminarFormTimeout = setTimeout(() => {
-          formCharminar();
-        }, 800);
-      };
-      
-      const animateFromExplore = () => {
-        // Clear any pending timeout
-        if (charminarFormTimeout) {
-          clearTimeout(charminarFormTimeout);
-          charminarFormTimeout = null;
-        }
-        
-        // Kill all existing animations to prevent conflicts
-        if (morphTweenRef.current) morphTweenRef.current.kill();
-        if (opacityTweenRef.current) opacityTweenRef.current.kill();
-        if (colorTweenRef.current) colorTweenRef.current.kill();
-        
-        // Disable vertex colors, go back to gray
         material.vertexColors = false;
         material.color.setHex(0x555555);
         material.needsUpdate = true;
-        isInteractiveRef.current = false;
-        exploreAnimationInProgress = false;
         isMorphingRef.current = false;
-        
-        // Reset colors to gray
-        const colorAttr = geometry.attributes.color.array as Float32Array;
-        const grayColorsData = sceneRef.current?.grayColors;
-        if (grayColorsData) {
-          for (let i = 0; i < colorAttr.length; i++) {
-            colorAttr[i] = grayColorsData[i];
-          }
-          geometry.attributes.color.needsUpdate = true;
-        }
-        
-        // Hide point cloud completely - immediate, no animation
-        material.opacity = 0;
-        
-        // Also reset position to avoid any visual glitches
-        points.position.set(0, 0, 0);
-        points.scale.setScalar(0.01);
       };
       
+      // Single trigger: form when entering explore section, hide when leaving bottom
       ScrollTrigger.create({
         trigger: exploreSectionRef.current,
-        start: mobile ? 'top 50%' : 'top 40%', // Start later to ensure committee is fully hidden
-        end: 'bottom 20%',
-        onEnter: onEnterExplore,
-        onEnterBack: () => {
-          setPastExploreSection(false);
-          exploreAnimationInProgress = false;
-          onEnterExplore();
+        start: 'top bottom', // Section top hits screen bottom - START forming
+        end: 'bottom top',   // Section bottom hits screen top - HIDE
+        onEnter: () => {
+          console.log('🟢 EXPLORE: onEnter - entering explore section');
+          // Reset flags to allow re-formation
+          charminarVisible = false;
+          charminarForming = false;
+          exploreContentRef.current?.classList.add('active');
+          formCharminar();
         },
         onLeave: () => {
+          console.log('🔴 EXPLORE: onLeave - scrolled past explore to CTA');
           exploreContentRef.current?.classList.remove('active');
-          animateFromExplore();
+          hideCharminar();
           setPastExploreSection(true);
         },
-        onLeaveBack: () => {
-          exploreContentRef.current?.classList.remove('active');
-          animateFromExplore();
-          // Explicitly trigger committee animation when scrolling back
-          committeeAnimationInProgress = false;
+        onEnterBack: () => {
+          console.log('🟢 EXPLORE: onEnterBack - scrolled back into explore from CTA');
+          // Reset flags to allow re-formation
+          charminarVisible = false;
+          charminarForming = false;
+          // IMPORTANT: Set this BEFORE forming so canvas is visible
+          setPastExploreSection(false);
+          exploreContentRef.current?.classList.add('active');
+          // Force canvas to be visible immediately (don't wait for React)
+          if (canvasRef.current) {
+            canvasRef.current.style.opacity = '1';
+          }
+          // Small delay to ensure everything is ready
           setTimeout(() => {
-            animateToCommittee();
-          }, 100);
+            formCharminar();
+          }, 50);
+        },
+        onLeaveBack: () => {
+          console.log('🟠 EXPLORE: onLeaveBack - scrolled up to committee');
+          // Reset flags but DON'T hide - just reset so it can form again when coming back
+          charminarVisible = false;
+          charminarForming = false;
+          // Hide the charminar when leaving to committee
+          hideCharminar();
         },
       });
 
