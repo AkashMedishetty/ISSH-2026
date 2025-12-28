@@ -5,8 +5,8 @@ const nextConfig: NextConfig = {
   reactCompiler: true,
   reactStrictMode: false, // Disable to prevent double-rendering which crashes WebGL
   images: {
-    // Enable optimization with compressed images
-    formats: ['image/avif', 'image/webp'],
+    // Disable Vercel image optimization - images are already compressed
+    unoptimized: true,
   },
 };
 
