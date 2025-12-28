@@ -1223,7 +1223,8 @@ export function HandHeroSection() {
         />
       </div>
 
-      <DebugControls values={debugValues} onChange={handleDebugChange} scrollProgress={scrollProgress} />
+      {/* Debug controls disabled for production */}
+      {/* <DebugControls values={debugValues} onChange={handleDebugChange} scrollProgress={scrollProgress} /> */}
       {loading && <LoadingScreen />}
       <Navigation />
 
