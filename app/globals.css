@@ -1,0 +1,84 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Light mode - TASCON 2026 Theme */
+  --background: #ffffff;
+  --foreground: #0e192b;
+  --primary: #f97316;
+  --primary-foreground: #ffffff;
+  --secondary: #ffb246;
+  --secondary-foreground: #0e192b;
+  --accent: #2196F3;
+  --accent-foreground: #ffffff;
+  --muted: #f5f0eb;
+  --muted-foreground: #64748b;
+  --card: #ffffff;
+  --card-foreground: #0e192b;
+  --popover: #ffffff;
+  --popover-foreground: #0e192b;
+  --border: #e2e8f0;
+  --input: #e2e8f0;
+  --ring: #f97316;
+  --radius: 0.5rem;
+  
+  /* Homepage Redesign Color Palette */
+  --thistle: #d7c0d0;
+  --pastel-petal: #f7c7db;
+  --baby-pink: #f79ad3;
+  --orchid-mist: #c86fc9;
+  --grape-soda: #8e518d;
+  
+  /* RGB values for color interpolation */
+  --thistle-rgb: 215, 192, 208;
+  --pastel-petal-rgb: 247, 199, 219;
+  --baby-pink-rgb: 247, 154, 211;
+  --orchid-mist-rgb: 200, 111, 201;
+  --grape-soda-rgb: 142, 81, 141;
+}
+
+.dark {
+  /* Dark mode - TASCON 2026 Theme */
+  --background: #0e192b;
+  --foreground: #ffffff;
+  --primary: #f97316;
+  --primary-foreground: #ffffff;
+  --secondary: #ffb246;
+  --secondary-foreground: #0e192b;
+  --accent: #2196F3;
+  --accent-foreground: #ffffff;
+  --muted: #1a3a52;
+  --muted-foreground: #94a3b8;
+  --card: #1a2332;
+  --card-foreground: #ffffff;
+  --popover: #1a2332;
+  --popover-foreground: #ffffff;
+  --border: #334155;
+  --input: #334155;
+  --ring: #f97316;
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+  
+  html {
+    scroll-behavior: smooth;
+  }
+  
+  body {
+    @apply bg-[var(--background)] text-[var(--foreground)];
+    font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+    overflow-x: hidden;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+}
+
+/* Smooth scrolling for GSAP */
+.smooth-scroll {
+  scroll-behavior: smooth;
+}
