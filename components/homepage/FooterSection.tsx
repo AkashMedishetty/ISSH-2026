@@ -42,6 +42,7 @@ export function FooterSection() {
               <Image src="/logos/3.png" alt="ISSH" width={48} height={48} className="object-contain bg-white/10 rounded-lg p-1.5" />
               <Image src="/logos/4.png" alt="TOSA" width={48} height={48} className="object-contain bg-white/10 rounded-lg p-1.5" />
               <Image src="/logos/5.png" alt="TCOS" width={48} height={48} className="object-contain bg-white/10 rounded-lg p-1.5" />
+              <Image src="/logos/logo.png" alt="Partner" width={48} height={48} className="object-contain bg-white/10 rounded-lg p-1.5" />
             </div>
           </div>
 
@@ -139,6 +140,7 @@ export function FooterSection() {
                 <Image src="/logos/3.png" alt="ISSH" width={44} height={44} className="object-contain bg-white/10 rounded-lg p-1" />
                 <Image src="/logos/4.png" alt="TOSA" width={44} height={44} className="object-contain bg-white/10 rounded-lg p-1" />
                 <Image src="/logos/5.png" alt="TCOS" width={44} height={44} className="object-contain bg-white/10 rounded-lg p-1" />
+                <Image src="/logos/logo.png" alt="Partner" width={44} height={44} className="object-contain bg-white/10 rounded-lg p-1" />
               </div>
               <div className="pt-3 border-t border-white/20">
                 <p className="text-xs text-white/60">Tech Partner</p>
