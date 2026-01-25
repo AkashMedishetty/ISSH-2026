@@ -30,6 +30,7 @@ import { DebugControls, DebugValues } from './hero/DebugControls';
 import { Navigation } from './hero/Navigation';
 import { HeroContent } from './hero/HeroContent';
 import { WelcomeContent } from './hero/WelcomeContent';
+import { AboutContent } from './hero/AboutContent';
 import { PricingContent } from './hero/PricingContent';
 import { CommitteeContent } from './hero/CommitteeContent';
 import { ExploreContent } from './hero/ExploreContent';
@@ -43,11 +44,13 @@ export function HandHeroSection() {
   const canvasRef = useRef<HTMLDivElement>(null);
   const heroSectionRef = useRef<HTMLElement>(null);
   const welcomeSectionRef = useRef<HTMLElement>(null);
+  const aboutSectionRef = useRef<HTMLElement>(null);
   const pricingSectionRef = useRef<HTMLElement>(null);
   const committeeSectionRef = useRef<HTMLElement>(null);
   const exploreSectionRef = useRef<HTMLElement>(null);
   const heroContentRef = useRef<HTMLDivElement>(null);
   const welcomeContentRef = useRef<HTMLDivElement>(null);
+  const aboutContentRef = useRef<HTMLDivElement>(null);
   const pricingContentRef = useRef<HTMLDivElement>(null);
   const committeeContentRef = useRef<HTMLDivElement>(null);
   const exploreContentRef = useRef<HTMLDivElement>(null);
@@ -656,6 +659,24 @@ export function HandHeroSection() {
         onLeaveBack: () => welcomeContentRef.current?.classList.remove('active'),
       });
 
+      // About / Why Attend section
+      ScrollTrigger.create({
+        trigger: aboutSectionRef.current,
+        start: mobile ? 'top 90%' : 'top 80%',
+        end: mobile ? 'bottom 40%' : 'bottom 50%',
+        onEnter: () => {
+          aboutContentRef.current?.classList.add('active');
+        },
+        onEnterBack: () => {
+          aboutContentRef.current?.classList.add('active');
+          morph('dissolve');
+        },
+        onLeave: () => {
+          aboutContentRef.current?.classList.remove('active');
+        },
+        onLeaveBack: () => aboutContentRef.current?.classList.remove('active'),
+      });
+
       // Pricing section
       ScrollTrigger.create({
         trigger: pricingSectionRef.current,
@@ -699,23 +720,18 @@ export function HandHeroSection() {
       let charminarForming = false;
       
       const formCharminar = () => {
-        console.log('🟢 formCharminar called', { charminarVisible, charminarForming });
-        
         const states = sceneRef.current?.states;
         const charminarColorsData = sceneRef.current?.charminarColors;
         if (!states || !charminarColorsData) {
-          console.log('Charminar data not loaded yet');
           return;
         }
         
         // If already visible or currently forming, don't restart
         if (charminarVisible || charminarForming) {
-          console.log('🟢 Skipping - already visible or forming');
           return;
         }
         
         charminarForming = true;
-        console.log('🟢 Starting Charminar formation');
         
         // Kill all existing animations
         if (morphTweenRef.current) morphTweenRef.current.kill();
@@ -771,14 +787,10 @@ export function HandHeroSection() {
         
         // Start from 0 opacity
         material.opacity = 0;
-        console.log('🟢 Starting opacity tween');
         opacityTweenRef.current = gsap.to(material, {
           opacity: 0.95,
           duration: 1.5,
           ease: 'power2.out',
-          onComplete: () => {
-            console.log('🟢 Opacity tween complete');
-          }
         });
         
         // Morph positions and colors
@@ -812,8 +824,6 @@ export function HandHeroSection() {
       };
       
       const hideCharminar = () => {
-        console.log('🔴 hideCharminar called', { charminarVisible, charminarForming });
-        
         // Reset flags
         charminarVisible = false;
         charminarForming = false;
@@ -830,13 +840,14 @@ export function HandHeroSection() {
         isMorphingRef.current = false;
       };
       
-      // Single trigger: form when entering explore section, hide when leaving bottom
+      // Single trigger: form when explore section is visible
+      // On mobile, trigger earlier (when 30% from top), on desktop when 20% from top
+      const isMobile = window.innerWidth < 768;
       ScrollTrigger.create({
         trigger: exploreSectionRef.current,
-        start: 'top bottom', // Section top hits screen bottom - START forming
+        start: isMobile ? 'top 70%' : 'top 20%', // Trigger earlier - when section enters viewport
         end: 'bottom top',   // Section bottom hits screen top - HIDE
         onEnter: () => {
-          console.log('🟢 EXPLORE: onEnter - entering explore section');
           // Reset flags to allow re-formation
           charminarVisible = false;
           charminarForming = false;
@@ -844,13 +855,11 @@ export function HandHeroSection() {
           formCharminar();
         },
         onLeave: () => {
-          console.log('🔴 EXPLORE: onLeave - scrolled past explore to CTA');
           exploreContentRef.current?.classList.remove('active');
           hideCharminar();
           setPastExploreSection(true);
         },
         onEnterBack: () => {
-          console.log('🟢 EXPLORE: onEnterBack - scrolled back into explore from CTA');
           // Reset flags to allow re-formation
           charminarVisible = false;
           charminarForming = false;
@@ -867,12 +876,11 @@ export function HandHeroSection() {
           }, 50);
         },
         onLeaveBack: () => {
-          console.log('🟠 EXPLORE: onLeaveBack - scrolled up to committee');
-          // Reset flags but DON'T hide - just reset so it can form again when coming back
+          // Reset flags and hide when leaving to committee
           charminarVisible = false;
           charminarForming = false;
-          // Hide the charminar when leaving to committee
           hideCharminar();
+          exploreContentRef.current?.classList.remove('active');
         },
       });
 
@@ -1124,7 +1132,17 @@ export function HandHeroSection() {
           </div>
         </section>
 
-        {/* SECTION 3: Pricing */}
+        {/* SECTION 3: About / Why Attend */}
+        <section ref={aboutSectionRef} className="h-screen flex items-center">
+          <div 
+            ref={aboutContentRef}
+            className="section-content w-full px-4 sm:px-6 md:px-8 lg:px-12"
+          >
+            <AboutContent />
+          </div>
+        </section>
+
+        {/* SECTION 4: Pricing */}
         <section ref={pricingSectionRef} className="h-screen flex items-center">
           <div 
             ref={pricingContentRef}
@@ -1134,17 +1152,17 @@ export function HandHeroSection() {
           </div>
         </section>
 
-        {/* SECTION 4: Committee */}
-        <section ref={committeeSectionRef} className="h-screen flex items-start md:items-center pt-4 md:pt-0">
+        {/* SECTION 5: Committee */}
+        <section ref={committeeSectionRef} className="min-h-screen flex items-start md:items-center pt-4 md:pt-0 pb-20 md:pb-0">
           <div 
             ref={committeeContentRef}
-            className="section-content w-full px-4 sm:px-6 md:px-8 lg:px-12 h-full"
+            className="section-content w-full px-4 sm:px-6 md:px-8 lg:px-12"
           >
             <CommitteeContent />
           </div>
         </section>
 
-        {/* SECTION 5: Explore Hyderabad */}
+        {/* SECTION 6: Explore Hyderabad */}
         <section ref={exploreSectionRef} className="h-screen flex items-center">
           <div 
             ref={exploreContentRef}

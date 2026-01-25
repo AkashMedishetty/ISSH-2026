@@ -8,7 +8,7 @@ export const WELCOME_MODEL_URL = '/Models/welcome message model.glb';
 export const WELCOME_PRECOMPUTED_URL = '/data/welcome-gesture.json';
 
 export const CONFERENCE_LOGO = '/logos/1.png';
-export const ASSOCIATION_LOGOS = ['/logos/3.png', '/logos/4.png', '/logos/5.png', '/logos/2.png', '/logos/logo.png'];
+export const ASSOCIATION_LOGOS = ['/logos/3.png', '/logos/4.png', '/logos/5.png', '/logos/HHWS.jpeg', '/logos/logo.png'];
 
 export const NAV_ITEMS = [
   { label: 'Committee', href: '/about' },

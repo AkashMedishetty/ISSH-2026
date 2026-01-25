@@ -33,7 +33,7 @@ export function PricingContent() {
       {/* Registration Table */}
       <div className="bg-white/70 backdrop-blur-xl rounded-xl shadow-lg overflow-hidden border border-white/50 mb-4 md:mb-6">
         <div className="bg-[#5a3d2b] text-white text-center py-2 md:py-3">
-          <h3 className="font-bold text-sm md:text-base">Registration Details</h3>
+          <h3 className="font-bold text-sm md:text-base">Registration Details <span className="text-[#ebc975]">[18% GST Extra]</span></h3>
         </div>
         
         {/* Table Header */}

@@ -5,22 +5,28 @@ import Image from 'next/image';
 interface Member {
   name: string;
   role?: string;
+  subtitle?: string;
   initials: string;
   image?: string;
 }
 
-function MemberCard({ member }: { member: Member }) {
+function MemberCard({ member, size = 'normal' }: { member: Member; size?: 'normal' | 'large' }) {
+  const sizeClasses = size === 'large' 
+    ? 'w-16 h-16 md:w-24 md:h-24' 
+    : 'w-12 h-12 md:w-16 md:h-16';
+  
   return (
     <div className="flex flex-col items-center text-center">
-      <div className="w-14 h-14 md:w-20 md:h-20 rounded-full bg-gradient-to-br from-[#ebc975] to-[#852016] flex items-center justify-center overflow-hidden border-2 border-[#ebc975]/60 shadow-md">
+      <div className={`${sizeClasses} rounded-full bg-gradient-to-br from-[#ebc975] to-[#852016] flex items-center justify-center overflow-hidden border-2 border-[#ebc975]/60 shadow-md`}>
         {member.image ? (
-          <Image src={member.image} alt={member.name} width={80} height={80} className="w-full h-full object-cover" />
+          <Image src={member.image} alt={member.name} width={96} height={96} className="w-full h-full object-cover" />
         ) : (
-          <span className="text-sm md:text-lg font-bold text-white">{member.initials}</span>
+          <span className="text-xs md:text-sm font-bold text-white">{member.initials}</span>
         )}
       </div>
-      <p className="text-[9px] md:text-xs font-semibold text-[#25406b] leading-tight mt-1">{member.name}</p>
-      {member.role && <p className="text-[8px] md:text-[10px] text-[#852016]">{member.role}</p>}
+      <p className="text-[8px] md:text-[10px] font-semibold text-[#25406b] leading-tight mt-1 max-w-[70px] md:max-w-[90px]">{member.name}</p>
+      {member.role && <p className="text-[7px] md:text-[9px] text-[#852016] font-medium">{member.role}</p>}
+      {member.subtitle && <p className="text-[6px] md:text-[8px] text-[#25406b]/60 max-w-[60px] md:max-w-[80px] leading-tight">{member.subtitle}</p>}
     </div>
   );
 }
@@ -28,10 +34,10 @@ function MemberCard({ member }: { member: Member }) {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div>
-      <h4 className="text-[9px] md:text-[11px] font-bold text-[#852016] mb-2 md:mb-3 text-center uppercase tracking-wide">
+      <h4 className="text-[7px] md:text-[9px] font-bold text-[#852016] mb-1.5 text-center uppercase tracking-wide">
         {title}
       </h4>
-      <div className="flex justify-center gap-3 md:gap-6 flex-wrap">
+      <div className="flex justify-center gap-2 md:gap-4 flex-wrap">
         {children}
       </div>
     </div>
@@ -54,6 +60,11 @@ export function CommitteeContent() {
   const tcosBearers: Member[] = [
     { name: 'Dr Raju Iyenger', role: 'President', initials: 'RI', image: '/ISSH/raju.jpg' },
     { name: 'Dr Suneel R', role: 'Secretary', initials: 'SR', image: '/ISSH/suneel.jpg' },
+  ];
+
+  const aprasBearers: Member[] = [
+    { name: 'Dr Palukuri Lakshmi', role: 'President', initials: 'PL', image: '/ISSH/Dr Palukuri Lakshmi.jpg' },
+    { name: 'Dr Duggirala Prathap', role: 'General Secretary', initials: 'DP', image: '/ISSH/Dr Duggirala Prathap.jpg' },
   ];
 
   const orgChairs: Member[] = [
@@ -93,14 +104,16 @@ export function CommitteeContent() {
   ];
 
   return (
-    <div className="w-full h-full flex flex-col px-2 md:px-4 py-1 md:py-2">
+    <div className="w-full h-full flex flex-col px-2 md:px-4 overflow-y-auto">
       {/* Title */}
-      <h2 className="text-base md:text-2xl font-bold text-[#25406b] text-center mb-2 md:mb-3">
-        Organising <span className="text-[#852016]">Committee</span>
-      </h2>
+      <div className="text-center mb-2 md:mb-3 pt-1">
+        <h2 className="text-base md:text-2xl font-bold text-[#25406b]">
+          Organising <span className="text-[#852016]">Committee</span>
+        </h2>
+      </div>
 
-      {/* Office Bearers Row - 3 columns */}
-      <div className="grid grid-cols-3 gap-1.5 md:gap-3 mb-2 md:mb-3">
+      {/* Office Bearers Row - 4 columns */}
+      <div className="grid grid-cols-4 gap-1 md:gap-2 mb-2 md:mb-3">
         <Section title="ISSH Office Bearers">
           {isshBearers.map((m) => <MemberCard key={m.name} member={m} />)}
         </Section>
@@ -110,6 +123,9 @@ export function CommitteeContent() {
         <Section title="TCOS Office Bearers">
           {tcosBearers.map((m) => <MemberCard key={m.name} member={m} />)}
         </Section>
+        <Section title="APRAS AP & TG">
+          {aprasBearers.map((m) => <MemberCard key={m.name} member={m} />)}
+        </Section>
       </div>
 
       {/* Organising Committee */}
@@ -118,35 +134,35 @@ export function CommitteeContent() {
       </Section>
 
       {/* Scientific Committee */}
-      <div className="mt-2 md:mt-3">
+      <div className="mt-1.5 md:mt-2">
         <Section title="Scientific Committee">
           {scientific.map((m) => <MemberCard key={m.name} member={m} />)}
         </Section>
       </div>
 
       {/* Trade Committee */}
-      <div className="mt-2 md:mt-3">
+      <div className="mt-1.5 md:mt-2">
         <Section title="Trade Committee">
           {trade.map((m) => <MemberCard key={m.name} member={m} />)}
         </Section>
       </div>
 
       {/* Travel & Accommodation */}
-      <div className="mt-2 md:mt-3">
+      <div className="mt-1.5 md:mt-2">
         <Section title="Travel & Accommodation">
           {travel.map((m) => <MemberCard key={m.name} member={m} />)}
         </Section>
       </div>
 
       {/* Registration */}
-      <div className="mt-2 md:mt-3">
+      <div className="mt-1.5 md:mt-2">
         <Section title="Registration">
           {registration.map((m) => <MemberCard key={m.name} member={m} />)}
         </Section>
       </div>
 
-      {/* Food & Beverages + Banquet Incharge - side by side, centered */}
-      <div className="mt-2 md:mt-3 flex justify-center gap-8 md:gap-16">
+      {/* Food & Beverages + Banquet Incharge - side by side */}
+      <div className="mt-1.5 md:mt-2 flex justify-center gap-6 md:gap-12">
         <Section title="Food & Beverages">
           {food.map((m) => <MemberCard key={m.name} member={m} />)}
         </Section>
@@ -154,6 +170,9 @@ export function CommitteeContent() {
           {banquet.map((m) => <MemberCard key={m.name} member={m} />)}
         </Section>
       </div>
+
+      {/* Bottom padding to prevent overlap */}
+      <div className="pb-16 md:pb-8" />
     </div>
   );
 }

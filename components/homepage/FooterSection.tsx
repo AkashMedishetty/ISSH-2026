@@ -49,6 +49,7 @@ export function FooterSection() {
           {/* Contact */}
           <div className="mb-5">
             <p className="text-sm font-bold mb-2 uppercase tracking-wider" style={{ color: config.theme.secondary }}>Contact</p>
+            <p className="text-base font-semibold text-white mb-2">Apple Events</p>
             <p className="text-base text-white/90 mb-1">Ms. Lakhshmi Prabha</p>
             <a href={`tel:${config.contact.phone}`} className="text-base text-white/80 flex items-center gap-2 py-1.5">
               <Phone className="w-5 h-5" />{config.contact.phone}
@@ -123,6 +124,7 @@ export function FooterSection() {
             <div>
               <h4 className="text-sm font-bold mb-3 uppercase tracking-wider" style={{ color: config.theme.secondary }}>Contact</h4>
               <div className="space-y-2">
+                <p className="text-sm font-semibold text-white">Apple Events</p>
                 <p className="text-sm text-white/90">Ms. Lakhshmi Prabha</p>
                 <a href={`tel:${config.contact.phone}`} className="flex items-center gap-2 text-sm text-white/80 hover:text-white">
                   <Phone className="w-4 h-4" />{config.contact.phone}
