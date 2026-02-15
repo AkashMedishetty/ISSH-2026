@@ -85,9 +85,23 @@ export function LoginForm({ callbackUrl = "/dashboard" }: LoginFormProps) {
               console.log('Session check attempt:', attempts, 'Session:', session);
               
               if (session && session.user) {
-                // Session confirmed, safe to redirect
-                console.log('Session confirmed, redirecting to:', callbackUrl);
-                window.location.href = callbackUrl;
+                // Session confirmed, determine redirect based on role
+                const userRole = session.user.role;
+                let redirectUrl = callbackUrl;
+                
+                // Role-based redirect
+                if (userRole === 'reviewer') {
+                  redirectUrl = '/reviewer';
+                } else if (userRole === 'admin') {
+                  redirectUrl = '/admin';
+                } else if (userRole === 'sponsor') {
+                  redirectUrl = '/sponsor/dashboard';
+                } else {
+                  redirectUrl = '/dashboard';
+                }
+                
+                console.log('Session confirmed, redirecting to:', redirectUrl, 'Role:', userRole);
+                window.location.href = redirectUrl;
                 return true;
               }
               return false;
@@ -144,113 +158,91 @@ export function LoginForm({ callbackUrl = "/dashboard" }: LoginFormProps) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
     >
-      <Card className="w-full max-w-md mx-auto">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold text-center">
-            Welcome Back
-          </CardTitle>
-          <CardDescription className="text-center">
-            Sign in to your ${conferenceConfig.shortName} account
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4" autoComplete="on">
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription aria-live="assertive">
-                  {error}
-                </AlertDescription>
-              </Alert>
-            )}
+      <form onSubmit={handleSubmit} className="space-y-5" autoComplete="on">
+        {error && (
+          <Alert variant="destructive">
+            <AlertDescription aria-live="assertive">
+              {error}
+            </AlertDescription>
+          </Alert>
+        )}
 
-            <div className="space-y-2">
-              <Label htmlFor="email">Email Address</Label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="Enter your email"
-                  value={formData.email}
-                  onChange={(e) => handleInputChange("email", e.target.value)}
-                  className="pl-10"
-                  disabled={isLoading}
-                  required
-                  autoComplete="username"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                <Input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Enter your password"
-                  value={formData.password}
-                  onChange={(e) => handleInputChange("password", e.target.value)}
-                  className="pl-10 pr-10"
-                  disabled={isLoading}
-                  required
-                  autoComplete="current-password"
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                  onClick={() => setShowPassword((x) => !x)}
-                  disabled={isLoading}
-                  tabIndex={-1}
-                  aria-label={showPassword ? "Hide password" : "Show password"}
-                >
-                  {showPassword ? (
-                    <EyeOff className="h-4 w-4 text-gray-400" />
-                  ) : (
-                    <Eye className="h-4 w-4 text-gray-400" />
-                  )}
-                </Button>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <Link
-                href="/auth/forgot-password"
-                className="text-sm text-theme-primary-600 hover:text-theme-primary-700 hover:underline"
-              >
-                Forgot password?
-              </Link>
-            </div>
-
-            <Button
-              type="submit"
-              className="w-full bg-gradient-to-r from-theme-primary-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
+        <div className="space-y-2">
+          <Label htmlFor="email" className="text-sm font-bold text-gray-700">Email Address</Label>
+          <div className="relative">
+            <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-500" />
+            <Input
+              id="email"
+              type="email"
+              placeholder="Enter your email"
+              value={formData.email}
+              onChange={(e) => handleInputChange("email", e.target.value)}
+              className="pl-10 h-12 bg-white/70 border-gray-200 focus:border-pink-400 focus:ring-pink-400"
               disabled={isLoading}
+              required
+              autoComplete="username"
+            />
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="password" className="text-sm font-bold text-gray-700">Password</Label>
+          <div className="relative">
+            <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-500" />
+            <Input
+              id="password"
+              type={showPassword ? "text" : "password"}
+              placeholder="Enter your password"
+              value={formData.password}
+              onChange={(e) => handleInputChange("password", e.target.value)}
+              className="pl-10 pr-10 h-12 bg-white/70 border-gray-200 focus:border-pink-400 focus:ring-pink-400"
+              disabled={isLoading}
+              required
+              autoComplete="current-password"
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+              onClick={() => setShowPassword((x) => !x)}
+              disabled={isLoading}
+              tabIndex={-1}
+              aria-label={showPassword ? "Hide password" : "Show password"}
             >
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Signing in...
-                </>
+              {showPassword ? (
+                <EyeOff className="h-4 w-4 text-gray-500" />
               ) : (
-                "Sign In"
+                <Eye className="h-4 w-4 text-gray-500" />
               )}
             </Button>
+          </div>
+        </div>
 
-            <div className="text-center text-sm text-gray-600">
-              Don&apos;t have an account?{" "}
-              <a
-                href="/register"
-                className="font-medium text-theme-primary-600 hover:text-theme-primary-700 hover:underline"
-              >
-                Create account
-              </a>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
+        <div className="flex items-center justify-end">
+          <Link
+            href="/auth/forgot-password"
+            className="text-sm font-semibold text-pink-600 hover:text-pink-700"
+          >
+            Forgot password?
+          </Link>
+        </div>
+
+        <Button
+          type="submit"
+          className="w-full h-12 bg-gradient-to-r from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700 text-white font-bold rounded-xl shadow-lg"
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Signing in...
+            </>
+          ) : (
+            "Sign In"
+          )}
+        </Button>
+      </form>
     </motion.div>
   );
 }

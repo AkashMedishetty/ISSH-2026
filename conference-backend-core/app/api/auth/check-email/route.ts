@@ -44,12 +44,15 @@ export async function POST(request: NextRequest) {
       email: email.toLowerCase() 
     })
 
-    console.log('Email check result:', { email, available: !existingUser })
+    // Treat pending-payment users as available (they abandoned the gateway)
+    const isAvailable = !existingUser || existingUser.registration?.status === 'pending-payment'
+
+    console.log('Email check result:', { email, available: isAvailable, status: existingUser?.registration?.status })
     
     return NextResponse.json({
       success: true,
-      available: !existingUser,
-      message: existingUser ? 'Email already registered' : 'Email available'
+      available: isAvailable,
+      message: isAvailable ? 'Email available' : 'Email already registered'
     })
 
   } catch (error) {

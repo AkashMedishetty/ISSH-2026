@@ -38,6 +38,7 @@ export interface InvoiceData {
   };
   pricing: {
     baseAmount: number;
+    gst: number;
     workshopFees: number;
     accompanyingFees: number;
     totalAmount: number;
@@ -424,6 +425,16 @@ export class InvoiceGenerator {
                         <td class="text-right">${formatCurrency(data.pricing.baseAmount)}</td>
                         <td class="text-right">${formatCurrency(data.pricing.baseAmount)}</td>
                     </tr>
+                    ${data.pricing.gst > 0 ? `
+                    <tr>
+                        <td>
+                            <strong>GST (18%)</strong>
+                        </td>
+                        <td class="text-center">1</td>
+                        <td class="text-right">${formatCurrency(data.pricing.gst)}</td>
+                        <td class="text-right">${formatCurrency(data.pricing.gst)}</td>
+                    </tr>
+                    ` : ''}
                     ${(data.pricing.workshopFees > 0 && data.registration.workshopSelections.length > 0) ? `
                     <tr>
                         <td>
@@ -474,7 +485,6 @@ export class InvoiceGenerator {
         <div class="footer">
             <p><strong>Thank you for registering for ${conferenceConfig.shortName}!</strong></p>
             <p>For any queries, please contact us at <a href="mailto:${conferenceConfig.contact.supportEmail}">${conferenceConfig.contact.supportEmail}</a></p>
-            <p>Powered by <a href="https://purplehatevents.in" target="_blank">PurpleHat Events</a></p>
         </div>
     </div>
 </body>
@@ -486,49 +496,64 @@ export class InvoiceGenerator {
     // Check if we're in Vercel serverless environment
     const isVercel = process.env.VERCEL === '1';
     
+    // Default viewport for PDF generation
+    const viewport = {
+      deviceScaleFactor: 1,
+      hasTouch: false,
+      height: 1200,
+      isLandscape: false,
+      isMobile: false,
+      width: 800,
+    };
+    
     let browser;
     if (isVercel) {
-      // Use chrome-aws-lambda for Vercel/AWS Lambda
+      // Use @sparticuz/chromium for Vercel/AWS Lambda
       const chromium = require('@sparticuz/chromium');
+      
+      // Disable WebGL for better performance in serverless
+      chromium.setGraphicsMode = false;
+      
       browser = await puppeteer.launch({
         args: chromium.args,
-        defaultViewport: chromium.defaultViewport,
+        defaultViewport: viewport,
         executablePath: await chromium.executablePath(),
-        headless: chromium.headless,
+        headless: true,
       });
     } else {
-    // Local development - try to find Chrome executable
-    const possiblePaths = [
-      'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-      'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
-      process.env.CHROME_PATH,
-      process.env.PUPPETEER_EXECUTABLE_PATH
-    ].filter(Boolean);
+      // Local development - try to find Chrome executable
+      const possiblePaths = [
+        'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+        'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+        process.env.CHROME_PATH,
+        process.env.PUPPETEER_EXECUTABLE_PATH
+      ].filter(Boolean);
 
-    let executablePath = '';
-    for (const path of possiblePaths) {
-      try {
-        const fs = require('fs');
-        if (path && fs.existsSync(path)) {
-          executablePath = path;
-          break;
+      let executablePath = '';
+      for (const path of possiblePaths) {
+        try {
+          const fs = require('fs');
+          if (path && fs.existsSync(path)) {
+            executablePath = path;
+            break;
+          }
+        } catch (e) {
+          // Continue to next path
         }
-      } catch (e) {
-        // Continue to next path
       }
-    }
 
-    browser = await puppeteer.launch({
-      headless: true,
-      executablePath: executablePath || undefined,
-      args: [
-        '--no-sandbox', 
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-gpu'
-      ]
-    });
-  }
+      browser = await puppeteer.launch({
+        headless: true,
+        defaultViewport: viewport,
+        executablePath: executablePath || undefined,
+        args: [
+          '--no-sandbox', 
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-gpu'
+        ]
+      });
+    }
 
     try {
       const page = await browser.newPage();
@@ -589,6 +614,7 @@ export class InvoiceGenerator {
       },
       pricing: {
         baseAmount: payment.amount.registration || 0,
+        gst: payment.breakdown?.gst || payment.amount?.gst || 0,
         workshopFees: payment.amount.workshops || 0,
         accompanyingFees: payment.amount.accompanyingPersons || 0,
         totalAmount: payment.amount.total || 0,
@@ -608,6 +634,7 @@ export class InvoiceGenerator {
     
     // Use actual breakdown values if available
     const registrationFee = paymentBreakdown.registration || 0;
+    const gst = paymentBreakdown.gst || 0;
     const workshopFees = paymentBreakdown.workshops || 0;
     const accompanyingFees = paymentBreakdown.accompanyingPersons || 0;
     const discount = paymentBreakdown.discount || 0;
@@ -668,7 +695,11 @@ export class InvoiceGenerator {
       },
       payment: {
         amount: totalAmount,
-        status: user.payment?.status || 'pending',
+        // Check both payment.status and registration.status to determine if paid
+        status: ['verified', 'completed'].includes(user.payment?.status) || 
+                ['paid', 'confirmed'].includes(user.registration?.status) 
+                  ? 'verified' 
+                  : (user.payment?.status || 'pending'),
         method: user.payment?.method === 'bank-transfer' ? 'Bank Transfer' : (user.payment?.method || 'Bank Transfer'),
         utr: user.payment?.bankTransferUTR || user.payment?.transactionId,
         transactionId: user.payment?.transactionId,
@@ -676,9 +707,10 @@ export class InvoiceGenerator {
       },
       pricing: {
         baseAmount: actualRegistrationFee,
+        gst: gst,
         workshopFees: workshopFees,
         accompanyingFees: accompanyingFees,
-        totalAmount: actualRegistrationFee + workshopFees + accompanyingFees,
+        totalAmount: actualRegistrationFee + gst + workshopFees + accompanyingFees,
         discount: discount,
         finalAmount: totalAmount
       }

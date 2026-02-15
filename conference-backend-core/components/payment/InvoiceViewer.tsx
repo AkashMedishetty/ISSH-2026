@@ -37,6 +37,8 @@ interface InvoiceData {
   breakdown: {
     registrationType: string
     baseAmount: number
+    gst: number
+    gstPercentage: number
     workshopFees: Array<{
       name: string
       amount: number
@@ -329,6 +331,14 @@ export function InvoiceViewer({ invoiceData, onDownload }: InvoiceViewerProps) {
                 <span>Registration Fee ({getRegistrationTypeLabel(invoiceData.breakdown.registrationType)}):</span>
                 <span>{formatCurrency(invoiceData.breakdown.baseAmount, invoiceData.amount.currency)}</span>
               </div>
+
+              {/* GST */}
+              {(invoiceData.breakdown?.gst > 0) && (
+                <div className="flex justify-between text-sm">
+                  <span>GST (18%):</span>
+                  <span>{formatCurrency(invoiceData.breakdown.gst, invoiceData.amount.currency)}</span>
+                </div>
+              )}
 
               {/* Workshop Fees */}
               {invoiceData.breakdown.workshopFees.length > 0 && (

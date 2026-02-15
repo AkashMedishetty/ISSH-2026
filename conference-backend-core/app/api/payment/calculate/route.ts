@@ -3,6 +3,8 @@ import connectDB from '@/lib/mongodb'
 import Configuration from '@/lib/models/Configuration'
 import Workshop from '@/lib/models/Workshop'
 import { getCurrentTier, getTierPricing } from '@/lib/registration'
+import { calculateGST } from '@/conference-backend-core/lib/utils/gst'
+import mongoose from 'mongoose'
 
 export async function POST(request: NextRequest) {
   try {
@@ -21,8 +23,30 @@ export async function POST(request: NextRequest) {
     // Get current tier and pricing
     const currentTierName = getCurrentTier()
     let categories = getTierPricing(currentTierName)
+    let accompanyingPersonFee = categories['accompanying']?.amount || 0
     
-    // Try to get admin-configured pricing from database
+    // Try to get pricing from pricing_tiers collection (seeded data)
+    const db = mongoose.connection.db
+    if (db) {
+      try {
+        const today = new Date()
+        const activeTier = await db.collection('pricing_tiers').findOne({
+          active: true,
+          startDate: { $lte: today },
+          endDate: { $gte: today }
+        })
+        
+        if (activeTier && activeTier.categories) {
+          console.log('📊 Using pricing from database tier:', activeTier.name)
+          categories = activeTier.categories
+          accompanyingPersonFee = activeTier.categories['accompanying']?.amount || 0
+        }
+      } catch (error) {
+        console.log('Error fetching from pricing_tiers, using fallback')
+      }
+    }
+    
+    // Also try configurations collection (admin-saved)
     try {
       const adminPricingConfig = await Configuration.findOne({ 
         type: 'pricing', 
@@ -36,18 +60,24 @@ export async function POST(request: NextRequest) {
         const tiers = adminPricingConfig.value
         const pick = (t: any) => t && t.isActive && iso >= t.startDate && iso <= t.endDate
         
+        let selectedTier = null
         if (pick(tiers.earlyBird)) { 
-          categories = tiers.earlyBird.categories 
+          selectedTier = tiers.earlyBird
         } else if (pick(tiers.regular)) { 
-          categories = tiers.regular.categories 
+          selectedTier = tiers.regular
         } else if (pick(tiers.onsite)) { 
-          categories = tiers.onsite.categories 
+          selectedTier = tiers.onsite
         } else { 
-          categories = tiers.regular?.categories || categories 
+          selectedTier = tiers.regular
+        }
+        
+        if (selectedTier?.categories) {
+          categories = selectedTier.categories
+          accompanyingPersonFee = selectedTier.categories['accompanying']?.amount || 0
         }
       }
     } catch (error) {
-      console.log('Using fallback pricing - database config unavailable')
+      console.log('Using fallback pricing - configurations unavailable')
     }
 
     // Calculate base registration fee
@@ -55,13 +85,15 @@ export async function POST(request: NextRequest) {
     if (!registrationCategory) {
       return NextResponse.json({
         success: false,
-        message: 'Invalid registration type'
+        message: `Invalid registration type: ${registrationType}`
       }, { status: 400 })
     }
     
     // Get age exemption rules from database
-    let seniorCitizenAge = 70
-    let seniorCitizenCategory = 'consultant'
+    let seniorCitizenAge = 999  // Default to disabled (very high age)
+    let seniorCitizenCategory = 'none'  // Default to no category
+    let seniorCitizenEnabled = false
+    let childrenUnderAge = 10
     
     try {
       const ageExemptionsConfig = await Configuration.findOne({
@@ -71,26 +103,35 @@ export async function POST(request: NextRequest) {
       })
       
       if (ageExemptionsConfig?.value) {
-        seniorCitizenAge = ageExemptionsConfig.value.senior_citizen_age || 70
-        seniorCitizenCategory = ageExemptionsConfig.value.senior_citizen_category || 'consultant'
+        // Only apply senior citizen exemption if explicitly enabled
+        seniorCitizenEnabled = ageExemptionsConfig.value.senior_citizen_enabled === true
+        if (seniorCitizenEnabled) {
+          seniorCitizenAge = ageExemptionsConfig.value.senior_citizen_age || 999
+          seniorCitizenCategory = ageExemptionsConfig.value.senior_citizen_category || 'none'
+        }
+        childrenUnderAge = ageExemptionsConfig.value.children_under_age || 10
       }
     } catch (error) {
-      console.log('Using fallback age exemptions - database config unavailable')
+      console.log('Using fallback age exemptions')
     }
     
-    // Apply age-based free registration for senior citizens
+    // Apply age-based free registration for senior citizens (only if enabled)
     let baseAmount = registrationCategory.amount
     const currency = registrationCategory.currency || 'INR'
+    const registrationLabel = registrationCategory.label || registrationType
     
-    // Check if senior citizen exemption applies
+    // Check if senior citizen exemption applies (only if enabled)
     const appliesForSeniorExemption = 
+      seniorCitizenEnabled &&
       age >= seniorCitizenAge && 
-      (seniorCitizenCategory === 'all' || 
-       seniorCitizenCategory === registrationType)
+      (seniorCitizenCategory === 'all' || seniorCitizenCategory === registrationType)
     
     if (appliesForSeniorExemption) {
-      baseAmount = 0 // Free registration for qualifying senior citizens
+      baseAmount = 0
     }
+
+    // Calculate GST (18% on base registration amount only)
+    const gstAmount = calculateGST(baseAmount)
 
     // Get workshops from Workshop collection
     let workshops: any[] = []
@@ -99,148 +140,64 @@ export async function POST(request: NextRequest) {
       workshops = workshopDocs.map(w => ({
         id: w.id,
         name: w.name,
-        amount: w.price, // Workshop model uses 'price', map to 'amount' for consistency
+        amount: w.price,
         currency: w.currency
       }))
-      console.log(`Found ${workshops.length} active workshops in database`)
     } catch (error) {
-      console.error('Error fetching workshops from database:', error)
-      // Fallback workshop pricing if database fetch fails
-      workshops = [
-        { id: 'joint-replacement', name: 'Advanced Joint Replacement Techniques', amount: 2000 },
-        { id: 'spinal-surgery', name: 'Spine Surgery and Instrumentation', amount: 2500 },
-        { id: 'pediatric-orthopaedics', name: 'Pediatric Orthopaedics', amount: 2000 },
-        { id: 'arthroscopy', name: 'Arthroscopic Surgery Techniques', amount: 1500 },
-        { id: 'orthopaedic-rehab', name: 'Orthopaedic Rehabilitation', amount: 1800 },
-        { id: 'trauma-surgery', name: 'Orthopaedic Trauma Surgery', amount: 2200 }
-      ]
-      console.log('Using fallback workshops due to error')
+      console.error('Error fetching workshops:', error)
     }
 
     // Calculate workshop fees
     let workshopFees: Array<{ name: string; amount: number }> = []
     let totalWorkshopFees = 0
 
-    console.log('Available workshops:', workshops.map(w => ({ id: w.id, name: w.name, amount: w.amount })))
-    console.log('Workshop selections from request:', workshopSelections)
-
     if (workshopSelections && workshopSelections.length > 0) {
       workshopSelections.forEach((workshopId: string) => {
-        console.log(`Looking for workshop with ID: "${workshopId}"`)
         const workshop = workshops.find(w => w.id === workshopId)
         if (workshop) {
-          console.log(`✓ Found workshop: ${workshop.name} - ₹${workshop.amount}`)
           workshopFees.push({
             name: workshop.name,
             amount: workshop.amount
           })
           totalWorkshopFees += workshop.amount
-        } else {
-          console.log(`✗ Workshop not found: ${workshopId}`)
         }
       })
-      console.log('Total workshop fees calculated:', totalWorkshopFees)
-    } else {
-      console.log('No workshop selections provided')
-    }
-
-    // Get accompanying person fees and age exemptions from database config only
-    let accompanyingPersonFee = 0
-    let childrenUnderAge = 10
-    
-    try {
-      console.log('Fetching accompanying person config from database...')
-      // Try without isActive filter first to see if data exists
-      const accompanyingConfig = await Configuration.findOne({
-        type: 'pricing',
-        key: 'accompanying_person'
-      }).sort({ updatedAt: -1 })
-      
-      console.log('Accompanying person config found:', accompanyingConfig ? 'YES' : 'NO')
-      if (accompanyingConfig) {
-        console.log('Config document:', {
-          key: accompanyingConfig.key,
-          isActive: accompanyingConfig.isActive,
-          value: accompanyingConfig.value,
-          updatedAt: accompanyingConfig.updatedAt
-        })
-      }
-      
-      if (accompanyingConfig?.value && accompanyingConfig.isActive !== false) {
-        // Support both old format (basePrice/tierPricing) and new format (amount)
-        if (accompanyingConfig.value.amount) {
-          // New simple format
-          accompanyingPersonFee = accompanyingConfig.value.amount
-          console.log('Using database accompanying person fee (new format):', accompanyingPersonFee)
-        } else if (accompanyingConfig.value.basePrice && !isNaN(accompanyingConfig.value.basePrice)) {
-          // Old format with basePrice
-          accompanyingPersonFee = accompanyingConfig.value.basePrice
-          console.log('Using database accompanying person fee (old format - basePrice):', accompanyingPersonFee)
-        } else if (accompanyingConfig.value.tierPricing) {
-          // Old format with tierPricing - use regular tier as default
-          const tierPrice = accompanyingConfig.value.tierPricing.regular || 
-                           accompanyingConfig.value.tierPricing.earlyBird ||
-                           Object.values(accompanyingConfig.value.tierPricing)[0]
-          if (tierPrice) {
-            accompanyingPersonFee = tierPrice
-            console.log('Using database accompanying person fee (old format - tier pricing):', accompanyingPersonFee)
-          } else {
-            console.log('Old format found but no valid price, using fallback:', accompanyingPersonFee)
-          }
-        } else {
-          console.log('Config value exists but no amount found, using fallback:', accompanyingPersonFee)
-        }
-      } else {
-        console.log('Using fallback accompanying person fee:', accompanyingPersonFee)
-      }
-      
-      console.log('Fetching age exemptions config from database...')
-      const ageExemptionsConfig = await Configuration.findOne({
-        type: 'pricing',
-        key: 'age_exemptions'
-      }).sort({ updatedAt: -1 })
-      
-      console.log('Age exemptions config found:', ageExemptionsConfig ? 'YES' : 'NO')
-      if (ageExemptionsConfig) {
-        console.log('Config document:', {
-          key: ageExemptionsConfig.key,
-          isActive: ageExemptionsConfig.isActive,
-          value: ageExemptionsConfig.value,
-          updatedAt: ageExemptionsConfig.updatedAt
-        })
-      }
-      
-      if (ageExemptionsConfig?.value && ageExemptionsConfig.isActive !== false) {
-        childrenUnderAge = ageExemptionsConfig.value.children_under_age || 10
-        console.log('Using database children under age:', childrenUnderAge)
-      } else {
-        console.log('Using fallback children under age:', childrenUnderAge)
-      }
-    } catch (error) {
-      console.error('Error fetching accompanying person fees and age exemptions:', error)
-      console.log('Using fallback values - database config unavailable')
     }
     
     // Calculate accompanying person fees
     let totalAccompanyingFees = 0
     let accompanyingPersonCount = 0
     let freeChildrenCount = 0
+    let accompanyingBreakdown: Array<{ name: string; age: number; amount: number; isFree: boolean }> = []
     
-    // Process each accompanying person
     if (accompanyingPersons && accompanyingPersons.length > 0) {
       accompanyingPersons.forEach((person: any) => {
         const personAge = person.age || 0
+        const personName = person.name || 'Accompanying Person'
+        
         if (personAge < childrenUnderAge) {
-          freeChildrenCount++ // Children under configured age are free
+          freeChildrenCount++
+          accompanyingBreakdown.push({
+            name: personName,
+            age: personAge,
+            amount: 0,
+            isFree: true
+          })
         } else {
           accompanyingPersonCount++
           totalAccompanyingFees += accompanyingPersonFee
+          accompanyingBreakdown.push({
+            name: personName,
+            age: personAge,
+            amount: accompanyingPersonFee,
+            isFree: false
+          })
         }
       })
     }
 
     // Calculate subtotal
-    const subtotal = baseAmount + totalWorkshopFees + totalAccompanyingFees
+    const subtotal = baseAmount + gstAmount + totalWorkshopFees + totalAccompanyingFees
 
     // Apply discounts (if any)
     let totalDiscount = 0
@@ -285,28 +242,40 @@ export async function POST(request: NextRequest) {
 
     // Calculate final total
     const total = subtotal - totalDiscount
-    const finalAmount = Math.max(total, 0) // Ensure non-negative
+    const finalAmount = Math.max(total, 0)
 
     const calculationData = {
       baseAmount,
-      registrationFee: baseAmount, // Add this for frontend compatibility
+      registrationFee: baseAmount,
+      registrationLabel,
+      gst: gstAmount,
       workshopFees: totalWorkshopFees,
       accompanyingPersons: totalAccompanyingFees,
-      accompanyingPersonFees: totalAccompanyingFees, // Add this for frontend compatibility
+      accompanyingPersonFees: totalAccompanyingFees,
+      accompanyingPersonCount,
+      freeChildrenCount,
       subtotal,
       discount: totalDiscount,
       total: finalAmount,
       finalAmount,
       currency,
       breakdown: {
-        registration: baseAmount,
+        registration: {
+          type: registrationType,
+          label: registrationLabel,
+          amount: baseAmount
+        },
+        gst: gstAmount,
+        gstPercentage: 18,
         workshops: workshopFees,
-        accompanyingPersonFees: totalAccompanyingFees,
+        accompanyingPersons: accompanyingBreakdown,
+        accompanyingPersonFeePerPerson: accompanyingPersonFee,
         appliedDiscounts,
-        registrationType,
         tier: currentTierName
       }
     }
+
+    console.log('💰 Price calculation result:', JSON.stringify(calculationData, null, 2))
 
     return NextResponse.json({
       success: true,

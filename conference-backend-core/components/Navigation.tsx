@@ -19,7 +19,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuLabel,
 } from './ui/dropdown-menu'
-import { Menu, X, LogOut, User, LayoutDashboard, Settings, ChevronDown, Shield } from 'lucide-react'
+import { Menu, X, LogOut, User, LayoutDashboard, Settings, ChevronDown, Shield, ClipboardList } from 'lucide-react'
 import { ThemeSwitcher } from './ThemeSwitcher'
 import { useConferenceTheme } from '../hooks/useConferenceTheme'
 import { MobileMenu } from './MobileResponsive'
@@ -79,7 +79,8 @@ export function Navigation() {
 
           {/* Right Side */}
           <div className="hidden md:flex items-center space-x-2">
-            <ThemeSwitcher />
+            {/* Theme switcher commented out for now */}
+            {/* <ThemeSwitcher /> */}
             
             {session ? (
               <DropdownMenu>
@@ -117,6 +118,28 @@ export function Navigation() {
                         <Shield className="mr-2 h-4 w-4" />
                         Admin Panel
                       </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => router.push('/manager')} className="cursor-pointer">
+                        <ClipboardList className="mr-2 h-4 w-4" />
+                        Manager Dashboard
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                  {(session.user as any)?.role === 'manager' && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => router.push('/manager')} className="cursor-pointer">
+                        <ClipboardList className="mr-2 h-4 w-4" />
+                        Manager Dashboard
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                  {(session.user as any)?.role === 'reviewer' && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => router.push('/reviewer')} className="cursor-pointer">
+                        <Shield className="mr-2 h-4 w-4" />
+                        Reviewer Dashboard
+                      </DropdownMenuItem>
                     </>
                   )}
                   <DropdownMenuSeparator />
@@ -143,7 +166,8 @@ export function Navigation() {
 
           {/* Mobile menu button */}
           <div className="md:hidden flex items-center space-x-2">
-            <ThemeSwitcher />
+            {/* Theme switcher commented out for now */}
+            {/* <ThemeSwitcher /> */}
             <Button
               variant="ghost"
               size="icon"
@@ -181,12 +205,39 @@ export function Navigation() {
                   Dashboard
                 </Link>
                 {(session.user as any)?.role === 'admin' && (
+                  <>
+                    <Link
+                      href="/admin"
+                      className="block px-3 py-2 rounded-md text-base font-medium"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      Admin Panel
+                    </Link>
+                    <Link
+                      href="/manager"
+                      className="block px-3 py-2 rounded-md text-base font-medium"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      Manager Dashboard
+                    </Link>
+                  </>
+                )}
+                {(session.user as any)?.role === 'manager' && (
                   <Link
-                    href="/admin"
+                    href="/manager"
                     className="block px-3 py-2 rounded-md text-base font-medium"
                     onClick={() => setMobileMenuOpen(false)}
                   >
-                    Admin Panel
+                    Manager Dashboard
+                  </Link>
+                )}
+                {(session.user as any)?.role === 'reviewer' && (
+                  <Link
+                    href="/reviewer"
+                    className="block px-3 py-2 rounded-md text-base font-medium"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Reviewer Dashboard
                   </Link>
                 )}
                 <button

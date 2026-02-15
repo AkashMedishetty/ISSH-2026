@@ -1,287 +1,939 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { useSession } from "next-auth/react"
-import { motion } from "framer-motion"
+import { useState, useEffect, useCallback, memo } from "react"
+import { useSession, signIn } from "next-auth/react"
+import { motion, AnimatePresence } from "framer-motion"
 import { Button } from "../../components/ui/button"
 import { Input } from "../../components/ui/input"
 import { Textarea } from "../../components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card"
+import { Label } from "../../components/ui/label"
+import { Checkbox } from "../../components/ui/checkbox"
+import { Alert, AlertDescription } from "../../components/ui/alert"
 import { Navigation } from "../../components/Navigation"
-import { Calendar, FileText, Award, Upload, CheckCircle, Bell, Mail, X, Zap, Clock, Phone, AlertCircle, User, Lock, LogIn } from "lucide-react"
+import { Calendar, FileText, Award, Upload, CheckCircle, Bell, Mail, Lock, LogIn, Clock, AlertCircle, UserPlus, User, MapPin, Stethoscope, ArrowLeft, ArrowRight, Eye, EyeOff, Loader2, X } from "lucide-react"
 import Link from "next/link"
 import { toast } from "sonner"
 import { conferenceConfig } from "../../config/conference.config"
+import { upload } from "@vercel/blob/client"
 
-export default function AbstractsPage() {
-  const { data: session, status } = useSession()
-  
-  // Update page title
-  useEffect(() => {
-    document.title = `Abstract Submission | ${conferenceConfig.shortName}`
-  }, [])
+// Constants
+const SUBMITTING_FOR_OPTIONS = [
+  { value: 'neurosurgery', label: 'Neurosurgery' },
+  { value: 'neurology', label: 'Neurology' }
+]
 
-  // Fetch abstracts configuration
-  useEffect(() => {
-    const fetchConfig = async () => {
-      try {
-        const response = await fetch('/api/abstracts/config')
-        const data = await response.json()
-        if (data.success) {
-          setAbstractsConfig(data.data)
-        }
-      } catch (error) {
-        console.error('Failed to load abstracts config:', error)
-      } finally {
-        setConfigLoading(false)
+const SUBMISSION_CATEGORY_OPTIONS = [
+  { value: 'award-paper', label: 'Award Paper' },
+  { value: 'free-paper', label: 'Free Paper' },
+  { value: 'poster-presentation', label: 'E-Poster' }
+]
+
+const NEUROSURGERY_TOPICS = [
+  'Skullbase', 'Vascular', 'Neuro Oncology', 'Paediatric Neurosurgery',
+  'Spine', 'Functional', 'General Neurosurgery', 'Miscellaneous'
+]
+
+const NEUROLOGY_TOPICS = [
+  'General Neurology', 'Neuroimmunology', 'Stroke', 'Neuromuscular Disorders',
+  'Epilepsy', 'Therapeutics in Neurology', 'Movement Disorders', 'Miscellaneous'
+]
+
+const TITLES = ['Dr.', 'Prof.', 'Mr.', 'Mrs.', 'Ms.']
+const DESIGNATIONS = ['Consultant', 'PG/Student']
+
+const getTopicsForSelection = (submittingFor: string) => {
+  if (submittingFor === 'neurosurgery') return NEUROSURGERY_TOPICS
+  if (submittingFor === 'neurology') return NEUROLOGY_TOPICS
+  return []
+}
+
+type FlowType = 'none' | 'registered' | 'unregistered'
+
+// ============ LOGIN MODAL COMPONENT ============
+interface LoginModalProps {
+  show: boolean
+  onClose: () => void
+  onSuccess: () => void
+}
+
+const LoginModal = memo(function LoginModal({ show, onClose, onSuccess }: LoginModalProps) {
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [loading, setLoading] = useState(false)
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    
+    try {
+      const result = await signIn('credentials', { email, password, redirect: false })
+      if (result?.ok) {
+        toast.success("Login successful!")
+        onSuccess()
+      } else {
+        toast.error(result?.error || "Invalid email or password")
       }
+    } catch {
+      toast.error("Login failed. Please try again.")
+    } finally {
+      setLoading(false)
     }
-    fetchConfig()
-  }, [])
-  
-  const [showSubmissionForm, setShowSubmissionForm] = useState(false)
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [authData, setAuthData] = useState({ registrationId: "", password: "" })
-  const [isSubmitted, setIsSubmitted] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
-  const [useSessionAuth, setUseSessionAuth] = useState(true)
-  const [submissionData, setSubmissionData] = useState<any>(null)
-  const [abstractsConfig, setAbstractsConfig] = useState<any>(null)
-  const [configLoading, setConfigLoading] = useState(true)
-  const [reminderEmail, setReminderEmail] = useState("")
-  const [reminderLoading, setReminderLoading] = useState(false)
-  
+  }
+
+  if (!show) return null
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+        onClick={onClose}
+      >
+        <motion.div
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.9, opacity: 0 }}
+          className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full p-6"
+          onClick={e => e.stopPropagation()}
+        >
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
+              <Lock className="w-5 h-5 text-theme-primary-600" />
+              Login to Submit
+            </h3>
+            <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <Label htmlFor="login-email">Email Address</Label>
+              <Input
+                id="login-email"
+                type="email"
+                placeholder="your.email@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="login-password">Password</Label>
+              <Input
+                id="login-password"
+                type="password"
+                placeholder="Your password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+            </div>
+            <Button type="submit" className="w-full bg-theme-primary-600 hover:bg-theme-primary-700" disabled={loading}>
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : (
+                <>
+                  <LogIn className="w-4 h-4 mr-2" />
+                  Login & Continue
+                </>
+              )}
+            </Button>
+          </form>
+          
+          <div className="mt-4 text-center text-sm text-gray-600 dark:text-gray-400">
+            <Link href="/auth/forgot-password" className="text-theme-primary-600 hover:underline">
+              Forgot password?
+            </Link>
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  )
+})
+
+// ============ REGISTERED ABSTRACT FORM COMPONENT ============
+interface RegisteredFormProps {
+  session: any
+  onClose: () => void
+  onSuccess: (data: any) => void
+}
+
+const RegisteredAbstractForm = memo(function RegisteredAbstractForm({ session, onClose, onSuccess }: RegisteredFormProps) {
   const [formData, setFormData] = useState({
+    submittingFor: "",
+    submissionCategory: "",
+    submissionTopic: "",
     title: "",
-    category: "",
     authors: "",
     abstract: "",
     keywords: "",
     file: null as File | null
   })
+  const [isLoading, setIsLoading] = useState(false)
 
-  const handleAuth = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
-    
-    try {
-      const response = await fetch('/api/auth/verify-registration', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(authData)
-      })
-      
-      const data = await response.json()
-      
-      if (data.success) {
-        setIsAuthenticated(true)
-        setShowSubmissionForm(true)
-        toast.success("Authentication successful! You can now submit your abstract.")
-      } else {
-        toast.error(data.message || "Invalid registration ID or password")
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      const allowedTypes = ['.doc', '.docx', '.pdf']
+      const ext = '.' + file.name.split('.').pop()?.toLowerCase()
+      if (!allowedTypes.includes(ext)) {
+        toast.error("Please upload Word documents or PDF files")
+        return
       }
-    } catch (error) {
-      toast.error("Authentication failed. Please try again.")
-    } finally {
-      setIsLoading(false)
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error("File size must not exceed 10MB")
+        return
+      }
+      setFormData(prev => ({ ...prev, file }))
     }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    // Validate required fields
-    if (!formData.title.trim()) {
-      toast.error('Please enter an abstract title')
+    if (!formData.submittingFor || !formData.submissionCategory || !formData.submissionTopic) {
+      toast.error('Please fill all required fields')
       return
     }
-    
-    if (!formData.category) {
-      toast.error('Please select a presentation category')
+    if (!formData.title.trim() || !formData.authors.trim()) {
+      toast.error('Please enter title and authors')
       return
     }
-    
-    if (!formData.authors.trim()) {
-      toast.error('Please enter author names')
-      return
-    }
-    
     if (!formData.file) {
-      toast.error('Please upload an abstract file (.doc or .docx)')
+      toast.error('Please upload an abstract file')
       return
-    }
-    
-    // Validate word count for abstract content if provided
-    if (formData.abstract.trim()) {
-      const wordCount = formData.abstract.trim().split(/\s+/).filter(word => word.length > 0).length
-      const wordLimit = abstractsConfig?.guidelines?.freePaper?.wordLimit || 250
-      if (wordCount > wordLimit) {
-        toast.error(`Abstract content exceeds the maximum word limit of ${wordLimit} words (current: ${wordCount} words)`)
-        return
-      }
     }
     
     setIsLoading(true)
-    
     try {
-      const submitData = new FormData()
-      submitData.append('title', formData.title)
-      submitData.append('track', formData.category)
-      submitData.append('authors', formData.authors)
-      submitData.append('abstract', formData.abstract)
-      submitData.append('keywords', formData.keywords)
+      toast.info("Uploading file...")
+      const blob = await upload(formData.file.name, formData.file, {
+        access: 'public',
+        handleUploadUrl: '/api/abstracts/upload',
+        clientPayload: JSON.stringify({ email: '' })
+      })
       
-      // Use session-based auth if logged in, otherwise use registration ID
-      if (session) {
-        // Don't need to append registrationId for session-based auth
-      } else {
-        submitData.append('registrationId', authData.registrationId)
-      }
-      
-      if (formData.file) {
-        submitData.append('file', formData.file)
-      }
-
-      // Choose the appropriate endpoint based on auth method
-      const endpoint = session ? '/api/abstracts/submit-auth' : '/api/abstracts/submit'
-      const response = await fetch(endpoint, {
+      toast.info("Submitting abstract...")
+      const response = await fetch('/api/abstracts/submit-auth', {
         method: 'POST',
-        body: submitData
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...formData,
+          blobUrl: blob.url,
+          fileName: formData.file.name,
+          fileSize: formData.file.size,
+          fileType: formData.file.type
+        })
       })
       
       const data = await response.json()
-      
       if (data.success) {
-        setSubmissionData(data.data)
-        setIsSubmitted(true)
         toast.success("Abstract submitted successfully!")
+        onSuccess(data.data)
       } else {
-        toast.error(data.message || "Submission failed. Please try again.")
+        toast.error(data.message || "Submission failed")
       }
-    } catch (error) {
+    } catch {
       toast.error("Submission failed. Please try again.")
     } finally {
       setIsLoading(false)
     }
   }
 
-  const handleInputChange = (field: string, value: string | File) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
-  }
+  return (
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-3xl mx-auto">
+      <Card className="bg-white dark:bg-gray-800 shadow-xl">
+        <CardHeader>
+          <div className="flex justify-between items-center">
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="w-5 h-5 text-theme-primary-600" />
+              Submit Your Abstract
+            </CardTitle>
+            <Button variant="ghost" size="sm" onClick={onClose}><X className="w-4 h-4" /></Button>
+          </div>
+          {session && <p className="text-sm text-gray-600 dark:text-gray-400">Submitting as: <strong>{session.user?.email}</strong></p>}
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label>Submitting For <span className="text-red-500">*</span></Label>
+                <Select value={formData.submittingFor} onValueChange={(v) => setFormData(prev => ({ ...prev, submittingFor: v, submissionTopic: '' }))}>
+                  <SelectTrigger className="mt-1"><SelectValue placeholder="Select Neurosurgery or Neurology" /></SelectTrigger>
+                  <SelectContent>
+                    {SUBMITTING_FOR_OPTIONS.map(opt => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Submission Category <span className="text-red-500">*</span></Label>
+                <Select value={formData.submissionCategory} onValueChange={(v) => setFormData(prev => ({ ...prev, submissionCategory: v }))}>
+                  <SelectTrigger className="mt-1"><SelectValue placeholder="Select category" /></SelectTrigger>
+                  <SelectContent>
+                    {SUBMISSION_CATEGORY_OPTIONS.map(opt => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            
+            <div>
+              <Label>Submission Topic <span className="text-red-500">*</span></Label>
+              <Select value={formData.submissionTopic} onValueChange={(v) => setFormData(prev => ({ ...prev, submissionTopic: v }))} disabled={!formData.submittingFor}>
+                <SelectTrigger className="mt-1"><SelectValue placeholder={formData.submittingFor ? "Select topic" : "First select Neurosurgery or Neurology"} /></SelectTrigger>
+                <SelectContent>
+                  {getTopicsForSelection(formData.submittingFor).map(topic => <SelectItem key={topic} value={topic}>{topic}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div>
+              <Label>Abstract Title <span className="text-red-500">*</span></Label>
+              <Input placeholder="Enter your abstract title" value={formData.title} onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))} className="mt-1" />
+            </div>
+            
+            <div>
+              <Label>Authors <span className="text-red-500">*</span></Label>
+              <Input placeholder="Author 1, Author 2 (comma separated)" value={formData.authors} onChange={(e) => setFormData(prev => ({ ...prev, authors: e.target.value }))} className="mt-1" />
+            </div>
+            
+            <div>
+              <Label>Abstract Content (Optional)</Label>
+              <Textarea placeholder="Enter abstract content (max 200 words)" value={formData.abstract} onChange={(e) => setFormData(prev => ({ ...prev, abstract: e.target.value }))} className="mt-1 min-h-[120px]" />
+            </div>
+            
+            <div>
+              <Label>Keywords (Optional)</Label>
+              <Input placeholder="keyword1, keyword2" value={formData.keywords} onChange={(e) => setFormData(prev => ({ ...prev, keywords: e.target.value }))} className="mt-1" />
+            </div>
+            
+            <div>
+              <Label>Abstract File <span className="text-red-500">*</span></Label>
+              <div className="mt-1 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center hover:border-theme-primary-500 transition-colors">
+                <input type="file" id="registered-file" accept=".doc,.docx,.pdf" onChange={handleFileChange} className="hidden" />
+                <label htmlFor="registered-file" className="cursor-pointer">
+                  <Upload className="w-10 h-10 mx-auto text-gray-400 mb-2" />
+                  {formData.file ? (
+                    <div>
+                      <p className="text-sm font-medium text-green-600">{formData.file.name}</p>
+                      <p className="text-xs text-gray-500">{(formData.file.size / 1024 / 1024).toFixed(2)} MB</p>
+                    </div>
+                  ) : (
+                    <div>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Click to upload</p>
+                      <p className="text-xs text-gray-500">Word (.doc, .docx) or PDF - Max 10MB</p>
+                    </div>
+                  )}
+                </label>
+              </div>
+            </div>
+            
+            <div className="flex gap-3 pt-4">
+              <Button type="submit" className="flex-1 bg-theme-primary-600 hover:bg-theme-primary-700" disabled={isLoading}>
+                {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Upload className="w-4 h-4 mr-2" />Submit Abstract</>}
+              </Button>
+              <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+    </motion.div>
+  )
+})
+
+
+// ============ UNREGISTERED FORM COMPONENT ============
+interface UnregisteredFormProps {
+  registrationTypes: Array<{ value: string; label: string; price: number }>
+  onClose: () => void
+  onSuccess: (data: any) => void
+}
+
+const UnregisteredForm = memo(function UnregisteredForm({ registrationTypes, onClose, onSuccess }: UnregisteredFormProps) {
+  const [step, setStep] = useState(1)
+  const [isLoading, setIsLoading] = useState(false)
+  const [file, setFile] = useState<File | null>(null)
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [emailAvailable, setEmailAvailable] = useState<boolean | null>(null)
+  const [isCheckingEmail, setIsCheckingEmail] = useState(false)
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+  const [touchedFields, setTouchedFields] = useState<Record<string, boolean>>({})
+  const [emailCheckTimeout, setEmailCheckTimeout] = useState<NodeJS.Timeout | null>(null)
+  
+  const [formData, setFormData] = useState({
+    title: 'Dr.', firstName: '', lastName: '', email: '', phone: '', age: '',
+    designation: 'Consultant', password: '', confirmPassword: '', institution: '',
+    mciNumber: '', address: '', city: '', state: '', country: 'India', pincode: '',
+    registrationType: '', dietaryRequirements: '', specialNeeds: '', submittingFor: '',
+    submissionCategory: '', submissionTopic: '', abstractTitle: '', authors: '',
+    abstractContent: '', keywords: '', agreeTerms: false
+  })
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (emailCheckTimeout) clearTimeout(emailCheckTimeout)
+    }
+  }, [emailCheckTimeout])
+
+  const checkEmailUniqueness = useCallback(async (email: string) => {
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return
+    setIsCheckingEmail(true)
+    try {
+      const response = await fetch('/api/auth/check-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim().toLowerCase() })
+      })
+      if (response.ok) {
+        const result = await response.json()
+        setEmailAvailable(result.available)
+        if (!result.available) toast.error('This email is already registered. Please use a different email or sign in.')
+      }
+    } catch { /* ignore */ } finally { setIsCheckingEmail(false) }
+  }, [])
+
+  // Handle email change with debounced check
+  const handleEmailChange = useCallback((email: string) => {
+    setFormData(prev => ({ ...prev, email: email.toLowerCase() }))
+    setEmailAvailable(null)
+    
+    // Clear existing timeout
+    if (emailCheckTimeout) clearTimeout(emailCheckTimeout)
+    
+    // Set new debounced check
+    if (email.includes('@') && email.includes('.')) {
+      const timeoutId = setTimeout(() => checkEmailUniqueness(email), 1000)
+      setEmailCheckTimeout(timeoutId)
+    }
+  }, [emailCheckTimeout, checkEmailUniqueness])
+
+  const updateField = useCallback((field: string, value: any) => {
+    setFormData(prev => ({ ...prev, [field]: value }))
+  }, [])
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      // Validate file type
-      const allowedTypes = ['.doc', '.docx']
-      const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase()
-      
-      if (!allowedTypes.includes(fileExtension)) {
-        toast.error("Please upload only Word documents (.doc or .docx)")
+    const f = e.target.files?.[0]
+    if (f) {
+      const ext = '.' + f.name.split('.').pop()?.toLowerCase()
+      if (!['.doc', '.docx', '.pdf'].includes(ext)) {
+        toast.error("Please upload Word or PDF files")
         return
       }
-      
-      setFormData((prev) => ({ ...prev, file }))
+      if (f.size > 10 * 1024 * 1024) {
+        toast.error("File size must not exceed 10MB")
+        return
+      }
+      setFile(f)
     }
   }
+
+  const validateStep = (s: number): boolean => {
+    const errors: Record<string, string> = {}
+    let hasErrors = false
+    
+    if (s === 1) {
+      if (!formData.firstName.trim()) { errors.firstName = 'Required'; hasErrors = true }
+      if (!formData.lastName.trim()) { errors.lastName = 'Required'; hasErrors = true }
+      if (!formData.age.trim()) { errors.age = 'Required'; hasErrors = true }
+      if (!formData.email.trim()) { errors.email = 'Required'; hasErrors = true }
+      else if (emailAvailable === false) { errors.email = 'Already registered'; hasErrors = true }
+      if (!formData.phone.trim() || !/^[0-9]{10}$/.test(formData.phone)) { errors.phone = '10 digits required'; hasErrors = true }
+      if (!formData.institution.trim()) { errors.institution = 'Required'; hasErrors = true }
+      if (!formData.mciNumber.trim()) { errors.mciNumber = 'Required'; hasErrors = true }
+      if (!formData.password || formData.password.length < 8) { errors.password = 'Min 8 chars'; hasErrors = true }
+      if (formData.password !== formData.confirmPassword) { errors.confirmPassword = 'No match'; hasErrors = true }
+    } else if (s === 2) {
+      if (!formData.city.trim()) { errors.city = 'Required'; hasErrors = true }
+      if (!formData.state.trim()) { errors.state = 'Required'; hasErrors = true }
+      if (!formData.registrationType) { errors.registrationType = 'Required'; hasErrors = true }
+    } else if (s === 3) {
+      if (!formData.submittingFor) { errors.submittingFor = 'Required'; hasErrors = true }
+      if (!formData.submissionCategory) { errors.submissionCategory = 'Required'; hasErrors = true }
+      if (!formData.submissionTopic) { errors.submissionTopic = 'Required'; hasErrors = true }
+      if (!formData.abstractTitle.trim()) { errors.abstractTitle = 'Required'; hasErrors = true }
+      if (!formData.authors.trim()) { errors.authors = 'Required'; hasErrors = true }
+      if (!file) { errors.file = 'Required'; hasErrors = true }
+      if (!formData.agreeTerms) { errors.agreeTerms = 'Required'; hasErrors = true }
+    }
+    
+    setFieldErrors(errors)
+    if (hasErrors) toast.error('Please fill all required fields')
+    return !hasErrors
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!validateStep(3)) return
+
+    setIsLoading(true)
+    try {
+      let blobUrl = '', fileName = '', fileSize = 0, fileType = ''
+      if (file) {
+        toast.info('Uploading file...')
+        const blob = await upload(file.name, file, {
+          access: 'public',
+          handleUploadUrl: '/api/abstracts/upload',
+          clientPayload: JSON.stringify({ registrationId: '' })
+        })
+        blobUrl = blob.url
+        fileName = file.name
+        fileSize = file.size
+        fileType = file.type
+      }
+
+      toast.info('Submitting registration...')
+      const res = await fetch('/api/abstracts/submit-unregistered', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...formData, blobUrl, fileName, fileSize, fileType })
+      })
+      
+      const data = await res.json()
+      if (data.success) {
+        toast.success('Registration and abstract submitted!')
+        onSuccess({ registrationId: data.registrationId, abstractId: data.abstractId })
+      } else {
+        toast.error(data.message || 'Submission failed')
+      }
+    } catch {
+      toast.error('Submission failed. Please try again.')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const steps = [
+    { label: "Personal Info", icon: User },
+    { label: "Address", icon: MapPin },
+    { label: "Abstract", icon: FileText },
+  ]
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-3xl mx-auto">
+      <Card className="bg-white dark:bg-gray-800 shadow-xl">
+        <CardHeader>
+          <div className="flex justify-between items-center">
+            <CardTitle className="flex items-center gap-2">
+              <UserPlus className="w-5 h-5 text-theme-secondary-600" />
+              Register & Submit Abstract
+            </CardTitle>
+            <Button variant="ghost" size="sm" onClick={onClose}><X className="w-4 h-4" /></Button>
+          </div>
+          
+          {/* Step Progress */}
+          <div className="flex items-center justify-between mt-4">
+            {steps.map((s, idx) => (
+              <div key={idx} className="flex items-center">
+                <div className={`flex items-center justify-center w-10 h-10 rounded-full border-2 transition-colors ${
+                  step > idx + 1 ? 'bg-green-500 border-green-500 text-white' :
+                  step === idx + 1 ? 'bg-theme-primary-600 border-theme-primary-600 text-white' :
+                  'border-gray-300 text-gray-400'
+                }`}>
+                  {step > idx + 1 ? <CheckCircle className="w-5 h-5" /> : <s.icon className="w-5 h-5" />}
+                </div>
+                <span className={`ml-2 text-sm hidden sm:inline ${step === idx + 1 ? 'font-semibold' : 'text-gray-500'}`}>{s.label}</span>
+                {idx < steps.length - 1 && <div className={`w-8 sm:w-16 h-0.5 mx-2 ${step > idx + 1 ? 'bg-green-500' : 'bg-gray-300'}`} />}
+              </div>
+            ))}
+          </div>
+        </CardHeader>
+        
+        <CardContent>
+          <form onSubmit={handleSubmit}>
+            {/* Step 1: Personal Info */}
+            {step === 1 && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-4 gap-4">
+                  <div>
+                    <Label>Title</Label>
+                    <Select value={formData.title} onValueChange={(v) => updateField('title', v)}>
+                      <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                      <SelectContent>{TITLES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                  <div className="col-span-3">
+                    <Label>First Name <span className="text-red-500">*</span></Label>
+                    <Input value={formData.firstName} onChange={(e) => updateField('firstName', e.target.value)} placeholder="First name" className={`mt-1 ${fieldErrors.firstName ? 'border-red-500' : ''}`} />
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Last Name <span className="text-red-500">*</span></Label>
+                    <Input value={formData.lastName} onChange={(e) => updateField('lastName', e.target.value)} placeholder="Last name" className={`mt-1 ${fieldErrors.lastName ? 'border-red-500' : ''}`} />
+                  </div>
+                  <div>
+                    <Label>Age <span className="text-red-500">*</span></Label>
+                    <Input type="number" value={formData.age} onChange={(e) => updateField('age', e.target.value)} placeholder="Age" min="18" max="100" className={`mt-1 ${fieldErrors.age ? 'border-red-500' : ''}`} />
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Email <span className="text-red-500">*</span></Label>
+                    <div className="relative mt-1">
+                      <Input type="email" value={formData.email} onChange={(e) => handleEmailChange(e.target.value)} placeholder="your.email@example.com" className={`pr-10 ${emailAvailable === false ? 'border-red-500' : emailAvailable === true ? 'border-green-500' : ''}`} />
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                        {isCheckingEmail && <Loader2 className="w-4 h-4 animate-spin text-gray-400" />}
+                        {!isCheckingEmail && emailAvailable === true && <CheckCircle className="w-4 h-4 text-green-500" />}
+                        {!isCheckingEmail && emailAvailable === false && <AlertCircle className="w-4 h-4 text-red-500" />}
+                      </div>
+                    </div>
+                    {emailAvailable === false && <p className="text-xs text-red-500 mt-1">This email is already registered</p>}
+                    {emailAvailable === true && <p className="text-xs text-green-500 mt-1">Email is available</p>}
+                  </div>
+                  <div>
+                    <Label>Phone <span className="text-red-500">*</span></Label>
+                    <Input value={formData.phone} onChange={(e) => updateField('phone', e.target.value.replace(/\D/g, '').slice(0, 10))} placeholder="10-digit mobile" maxLength={10} className={`mt-1 ${fieldErrors.phone ? 'border-red-500' : ''}`} />
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Designation</Label>
+                    <Select value={formData.designation} onValueChange={(v) => updateField('designation', v)}>
+                      <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                      <SelectContent>{DESIGNATIONS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>MCI/NMC Number <span className="text-red-500">*</span></Label>
+                    <Input value={formData.mciNumber} onChange={(e) => updateField('mciNumber', e.target.value)} placeholder="Registration number" className={`mt-1 ${fieldErrors.mciNumber ? 'border-red-500' : ''}`} />
+                  </div>
+                </div>
+                
+                <div>
+                  <Label>Institution/Hospital <span className="text-red-500">*</span></Label>
+                  <Input value={formData.institution} onChange={(e) => updateField('institution', e.target.value)} placeholder="Your institution" className={`mt-1 ${fieldErrors.institution ? 'border-red-500' : ''}`} />
+                </div>
+                
+                <div className="pt-4 border-t">
+                  <h4 className="font-semibold text-gray-800 dark:text-white mb-3 flex items-center gap-2"><Lock className="w-4 h-4" /> Create Password</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>Password <span className="text-red-500">*</span></Label>
+                      <div className="relative mt-1">
+                        <Input type={showPassword ? 'text' : 'password'} value={formData.password} onChange={(e) => updateField('password', e.target.value)} placeholder="Min 8 characters" className={`pr-10 ${fieldErrors.password ? 'border-red-500' : ''}`} />
+                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">
+                          {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+                    <div>
+                      <Label>Confirm Password <span className="text-red-500">*</span></Label>
+                      <div className="relative mt-1">
+                        <Input type={showConfirmPassword ? 'text' : 'password'} value={formData.confirmPassword} onChange={(e) => updateField('confirmPassword', e.target.value)} placeholder="Re-enter password" className={`pr-10 ${fieldErrors.confirmPassword ? 'border-red-500' : ''}`} />
+                        <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">
+                          {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+
+            {/* Step 2: Address & Registration */}
+            {step === 2 && (
+              <div className="space-y-4">
+                <div>
+                  <Label>Address</Label>
+                  <Input value={formData.address} onChange={(e) => updateField('address', e.target.value)} placeholder="Street address" className="mt-1" />
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>City <span className="text-red-500">*</span></Label>
+                    <Input value={formData.city} onChange={(e) => updateField('city', e.target.value)} placeholder="City" className={`mt-1 ${fieldErrors.city ? 'border-red-500' : ''}`} />
+                  </div>
+                  <div>
+                    <Label>State <span className="text-red-500">*</span></Label>
+                    <Input value={formData.state} onChange={(e) => updateField('state', e.target.value)} placeholder="State" className={`mt-1 ${fieldErrors.state ? 'border-red-500' : ''}`} />
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Country</Label>
+                    <Input value={formData.country} onChange={(e) => updateField('country', e.target.value)} placeholder="Country" className="mt-1" />
+                  </div>
+                  <div>
+                    <Label>Pincode</Label>
+                    <Input value={formData.pincode} onChange={(e) => updateField('pincode', e.target.value)} placeholder="Pincode" className="mt-1" />
+                  </div>
+                </div>
+                
+                <div className="pt-4 border-t">
+                  <h4 className="font-semibold text-gray-800 dark:text-white mb-3 flex items-center gap-2"><Stethoscope className="w-4 h-4" /> Registration Details</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>Registration Type <span className="text-red-500">*</span></Label>
+                      <Select value={formData.registrationType} onValueChange={(v) => updateField('registrationType', v)}>
+                        <SelectTrigger className={`mt-1 ${fieldErrors.registrationType ? 'border-red-500' : ''}`}><SelectValue placeholder="Select type" /></SelectTrigger>
+                        <SelectContent>{registrationTypes.map(type => <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Dietary Requirements</Label>
+                      <Select value={formData.dietaryRequirements} onValueChange={(v) => updateField('dietaryRequirements', v)}>
+                        <SelectTrigger className="mt-1"><SelectValue placeholder="Select if any" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">None</SelectItem>
+                          <SelectItem value="vegetarian">Vegetarian</SelectItem>
+                          <SelectItem value="vegan">Vegan</SelectItem>
+                          <SelectItem value="halal">Halal</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Step 3: Abstract Details */}
+            {step === 3 && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Submitting For <span className="text-red-500">*</span></Label>
+                    <Select value={formData.submittingFor} onValueChange={(v) => { updateField('submittingFor', v); updateField('submissionTopic', '') }}>
+                      <SelectTrigger className={`mt-1 ${fieldErrors.submittingFor ? 'border-red-500' : ''}`}><SelectValue placeholder="Neurosurgery or Neurology" /></SelectTrigger>
+                      <SelectContent>{SUBMITTING_FOR_OPTIONS.map(opt => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Category <span className="text-red-500">*</span></Label>
+                    <Select value={formData.submissionCategory} onValueChange={(v) => updateField('submissionCategory', v)}>
+                      <SelectTrigger className={`mt-1 ${fieldErrors.submissionCategory ? 'border-red-500' : ''}`}><SelectValue placeholder="Select category" /></SelectTrigger>
+                      <SelectContent>{SUBMISSION_CATEGORY_OPTIONS.map(opt => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                
+                <div>
+                  <Label>Topic <span className="text-red-500">*</span></Label>
+                  <Select value={formData.submissionTopic} onValueChange={(v) => updateField('submissionTopic', v)} disabled={!formData.submittingFor}>
+                    <SelectTrigger className={`mt-1 ${fieldErrors.submissionTopic ? 'border-red-500' : ''}`}><SelectValue placeholder={formData.submittingFor ? "Select topic" : "First select Neurosurgery or Neurology"} /></SelectTrigger>
+                    <SelectContent>{getTopicsForSelection(formData.submittingFor).map(topic => <SelectItem key={topic} value={topic}>{topic}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                
+                <div>
+                  <Label>Abstract Title <span className="text-red-500">*</span></Label>
+                  <Input value={formData.abstractTitle} onChange={(e) => updateField('abstractTitle', e.target.value)} placeholder="Enter your abstract title" className={`mt-1 ${fieldErrors.abstractTitle ? 'border-red-500' : ''}`} />
+                </div>
+                
+                <div>
+                  <Label>Authors <span className="text-red-500">*</span></Label>
+                  <Input value={formData.authors} onChange={(e) => updateField('authors', e.target.value)} placeholder="Author 1, Author 2 (comma separated)" className={`mt-1 ${fieldErrors.authors ? 'border-red-500' : ''}`} />
+                </div>
+                
+                <div>
+                  <Label>Abstract Content (Optional)</Label>
+                  <Textarea value={formData.abstractContent} onChange={(e) => updateField('abstractContent', e.target.value)} placeholder="Enter abstract content (max 200 words)" rows={4} className="mt-1" />
+                </div>
+                
+                <div>
+                  <Label>Keywords (Optional)</Label>
+                  <Input value={formData.keywords} onChange={(e) => updateField('keywords', e.target.value)} placeholder="keyword1, keyword2" className="mt-1" />
+                </div>
+                
+                <div>
+                  <Label>Upload Abstract <span className="text-red-500">*</span></Label>
+                  <div className={`mt-1 border-2 border-dashed rounded-lg p-6 text-center hover:border-theme-primary-500 transition-colors ${fieldErrors.file ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}>
+                    <input type="file" id="unregistered-file" accept=".doc,.docx,.pdf" onChange={handleFileChange} className="hidden" />
+                    <label htmlFor="unregistered-file" className="cursor-pointer">
+                      <Upload className="w-10 h-10 mx-auto text-gray-400 mb-2" />
+                      {file ? (
+                        <div>
+                          <p className="text-sm font-medium text-green-600">{file.name}</p>
+                          <p className="text-xs text-gray-500">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                        </div>
+                      ) : (
+                        <div>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">Click to upload</p>
+                          <p className="text-xs text-gray-500">Word (.doc, .docx) or PDF - Max 10MB</p>
+                        </div>
+                      )}
+                    </label>
+                  </div>
+                </div>
+                
+                <div className="flex items-start gap-3 pt-4 border-t">
+                  <Checkbox id="terms" checked={formData.agreeTerms} onCheckedChange={(checked) => updateField('agreeTerms', checked as boolean)} />
+                  <label htmlFor="terms" className="text-sm text-gray-600 dark:text-gray-400 cursor-pointer">
+                    I agree to the <Link href="/terms-conditions" className="text-theme-primary-600 hover:underline" target="_blank">Terms</Link> and <Link href="/privacy-policy" className="text-theme-primary-600 hover:underline" target="_blank">Privacy Policy</Link>
+                  </label>
+                </div>
+              </div>
+            )}
+
+            {/* Navigation Buttons */}
+            <div className="flex gap-3 pt-6 mt-6 border-t">
+              {step > 1 && <Button type="button" variant="outline" onClick={() => setStep(step - 1)}><ArrowLeft className="w-4 h-4 mr-2" />Back</Button>}
+              <div className="flex-1" />
+              {step < 3 ? (
+                <Button type="button" onClick={() => { if (validateStep(step)) { setStep(step + 1); toast.success(`Step ${step} completed!`) } }} className="bg-theme-primary-600 hover:bg-theme-primary-700">
+                  Next<ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+              ) : (
+                <Button type="submit" className="bg-green-600 hover:bg-green-700" disabled={isLoading}>
+                  {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <><CheckCircle className="w-4 h-4 mr-2" />Submit</>}
+                </Button>
+              )}
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+    </motion.div>
+  )
+})
+
+
+// ============ MAIN PAGE COMPONENT ============
+export default function AbstractsPage() {
+  const { data: session } = useSession()
+  
+  // Config state
+  const [abstractsConfig, setAbstractsConfig] = useState<any>(null)
+  const [configLoading, setConfigLoading] = useState(true)
+  const [registrationTypes, setRegistrationTypes] = useState<Array<{ value: string; label: string; price: number }>>([])
+
+  // Flow state
+  const [activeFlow, setActiveFlow] = useState<FlowType>('none')
+  const [isSubmitted, setIsSubmitted] = useState(false)
+  const [submissionData, setSubmissionData] = useState<any>(null)
+  const [showLoginModal, setShowLoginModal] = useState(false)
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+
+  // Reminder state
+  const [reminderEmail, setReminderEmail] = useState("")
+  const [reminderLoading, setReminderLoading] = useState(false)
+
+  useEffect(() => {
+    document.title = `Abstract Submission | ${conferenceConfig.shortName}`
+  }, [])
+
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const response = await fetch('/api/abstracts/config')
+        const data = await response.json()
+        if (data.success) setAbstractsConfig(data.data)
+        
+        const typesResponse = await fetch('/api/admin/registration-types')
+        if (typesResponse.ok) {
+          const typesResult = await typesResponse.json()
+          if (typesResult.success && typesResult.data?.length > 0) {
+            setRegistrationTypes(typesResult.data.map((type: any) => ({ value: type.key, label: type.label, price: type.price })))
+          } else {
+            setRegistrationTypes(conferenceConfig.registration.categories.map(cat => ({ value: cat.key, label: cat.label, price: 0 })))
+          }
+        }
+      } catch { /* ignore */ } finally { setConfigLoading(false) }
+    }
+    fetchConfig()
+  }, [])
+
+  useEffect(() => {
+    if (session && activeFlow === 'registered') {
+      setIsAuthenticated(true)
+      setShowLoginModal(false)
+    }
+  }, [session, activeFlow])
+
+  const handleLoginSuccess = useCallback(() => {
+    setIsAuthenticated(true)
+    setShowLoginModal(false)
+  }, [])
+
+  const handleFormSuccess = useCallback((data: any) => {
+    setSubmissionData(data)
+    setIsSubmitted(true)
+  }, [])
+
+  const handleCloseForm = useCallback(() => {
+    setActiveFlow('none')
+  }, [])
+
+  const resetAll = useCallback(() => {
+    setActiveFlow('none')
+    setIsSubmitted(false)
+    setSubmissionData(null)
+    setIsAuthenticated(false)
+    setShowLoginModal(false)
+  }, [])
 
   const handleReminderSignup = async (e: React.FormEvent) => {
     e.preventDefault()
-    
     if (!reminderEmail.trim() || !reminderEmail.includes('@')) {
-      toast.error('Please enter a valid email address')
+      toast.error('Please enter a valid email')
       return
     }
-    
     setReminderLoading(true)
     try {
       const response = await fetch('/api/notifications/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          email: reminderEmail,
-          type: 'abstract-reminder'
-        })
+        body: JSON.stringify({ email: reminderEmail, type: 'abstract-reminder' })
       })
-      
       const data = await response.json()
       if (data.success) {
-        toast.success('Thank you! We\'ll notify you when abstract submissions open.')
+        toast.success('We\'ll notify you when submissions open!')
         setReminderEmail('')
       } else {
-        toast.error(data.message || 'Failed to subscribe. Please try again.')
+        toast.error(data.message || 'Failed to subscribe')
       }
-    } catch (error) {
-      toast.error('An error occurred. Please try again.')
-    } finally {
-      setReminderLoading(false)
-    }
+    } catch { toast.error('An error occurred') } finally { setReminderLoading(false) }
   }
 
+  const submissionsDisabled = !configLoading && abstractsConfig && !abstractsConfig.submissionWindow?.enabled
+
+  // Success screen
   if (isSubmitted) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-green-50 to-white dark:from-gray-900 dark:to-gray-800 flex items-center justify-center px-4">
-        <motion.div
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          transition={{ duration: 0.5 }}
-          className="text-center p-8 lg:p-12 bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-lg w-full"
-        >
+        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="text-center p-8 lg:p-12 bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-lg w-full">
           <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-6" />
-          <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-4">Abstract Submitted Successfully!</h2>
+          <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-4">
+            {activeFlow === 'unregistered' ? 'Registration & Abstract Submitted!' : 'Abstract Submitted Successfully!'}
+          </h2>
           
           {submissionData && (
             <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4 mb-6">
-              <h3 className="font-semibold text-green-800 dark:text-green-200 mb-2">Submission Details</h3>
-              <div className="text-sm text-green-700 dark:text-green-300 space-y-1">
+              <div className="text-sm text-green-700 dark:text-green-300 space-y-1 text-left">
+                {submissionData.registrationId && <p><strong>Registration ID:</strong> {submissionData.registrationId}</p>}
                 <p><strong>Abstract ID:</strong> {submissionData.abstractId}</p>
-                <p><strong>Title:</strong> {submissionData.title}</p>
-                <p><strong>Track:</strong> {submissionData.track}</p>
-                <p><strong>Status:</strong> {submissionData.status}</p>
               </div>
             </div>
           )}
           
-          <p className="text-gray-600 dark:text-gray-300 mb-2">
-            Your abstract has been submitted and will be reviewed by our scientific committee.
-          </p>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-            📧 A confirmation email has been sent to your registered email address with your Abstract ID.
-          </p>
+          {activeFlow === 'unregistered' && (
+            <Alert className="mb-6 text-left bg-amber-50 border-amber-200">
+              <AlertCircle className="h-4 w-4 text-amber-600" />
+              <AlertDescription className="text-amber-800">
+                <strong>Payment Pending:</strong> Login with your email and password to complete payment.
+              </AlertDescription>
+            </Alert>
+          )}
+          
+          <p className="text-gray-600 dark:text-gray-300 mb-2">Your abstract will be reviewed by our scientific committee.</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">📧 A confirmation email has been sent.</p>
           
           <div className="flex flex-col gap-3">
-            <Link href="/dashboard/abstracts" className="w-full">
-              <Button className="w-full bg-green-600 hover:bg-green-700">
-                <FileText className="w-4 h-4 mr-2" />
-                View My Abstracts Dashboard
-              </Button>
-            </Link>
-            <div className="flex flex-col sm:flex-row gap-3">
-              <Button onClick={() => {
-                setIsSubmitted(false)
-                setShowSubmissionForm(false)
-                setIsAuthenticated(false)
-                setSubmissionData(null)
-                setFormData({
-                  title: "",
-                  category: "",
-                  authors: "",
-                  abstract: "",
-                  keywords: "",
-                  file: null
-                })
-                setAuthData({ registrationId: "", password: "" })
-              }} variant="outline" className="w-full sm:flex-1">
-                Submit Another
-              </Button>
-              <Link href="/" className="w-full sm:flex-1">
-                <Button variant="outline" className="w-full">
-                  Go Home
-                </Button>
-              </Link>
+            {activeFlow === 'unregistered' ? (
+              <Link href="/login" className="w-full"><Button className="w-full bg-green-600 hover:bg-green-700"><LogIn className="w-4 h-4 mr-2" />Login to Check Status & Pay</Button></Link>
+            ) : (
+              <Link href="/dashboard/abstracts" className="w-full"><Button className="w-full bg-green-600 hover:bg-green-700"><FileText className="w-4 h-4 mr-2" />View My Abstracts</Button></Link>
+            )}
+            <div className="flex gap-3">
+              <Button onClick={resetAll} variant="outline" className="flex-1">Submit Another</Button>
+              <Link href="/" className="flex-1"><Button variant="outline" className="w-full">Go Home</Button></Link>
             </div>
           </div>
         </motion.div>
@@ -289,722 +941,222 @@ export default function AbstractsPage() {
     )
   }
 
-  // Check if submissions are disabled
-  const submissionsDisabled = !configLoading && abstractsConfig && !abstractsConfig.submissionWindow?.enabled
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-white dark:from-gray-900 dark:to-gray-800">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-white dark:from-gray-900 dark:to-gray-800">
       <Navigation />
+      <LoginModal show={showLoginModal} onClose={() => setShowLoginModal(false)} onSuccess={handleLoginSuccess} />
 
       <div className="pt-24 pb-12">
         {/* Header */}
-        <section className="py-12 md:py-16 bg-gradient-to-r from-green-600 to-blue-600 text-white">
+        <section className="py-12 md:py-16 bg-gradient-to-r from-theme-primary-600 to-theme-primary-800 text-white">
           <div className="container mx-auto px-4 text-center">
             <motion.div initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }}>
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-4 md:mb-6">Abstract Submission</h1>
               
               <div className="mb-6">
-                <motion.div 
-                  className={`inline-flex items-center px-6 py-3 bg-white/20 backdrop-blur-sm rounded-full mb-4 ${
-                    submissionsDisabled ? 'bg-orange-500/30' : ''
-                  }`}
-                  initial={{ scale: 0.8, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  transition={{ delay: 0.5, duration: 0.5 }}
-                >
-                  {submissionsDisabled ? (
-                    <>
-                      <Clock className="w-5 h-5 mr-2 text-white" />
-                      <span className="text-white font-semibold">Coming Soon</span>
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle className="w-5 h-5 mr-2 text-white" />
-                      <span className="text-white font-semibold">Now Open</span>
-                    </>
-                  )}
+                <motion.div className={`inline-flex items-center px-6 py-3 bg-white/20 backdrop-blur-sm rounded-full mb-4 ${submissionsDisabled ? 'bg-orange-500/30' : ''}`} initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: 0.5, duration: 0.5 }}>
+                  {submissionsDisabled ? <><Clock className="w-5 h-5 mr-2" /><span className="font-semibold">Coming Soon</span></> : <><CheckCircle className="w-5 h-5 mr-2" /><span className="font-semibold">Now Open</span></>}
                 </motion.div>
                 
-              <p className="text-lg md:text-xl max-w-3xl mx-auto">
-                  Submit your research abstracts for Free Paper Presentation and Poster Presentation
-                  <br />
-                  <span className="text-green-200">at {conferenceConfig.shortName}, {conferenceConfig.venue.city}</span>
+                <p className="text-lg md:text-xl max-w-3xl mx-auto">
+                  Submit your research abstracts for Award Paper, Free Paper, and Poster Presentation
+                  <br /><span className="text-blue-200">at {conferenceConfig.shortName}, {conferenceConfig.venue.city}</span>
                 </p>
               </div>
 
-              {submissionsDisabled ? (
-                <div className="max-w-xl mx-auto">
-                  <Card className="bg-white/10 backdrop-blur-md border-white/20">
-                    <CardContent className="pt-6">
-                      <Bell className="w-12 h-12 mx-auto mb-4 text-white" />
-                      <h3 className="text-xl font-bold text-white mb-2">Get Notified When Submissions Open</h3>
-                      <p className="text-green-100 mb-4">
-                        Enter your email to receive a notification when abstract submissions are open
-                      </p>
-                      <form onSubmit={handleReminderSignup} className="flex flex-col sm:flex-row gap-3">
-                        <Input
-                          type="email"
-                          placeholder="your.email@example.com"
-                          value={reminderEmail}
-                          onChange={(e) => setReminderEmail(e.target.value)}
-                          className="flex-1 bg-white text-gray-900"
-                          required
-                        />
-                        <Button 
-                          type="submit" 
-                          disabled={reminderLoading}
-                          className="bg-green-600 hover:bg-green-700 text-white font-semibold"
-                        >
-                          {reminderLoading ? (
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                          ) : (
-                            <>
-                              <Mail className="w-4 h-4 mr-2" />
-                              Notify Me
-                            </>
-                          )}
-                        </Button>
-                      </form>
-                    </CardContent>
-                  </Card>
-                </div>
-              ) : (
-                <div className="flex flex-col sm:flex-row gap-4 items-center justify-center">
+              {/* Buttons */}
+              {!submissionsDisabled && activeFlow === 'none' && (
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }} className="flex flex-col sm:flex-row gap-4 items-center justify-center mt-8">
                   <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                    <Button 
-                      onClick={() => {
-                        if (session) {
-                          // User is logged in, go directly to submission form
-                          setIsAuthenticated(true)
-                          setShowSubmissionForm(true)
-                        } else {
-                          // User not logged in, show auth options
-                          setShowSubmissionForm(true)
-                        }
-                      }}
-                      className="px-8 py-4 text-lg bg-green-600 hover:bg-green-700 text-white rounded-full shadow-2xl font-bold"
-                    >
-                      <Upload className="w-5 h-5 mr-2" />
-                      Submit Your Abstract
+                    <Button onClick={() => { if (session) { setActiveFlow('registered'); setIsAuthenticated(true) } else { setActiveFlow('registered'); setShowLoginModal(true) } }} className="px-8 py-6 text-lg bg-white text-theme-primary-700 hover:bg-gray-100 rounded-2xl shadow-2xl font-bold">
+                      {session ? <><Upload className="w-5 h-5 mr-2" />Submit Your Abstract</> : <><LogIn className="w-5 h-5 mr-2" />Already Registered? Login to Submit</>}
                     </Button>
                   </motion.div>
 
-                {session && (
-                  <motion.div 
-                    whileHover={{ scale: 1.05 }} 
-                    whileTap={{ scale: 0.95 }}
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.3, duration: 0.5 }}
-                  >
-                    <Link href="/dashboard/abstracts">
-                      <Button 
-                        variant="outline"
-                        className="px-8 py-4 text-lg bg-white/10 hover:bg-white/20 text-white border-white/30 hover:border-white/50 rounded-full shadow-xl font-bold backdrop-blur-sm"
-                      >
-                        <FileText className="w-5 h-5 mr-2" />
-                        View My Abstracts
+                  {!session && abstractsConfig?.enableAbstractsWithoutRegistration && (
+                    <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                      <Button onClick={() => setActiveFlow('unregistered')} className="px-8 py-6 text-lg bg-theme-secondary-500 hover:bg-theme-secondary-600 text-white rounded-2xl shadow-2xl font-bold">
+                        <UserPlus className="w-5 h-5 mr-2" />Submit Abstract & Register Later
                       </Button>
-                    </Link>
-                  </motion.div>
-                )}
-                </div>
+                    </motion.div>
+                  )}
+                </motion.div>
+              )}
+
+              {session && activeFlow === 'none' && !submissionsDisabled && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.8 }} className="mt-4">
+                  <Link href="/dashboard/abstracts"><Button variant="link" className="text-white/80 hover:text-white"><FileText className="w-4 h-4 mr-2" />View My Submitted Abstracts</Button></Link>
+                </motion.div>
               )}
             </motion.div>
           </div>
         </section>
 
-        {/* Content Section - Guidelines when open, Why Submit when closed */}
-        <section className="py-16">
-          <div className="container mx-auto px-6">
-            {submissionsDisabled ? (
-              // Coming Soon Content
-              <div className="max-w-5xl mx-auto">
-                <motion.div
-                  initial={{ opacity: 0, y: 30 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.8 }}
-                  className="text-center mb-16"
-                >
-                  <h2 className="text-4xl md:text-5xl font-bold mb-6 bg-gradient-to-r from-gray-800 via-green-600 to-blue-600 bg-clip-text text-transparent">
-                    Why Submit Your Abstract?
-                  </h2>
-                  <p className="text-xl text-gray-600 dark:text-gray-400 max-w-3xl mx-auto">
-                    Join leading researchers and professionals at {conferenceConfig.shortName}
-                  </p>
-                </motion.div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  <Card className="bg-white dark:bg-slate-800">
-                    <CardContent className="pt-6">
-                      <Award className="w-12 h-12 text-green-600 mb-4" />
-                      <h3 className="text-xl font-bold mb-3 text-gray-900 dark:text-white">Expert Review</h3>
-                      <p className="text-gray-600 dark:text-gray-400">
-                        All submissions are reviewed by our distinguished panel of experts in neurovascular sciences
-                      </p>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="bg-white dark:bg-slate-800">
-                    <CardContent className="pt-6">
-                      <FileText className="w-12 h-12 text-blue-600 mb-4" />
-                      <h3 className="text-xl font-bold mb-3 text-gray-900 dark:text-white">Publication Opportunity</h3>
-                      <p className="text-gray-600 dark:text-gray-400">
-                        Selected abstracts will be published in conference proceedings and partner journals
-                      </p>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="bg-white dark:bg-slate-800">
-                    <CardContent className="pt-6">
-                      <User className="w-12 h-12 text-purple-600 mb-4" />
-                      <h3 className="text-xl font-bold mb-3 text-gray-900 dark:text-white">Networking</h3>
-                      <p className="text-gray-600 dark:text-gray-400">
-                        Connect with peers, mentors, and leaders in the field of neurovascular medicine
-                      </p>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="bg-white dark:bg-slate-800">
-                    <CardContent className="pt-6">
-                      <Zap className="w-12 h-12 text-yellow-600 mb-4" />
-                      <h3 className="text-xl font-bold mb-3 text-gray-900 dark:text-white">Best Paper Awards</h3>
-                      <p className="text-gray-600 dark:text-gray-400">
-                        Compete for recognition and awards for outstanding research presentations
-                      </p>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="bg-white dark:bg-slate-800">
-                    <CardContent className="pt-6">
-                      <CheckCircle className="w-12 h-12 text-teal-600 mb-4" />
-                      <h3 className="text-xl font-bold mb-3 text-gray-900 dark:text-white">Career Growth</h3>
-                      <p className="text-gray-600 dark:text-gray-400">
-                        Enhance your professional profile and gain visibility in the neurovascular community
-                      </p>
-                    </CardContent>
-                  </Card>
-                </div>
-              </div>
-            ) : (
-              // Guidelines when open
-              <>
-                <motion.div
-                  initial={{ opacity: 0, y: 30 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.8 }}
-                  className="text-center mb-16"
-                >
-                  <h2 className="text-4xl md:text-5xl font-bold mb-6 bg-gradient-to-r from-gray-800 via-green-600 to-blue-600 bg-clip-text text-transparent">
-                    Submission Guidelines
-                  </h2>
-                  <p className="text-xl text-gray-600 dark:text-gray-400 max-w-3xl mx-auto">
-                    Please read the guidelines carefully before submitting your abstract
-                  </p>
-                </motion.div>
-
-            {/* General Guidelines */}
-            {abstractsConfig?.guidelines?.general && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                className="mb-8"
-              >
-                <Card className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
+        {/* Main Content */}
+        <section className="py-12">
+          <div className="container mx-auto px-4">
+            {activeFlow === 'registered' && (session || isAuthenticated) && (
+              <RegisteredAbstractForm session={session} onClose={handleCloseForm} onSuccess={handleFormSuccess} />
+            )}
+            
+            {activeFlow === 'registered' && !session && !isAuthenticated && (
+              <div className="max-w-md mx-auto text-center">
+                <Card className="bg-white dark:bg-gray-800 shadow-xl">
                   <CardContent className="pt-6">
-                    <p className="text-gray-700 dark:text-gray-300 text-center">
-                      {abstractsConfig.guidelines.general}
-                    </p>
+                    <Lock className="w-12 h-12 mx-auto mb-4 text-theme-primary-600" />
+                    <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-2">Login Required</h3>
+                    <p className="text-gray-600 dark:text-gray-400 mb-4">Please login to submit your abstract</p>
+                    <Button onClick={() => setShowLoginModal(true)} className="w-full bg-theme-primary-600 hover:bg-theme-primary-700"><LogIn className="w-4 h-4 mr-2" />Login Now</Button>
+                    <Button variant="link" onClick={() => setActiveFlow('none')} className="mt-2">Go Back</Button>
                   </CardContent>
                 </Card>
-              </motion.div>
+              </div>
             )}
+            
+            {activeFlow === 'unregistered' && (
+              <UnregisteredForm registrationTypes={registrationTypes} onClose={handleCloseForm} onSuccess={handleFormSuccess} />
+            )}
+            
+            {activeFlow === 'none' && submissionsDisabled && (
+              <div className="max-w-xl mx-auto">
+                <Card className="bg-white/10 backdrop-blur-md border-white/20">
+                  <CardContent className="pt-6">
+                    <Bell className="w-12 h-12 mx-auto mb-4 text-theme-primary-600" />
+                    <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-2 text-center">Get Notified When Submissions Open</h3>
+                    <p className="text-gray-600 dark:text-gray-300 mb-4 text-center">Enter your email to receive a notification</p>
+                    <form onSubmit={handleReminderSignup} className="flex flex-col sm:flex-row gap-3">
+                      <Input type="email" placeholder="your.email@example.com" value={reminderEmail} onChange={(e) => setReminderEmail(e.target.value)} className="flex-1" required />
+                      <Button type="submit" disabled={reminderLoading} className="bg-theme-primary-600 hover:bg-theme-primary-700">
+                        {reminderLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Mail className="w-4 h-4 mr-2" />Notify Me</>}
+                      </Button>
+                    </form>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+            
+            {activeFlow === 'none' && !submissionsDisabled && (
+              <div className="max-w-6xl mx-auto">
+                <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-center mb-12">
+                  <h2 className="text-3xl md:text-4xl font-bold mb-4 text-gray-800 dark:text-white">Abstract Submission Guidelines</h2>
+                  <p className="text-lg text-gray-600 dark:text-gray-400 max-w-3xl mx-auto">Please read the guidelines carefully before submitting</p>
+                </motion.div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-6xl mx-auto">
-              {/* Free Paper Guidelines */}
-              {abstractsConfig?.guidelines?.freePaper?.enabled && (
-                <motion.div
-                  initial={{ opacity: 0, x: -50 }}
-                  whileInView={{ opacity: 1, x: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.8 }}
-                  className="relative group"
-                >
-                  <div className="absolute inset-0 bg-gradient-to-r from-green-500/10 to-blue-500/10 rounded-2xl blur-xl opacity-50 group-hover:opacity-70 transition-all duration-300"></div>
-                  <Card className="relative bg-white dark:bg-gray-800 border border-green-100 dark:border-gray-700 hover:border-green-200 dark:hover:border-gray-600 transition-all duration-300 shadow-lg hover:shadow-xl">
-                    <CardHeader>
-                      <CardTitle className="flex items-center text-2xl font-bold text-gray-800 dark:text-gray-100">
-                        <FileText className="w-8 h-8 mr-3 text-green-600" />
-                        {abstractsConfig?.guidelines?.freePaper?.title || 'Free Paper Presentation'}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="bg-green-50 dark:bg-green-900/20 p-3 rounded-lg border border-green-200 dark:border-green-800">
-                        <p className="text-sm font-semibold text-green-800 dark:text-green-200">
-                          Word Limit: {abstractsConfig?.guidelines?.freePaper?.wordLimit || 250} words
-                        </p>
-                      </div>
-                      <div className="space-y-3 text-gray-600 dark:text-gray-300">
-                        {abstractsConfig?.guidelines?.freePaper?.requirements?.map((req: string, index: number) => (
-                          <div key={index} className="flex items-start">
-                            <CheckCircle className="w-5 h-5 mr-2 text-green-500 mt-0.5 flex-shrink-0" />
-                            <span>{req}</span>
-                          </div>
-                        ))}
-                      </div>
-                      {abstractsConfig?.guidelines?.freePaper?.format && (
-                        <div className="mt-4 p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
-                          <p className="text-sm text-gray-600 dark:text-gray-400">
-                            <strong>Format:</strong> {abstractsConfig.guidelines.freePaper.format}
-                          </p>
+                {/* Important Dates */}
+                <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="mb-8">
+                  <Card className="bg-gradient-to-r from-theme-primary-600 to-theme-primary-800 text-white border-0 shadow-xl">
+                    <CardContent className="p-6">
+                      <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                          <Calendar className="w-8 h-8" />
+                          <div><h3 className="text-xl font-bold">Important Dates</h3><p className="text-white/80">Mark your calendar!</p></div>
                         </div>
-                      )}
+                        <div className="flex flex-col sm:flex-row gap-4 text-center">
+                          <div className="bg-white/20 backdrop-blur-sm rounded-lg px-4 py-2"><p className="text-sm text-white/80">Submission Opens</p><p className="font-bold">15th Nov 2025</p></div>
+                          <div className="bg-white/20 backdrop-blur-sm rounded-lg px-4 py-2"><p className="text-sm text-white/80">Last Date</p><p className="font-bold text-yellow-300">20th Feb 2026</p></div>
+                          <div className="bg-white/20 backdrop-blur-sm rounded-lg px-4 py-2"><p className="text-sm text-white/80">Register By</p><p className="font-bold">10th Feb 2026</p></div>
+                        </div>
+                      </div>
                     </CardContent>
                   </Card>
                 </motion.div>
-              )}
 
-              {/* Poster Guidelines */}
-              {abstractsConfig?.guidelines?.poster?.enabled && (
-                <motion.div
-                  initial={{ opacity: 0, x: 50 }}
-                  whileInView={{ opacity: 1, x: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.8 }}
-                  className="relative group"
-                >
-                  <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-green-500/10 rounded-2xl blur-xl opacity-50 group-hover:opacity-70 transition-all duration-300"></div>
-                  <Card className="relative bg-white dark:bg-gray-800 border border-blue-100 dark:border-gray-700 hover:border-blue-200 dark:hover:border-gray-600 transition-all duration-300 shadow-lg hover:shadow-xl">
-                    <CardHeader>
-                      <CardTitle className="flex items-center text-2xl font-bold text-gray-800 dark:text-gray-100">
-                        <Award className="w-8 h-8 mr-3 text-blue-600" />
-                        {abstractsConfig?.guidelines?.poster?.title || 'Poster Presentation'}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-200 dark:border-blue-800">
-                        <p className="text-sm font-semibold text-blue-800 dark:text-blue-200">
-                          Word Limit: {abstractsConfig?.guidelines?.poster?.wordLimit || 250} words
-                        </p>
-                      </div>
-                      <div className="space-y-3 text-gray-600 dark:text-gray-300">
-                        {abstractsConfig?.guidelines?.poster?.requirements?.map((req: string, index: number) => (
-                          <div key={index} className="flex items-start">
-                            <CheckCircle className="w-5 h-5 mr-2 text-blue-500 mt-0.5 flex-shrink-0" />
-                            <span>{req}</span>
+                {/* Quick Rules */}
+                <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="mb-8">
+                  <Card className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
+                    <CardContent className="p-6">
+                      <h3 className="text-lg font-bold text-blue-800 dark:text-blue-200 mb-4 flex items-center gap-2"><FileText className="w-5 h-5" />Quick Submission Rules</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        {['Max 200 words', 'Word format only (.doc/.docx)', '1 paper per presenter', 'Unlimited e-posters'].map((rule, i) => (
+                          <div key={i} className="flex items-center gap-2 text-blue-700 dark:text-blue-300">
+                            <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" /><span className="text-sm">{rule}</span>
                           </div>
                         ))}
                       </div>
-                      {abstractsConfig?.guidelines?.poster?.format && (
-                        <div className="mt-4 p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
-                          <p className="text-sm text-gray-600 dark:text-gray-400">
-                            <strong>Format:</strong> {abstractsConfig.guidelines.poster.format}
-                          </p>
-                        </div>
-                      )}
                     </CardContent>
                   </Card>
                 </motion.div>
-              )}
-            </div>
 
-            {/* Important Notice */}
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.8, delay: 0.3 }}
-              className="mt-12 max-w-4xl mx-auto"
-            >
-              <Card className="bg-gradient-to-r from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20 border-orange-200 dark:border-orange-800">
-                <CardContent className="p-6">
-                  <div className="flex items-start">
-                    <AlertCircle className="w-6 h-6 mr-3 text-orange-600 mt-1 flex-shrink-0" />
-                    <div>
-                      <h3 className="text-lg font-bold text-orange-800 dark:text-orange-200 mb-2">Important Notice</h3>
-                      <p className="text-orange-700 dark:text-orange-300">
-                        The scientific committee reserves the right to accept/reject any paper without assigning any reason thereof. 
-                        All submissions will be reviewed by our expert panel, and decisions will be communicated via email.
-                      </p>
-                    </div>
+                {/* Categories */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                  <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.1 }}>
+                    <Card className="bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 border-yellow-200 dark:border-yellow-800 shadow-lg h-full">
+                      <CardHeader className="pb-2"><CardTitle className="flex items-center gap-2 text-lg text-yellow-800 dark:text-yellow-200"><Award className="w-6 h-6 text-yellow-500" />Award Paper</CardTitle></CardHeader>
+                      <CardContent>
+                        <ul className="text-sm text-yellow-900/80 dark:text-yellow-100/80 space-y-2">
+                          {['Original, unpublished work only', 'Presenter must be a resident', 'Bona fide certificate required', 'Must be TNS member'].map((item, i) => (
+                            <li key={i} className="flex items-start gap-2"><CheckCircle className="w-4 h-4 text-yellow-600 mt-0.5 flex-shrink-0" />{item}</li>
+                          ))}
+                        </ul>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+
+                  <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.2 }}>
+                    <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-blue-200 dark:border-blue-800 shadow-lg h-full">
+                      <CardHeader className="pb-2"><CardTitle className="flex items-center gap-2 text-lg text-blue-800 dark:text-blue-200"><FileText className="w-6 h-6 text-blue-500" />Free Paper</CardTitle></CardHeader>
+                      <CardContent>
+                        <ul className="text-sm text-blue-900/80 dark:text-blue-100/80 space-y-2">
+                          {['Original, unpublished research', 'Not presented at any conference', 'One paper per presenter', 'May be moved to E-Poster'].map((item, i) => (
+                            <li key={i} className="flex items-start gap-2"><CheckCircle className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />{item}</li>
+                          ))}
+                        </ul>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+
+                  <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.3 }}>
+                    <Card className="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 border-purple-200 dark:border-purple-800 shadow-lg h-full">
+                      <CardHeader className="pb-2"><CardTitle className="flex items-center gap-2 text-lg text-purple-800 dark:text-purple-200"><Calendar className="w-6 h-6 text-purple-500" />E-Poster</CardTitle></CardHeader>
+                      <CardContent>
+                        <ul className="text-sm text-purple-900/80 dark:text-purple-100/80 space-y-2">
+                          {['Displayed on 42" LCD screen', '16:9 ratio, landscape format', 'PowerPoint format only', 'Unlimited submissions allowed'].map((item, i) => (
+                            <li key={i} className="flex items-start gap-2"><CheckCircle className="w-4 h-4 text-purple-600 mt-0.5 flex-shrink-0" />{item}</li>
+                          ))}
+                        </ul>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                </div>
+
+                {/* Important Notice */}
+                <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
+                  <Card className="bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20 border-red-200 dark:border-red-800">
+                    <CardContent className="p-6">
+                      <div className="flex items-start">
+                        <AlertCircle className="w-6 h-6 mr-3 text-red-600 mt-1 flex-shrink-0" />
+                        <div>
+                          <h3 className="text-lg font-bold text-red-800 dark:text-red-200 mb-3">Important Notice</h3>
+                          <ul className="text-red-700 dark:text-red-300 space-y-2 text-sm">
+                            <li>• All presenters must register by <strong>10th Feb 2026</strong></li>
+                            <li>• Abstracts will be rejected if guidelines are not followed</li>
+                            <li>• The Scientific Committee reserves the right to accept/reject any paper</li>
+                          </ul>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+
+                {/* CTA */}
+                <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-center mt-10">
+                  <div className="flex flex-col sm:flex-row gap-4 items-center justify-center">
+                    <Button onClick={() => { if (session) { setActiveFlow('registered'); setIsAuthenticated(true) } else { setActiveFlow('registered'); setShowLoginModal(true) } }} className="px-10 py-6 text-lg bg-theme-primary-600 hover:bg-theme-primary-700 text-white rounded-full shadow-xl font-bold">
+                      {session ? <><Upload className="w-5 h-5 mr-2" />Submit Your Abstract</> : <><LogIn className="w-5 h-5 mr-2" />Login & Submit Abstract</>}
+                    </Button>
+                    
+                    {!session && abstractsConfig?.enableAbstractsWithoutRegistration && (
+                      <Button onClick={() => setActiveFlow('unregistered')} variant="outline" className="px-10 py-6 text-lg border-theme-secondary-500 text-theme-secondary-600 hover:bg-theme-secondary-50 rounded-full shadow-xl font-bold">
+                        <UserPlus className="w-5 h-5 mr-2" />Register & Submit
+                      </Button>
+                    )}
                   </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-
-            {/* Quick Access Section for Logged-in Users */}
-            {session && !submissionsDisabled && (
-              <motion.div
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.8, delay: 0.4 }}
-                className="mt-12 max-w-4xl mx-auto"
-              >
-                <Card className="bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-900/20 dark:to-blue-900/20 border-green-200 dark:border-green-800">
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="text-lg font-bold text-green-800 dark:text-green-200 mb-1 flex items-center gap-2">
-                          <CheckCircle className="w-5 h-5 text-green-600" />
-                          Welcome back, {session.user?.name}!
-                        </h3>
-                        <p className="text-green-700 dark:text-green-300">
-                          Track your submitted abstracts, check review status, and manage your submissions.
-                        </p>
-                      </div>
-                      <Link href="/dashboard/abstracts">
-                        <Button className="bg-green-600 hover:bg-green-700 text-white">
-                          <FileText className="w-4 h-4 mr-2" />
-                          My Abstracts Dashboard
-                        </Button>
-                      </Link>
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            )}
-              </>
+                </motion.div>
+              </div>
             )}
           </div>
         </section>
-
-        {/* Submission Forms */}
-        {showSubmissionForm && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/50 backdrop-blur-sm overflow-y-auto">
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-2xl w-full p-4 sm:p-6 lg:p-8 relative my-4 sm:my-8 max-h-[95vh] overflow-y-auto"
-            >
-              <button
-                onClick={() => {
-                  setShowSubmissionForm(false)
-                  setIsAuthenticated(false)
-                  setAuthData({ registrationId: "", password: "" })
-                }}
-                className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-              >
-                <X className="w-6 h-6" />
-              </button>
-
-              {!isAuthenticated ? (
-                // Authentication Form
-                <div>
-                  <div className="text-center mb-8">
-                    <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                      {session ? <FileText className="w-8 h-8 text-white" /> : <Lock className="w-8 h-8 text-white" />}
-                    </div>
-                    <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-2">
-                      {session ? 'Submit Abstract' : 'Authentication Required'}
-                    </h3>
-                    <p className="text-gray-600 dark:text-gray-400">
-                      {session 
-                        ? `Welcome ${session.user?.name}! You can submit your abstract directly.`
-                        : 'Please login to your account or verify your registration to submit an abstract'
-                      }
-                    </p>
-                  </div>
-
-                  {session ? (
-                    // User is logged in, show direct submission button
-                    <div className="text-center">
-                      <Button
-                        onClick={() => setIsAuthenticated(true)}
-                        className="bg-gradient-to-r from-green-500 to-blue-600 hover:from-green-600 hover:to-blue-700 text-white px-8 py-3"
-                      >
-                        <FileText className="w-4 h-4 mr-2" />
-                        Continue to Submission Form
-                      </Button>
-                    </div>
-                  ) : (
-                    // User not logged in, show auth options
-                    <div className="space-y-6">
-                      <div className="text-center">
-                        <Link href="/auth/login">
-                          <Button className="bg-gradient-to-r from-green-500 to-blue-600 hover:from-green-600 hover:to-blue-700 text-white px-8 py-3 mb-4">
-                            <LogIn className="w-4 h-4 mr-2" />
-                            Login to Your Account
-                          </Button>
-                        </Link>
-                        <p className="text-sm text-gray-500 mb-4">or</p>
-                        <Button
-                          variant="outline"
-                          onClick={() => setUseSessionAuth(false)}
-                          className="px-6 py-2"
-                        >
-                          Verify with Registration ID
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-
-                  {!session && !useSessionAuth && (
-
-                    <div className="mt-6">
-                      <h4 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4 text-center">
-                        Manual Verification
-                      </h4>
-                      <form onSubmit={handleAuth} className="space-y-6">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Registration ID
-                      </label>
-                      <Input
-                        type="text"
-                        placeholder="Enter your registration ID"
-                        value={authData.registrationId}
-                        onChange={(e) => setAuthData(prev => ({ ...prev, registrationId: e.target.value }))}
-                        required
-                        className="w-full"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Password
-                      </label>
-                      <Input
-                        type="password"
-                        placeholder="Enter your password"
-                        value={authData.password}
-                        onChange={(e) => setAuthData(prev => ({ ...prev, password: e.target.value }))}
-                        required
-                        className="w-full"
-                      />
-                      </div>
-
-                      <div className="flex flex-col sm:flex-row gap-3">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => {
-                            setUseSessionAuth(true)
-                            setShowSubmissionForm(false)
-                          }}
-                          className="w-full sm:flex-1"
-                        >
-                          Back
-                        </Button>
-                        <Button
-                          type="submit"
-                          disabled={isLoading}
-                          className="w-full sm:flex-1 bg-gradient-to-r from-green-500 to-blue-600 hover:from-green-600 hover:to-blue-700 text-white"
-                        >
-                          {isLoading ? (
-                            <>
-                              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                              Verifying...
-                            </>
-                          ) : (
-                            <>
-                              <User className="w-4 h-4 mr-2" />
-                              Verify & Continue
-                            </>
-                          )}
-                        </Button>
-                      </div>
-                      </form>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                // Abstract Submission Form
-                <div>
-                  <div className="text-center mb-8">
-                    <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <FileText className="w-8 h-8 text-white" />
-                    </div>
-                    <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-2">
-                      Submit Abstract
-                    </h3>
-                    <p className="text-gray-600 dark:text-gray-400">
-                      Fill in the details below to submit your abstract
-                    </p>
-                  </div>
-
-                  <div className="bg-yellow-50 dark:bg-blue-900/20 border border-yellow-200 dark:border-blue-800 rounded-lg p-4 mb-6">
-                    <div className="flex items-center gap-2 text-blue-800 dark:text-blue-200">
-                      <AlertCircle className="w-4 h-4" />
-                      <span className="text-sm font-medium">Important: One Abstract Per Category</span>
-                    </div>
-                    <p className="text-xs text-conference-primary dark:text-blue-300 mt-1">
-                      You can submit only one abstract per category. Choose your category carefully.
-                    </p>
-                  </div>
-
-                  <form onSubmit={handleSubmit} className="space-y-6">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Abstract Title *
-                      </label>
-                      <Input
-                        type="text"
-                        placeholder="Enter a concise title (avoid abbreviations)"
-                        value={formData.title}
-                        onChange={(e) => {
-                          const value = e.target.value
-                          // Allow letters, numbers, spaces, and common punctuation
-                          if (/^[a-zA-Z0-9\s.,;:'"()\-–—]*$/.test(value)) {
-                            handleInputChange('title', value)
-                          }
-                        }}
-                        required
-                        className="w-full"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Presentation Category *
-                      </label>
-                      <Select value={formData.category} onValueChange={(value) => handleInputChange('category', value)}>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select presentation type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {abstractsConfig?.tracks?.filter((track: any) => track.enabled).map((track: any) => (
-                            <SelectItem key={track.key} value={track.key}>
-                              {track.label}
-                            </SelectItem>
-                          )) || (
-                            <>
-                              <SelectItem value="Free Paper">Free Paper Presentation</SelectItem>
-                              <SelectItem value="Poster">Poster Presentation</SelectItem>
-                            </>
-                          )}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Authors *
-                      </label>
-                      <Input
-                        type="text"
-                        placeholder="Enter authors separated by commas (first author will be presenting author)"
-                        value={formData.authors}
-                        onChange={(e) => {
-                          const value = e.target.value
-                          // Allow letters, spaces, commas, periods, hyphens, and apostrophes for names
-                          if (/^[a-zA-Z\s,.''-]*$/.test(value)) {
-                            handleInputChange('authors', value)
-                          }
-                        }}
-                        required
-                        className="w-full"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Abstract Content (Max 150 words)
-                      </label>
-                      <Textarea
-                        placeholder="Include Aim, Methods/Objectives/Methodology, and Conclusions. Do not include personal details, images, tables, or graphs."
-                        value={formData.abstract}
-                        onChange={(e) => {
-                          const value = e.target.value
-                          const wordCount = value.trim().split(/\s+/).filter(word => word.length > 0).length
-                          // Limit to 150 words
-                          if (wordCount <= 150) {
-                            handleInputChange('abstract', value)
-                          } else {
-                            toast.error('Abstract content cannot exceed 150 words')
-                          }
-                        }}
-                        className="w-full min-h-[120px]"
-                      />
-                      <p className="text-xs text-gray-500 mt-1">
-                        Word count: {formData.abstract.trim().split(/\s+/).filter(word => word.length > 0).length}/150 words
-                      </p>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Keywords
-                      </label>
-                      <Input
-                        type="text"
-                        placeholder="Enter keywords separated by commas"
-                        value={formData.keywords}
-                        onChange={(e) => {
-                          const value = e.target.value
-                          // Allow letters, numbers, spaces, commas, and hyphens for keywords
-                          if (/^[a-zA-Z0-9\s,\-]*$/.test(value)) {
-                            handleInputChange('keywords', value)
-                          }
-                        }}
-                        className="w-full"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Upload Abstract File * (.doc or .docx only)
-                      </label>
-                      <input
-                        type="file"
-                        accept=".doc,.docx"
-                        onChange={handleFileChange}
-                        required
-                        className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-gray-100"
-                      />
-                      {formData.file && (
-                        <p className="text-sm text-green-600 mt-2">
-                          Selected: {formData.file.name}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="flex flex-col sm:flex-row gap-3">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => {
-                          setIsAuthenticated(false)
-                          setFormData({
-                            title: "",
-                            category: "",
-                            authors: "",
-                            abstract: "",
-                            keywords: "",
-                            file: null
-                          })
-                        }}
-                        className="w-full sm:flex-1"
-                      >
-                        Back
-                      </Button>
-                      <Button
-                        type="submit"
-                        disabled={isLoading || !formData.title || !formData.category || !formData.authors || !formData.abstract || !formData.file}
-                        className="w-full sm:flex-1 bg-gradient-to-r from-green-500 to-blue-600 hover:from-green-600 hover:to-blue-700 text-white"
-                      >
-                        {isLoading ? (
-                          <>
-                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                            Submitting...
-                          </>
-                        ) : (
-                          <>
-                            <Upload className="w-4 h-4 mr-2" />
-                            Submit Abstract
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  </form>
-                </div>
-              )}
-            </motion.div>
-          </div>
-        )}
       </div>
     </div>
   )

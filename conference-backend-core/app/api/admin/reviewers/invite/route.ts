@@ -111,6 +111,7 @@ export async function POST(request: NextRequest) {
 
         // Send invite email using reset template
         await EmailService.sendPasswordReset({
+          userId: user._id.toString(),
           email: user.email,
           name: `${user.profile.title || ''} ${user.profile.firstName} ${user.profile.lastName}`.trim(),
           resetLink,

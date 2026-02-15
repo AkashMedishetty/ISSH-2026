@@ -127,7 +127,7 @@ interface Registration {
     accompanyingPersons: any[]
     registrationDate: string
     paymentDate?: string
-    paymentType?: 'regular' | 'complementary' | 'sponsored'
+    paymentType?: 'regular' | 'pending' | 'online' | 'bank-transfer' | 'complementary' | 'complimentary' | 'sponsored'
     sponsorName?: string
     sponsorCategory?: string
     paymentRemarks?: string
@@ -1266,13 +1266,7 @@ export function ComprehensiveAdminPanel() {
 
         {/* Registrations Tab */}
         <TabsContent value="registrations" className="space-y-6">
-          <RegistrationTable
-            searchTerm={searchTerm}
-            statusFilter={statusFilter}
-            typeFilter="all"
-            paymentTypeFilter={paymentTypeFilter}
-            onSelectionChange={() => {}}
-          />
+          <RegistrationTable />
         </TabsContent>
 
             {/* Payments Tab - Enhanced */}

@@ -24,10 +24,10 @@ export async function POST(
     await connectDB()
 
     const adminUser = await User.findById((session.user as any).id)
-    if (!adminUser || adminUser.role !== 'admin') {
+    if (!adminUser || !['admin', 'manager'].includes(adminUser.role)) {
       return NextResponse.json({
         success: false,
-        message: 'Admin access required'
+        message: 'Admin or Manager access required'
       }, { status: 403 })
     }
 
@@ -73,6 +73,7 @@ export async function POST(
       
       if (payment) {
         await EmailService.sendPaymentConfirmation({
+          userId: user._id.toString(),
           email: user.email,
           name: `${user.profile.firstName} ${user.profile.lastName}`,
           registrationId: user.registration.registrationId,
@@ -92,6 +93,7 @@ export async function POST(
       } else {
         // Fallback for embedded payment data
         await EmailService.sendPaymentConfirmation({
+          userId: user._id.toString(),
           email: user.email,
           name: `${user.profile.firstName} ${user.profile.lastName}`,
           registrationId: user.registration.registrationId,

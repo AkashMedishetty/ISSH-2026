@@ -12,7 +12,15 @@ export async function POST(
   try {
     const session = await getServerSession(authOptions)
     
-    if (!session?.user || (session.user as any).role !== 'admin') {
+    if (!session?.user) {
+      return NextResponse.json(
+        { success: false, message: "Unauthorized" },
+        { status: 401 }
+      )
+    }
+    
+    const userRole = (session.user as any)?.role
+    if (!['admin', 'manager'].includes(userRole)) {
       return NextResponse.json(
         { success: false, message: "Unauthorized" },
         { status: 401 }
@@ -50,6 +58,7 @@ export async function POST(
       switch (type) {
         case 'paymentReminder':
           await EmailService.sendPaymentReminder({
+            userId: user._id.toString(),
             email: user.email,
             name: userName,
             registrationId: user.registration.registrationId,
@@ -62,6 +71,7 @@ export async function POST(
           
         case 'customMessage':
           await EmailService.sendCustomMessage({
+            userId: user._id.toString(),
             email: user.email,
             recipientName: userName,
             subject: subject || getEmailSubject('Message'),
@@ -83,6 +93,7 @@ export async function POST(
           };
           
           await EmailService.sendRegistrationAcceptance({
+            userId: user._id.toString(),
             email: user.email,
             name: userName,
             registrationId: user.registration.registrationId,
@@ -106,7 +117,7 @@ export async function POST(
         default:
           // Use bulk email service for general emails
           await EmailService.sendBulkEmail({
-            recipients: [user.email],
+            recipients: [{ email: user.email, userId: user._id.toString(), name: userName }],
             subject: subject || getEmailSubject('Registration Update'),
             content: message || `Thank you for registering for ${conferenceConfig.name}.`,
             senderName: `${conferenceConfig.shortName} Team`

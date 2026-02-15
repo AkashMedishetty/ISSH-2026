@@ -63,6 +63,14 @@ const authNavigationItems = [
   { name: "Program", href: "/program", icon: Calendar },
 ]
 
+// Sponsors get different navigation - they shouldn't see user dashboard items
+const sponsorNavigationItems = [
+  { name: "Home", href: "/", icon: Home },
+  { name: "Sponsor Portal", href: "/sponsor/dashboard", icon: Award },
+  { name: "Program", href: "/program", icon: Calendar },
+  { name: "Venue", href: "/venue", icon: MapPin },
+]
+
 function ThemeToggle() {
   const [mounted, setMounted] = useState(false)
   const { theme, setTheme } = useTheme()
@@ -173,24 +181,29 @@ function UserMenu({ userData }: { userData: any }) {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem asChild>
-          <Link href="/dashboard" className="flex items-center">
-            <Home className="mr-2 h-4 w-4" />
-            Dashboard
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link href="/dashboard/profile" className="flex items-center">
-            <User className="mr-2 h-4 w-4" />
-            Profile
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link href="/dashboard/payment" className="flex items-center">
-            <CreditCard className="mr-2 h-4 w-4" />
-            Payment
-          </Link>
-        </DropdownMenuItem>
+        {/* Only show user dashboard links for non-sponsor users */}
+        {userData?.role !== 'sponsor' && (
+          <>
+            <DropdownMenuItem asChild>
+              <Link href="/dashboard" className="flex items-center">
+                <Home className="mr-2 h-4 w-4" />
+                Dashboard
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link href="/dashboard/profile" className="flex items-center">
+                <User className="mr-2 h-4 w-4" />
+                Profile
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link href="/dashboard/payment" className="flex items-center">
+                <CreditCard className="mr-2 h-4 w-4" />
+                Payment
+              </Link>
+            </DropdownMenuItem>
+          </>
+        )}
         {/* Debug info for MainLayout */}
         <DropdownMenuItem disabled>
           <span className="text-xs text-gray-500">
@@ -217,6 +230,30 @@ function UserMenu({ userData }: { userData: any }) {
               <Link href="/reviewer" className="flex items-center">
                 <FileText className="mr-2 h-4 w-4" />
                 Reviewer Portal
+              </Link>
+            </DropdownMenuItem>
+          </>
+        )}
+        
+        {(userData?.role === 'manager') && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <Link href="/manager" className="flex items-center">
+                <UserCheck className="mr-2 h-4 w-4" />
+                Manager Dashboard
+              </Link>
+            </DropdownMenuItem>
+          </>
+        )}
+        
+        {(userData?.role === 'sponsor') && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <Link href="/sponsor/dashboard" className="flex items-center">
+                <Award className="mr-2 h-4 w-4" />
+                Sponsor Portal
               </Link>
             </DropdownMenuItem>
           </>
@@ -269,7 +306,9 @@ export function MainLayout({ children, currentPage, showSearch = false }: MainLa
     return false
   }
 
-  const navigationItems = session ? authNavigationItems : publicNavigationItems
+  const navigationItems = session 
+    ? (userData?.role === 'sponsor' ? sponsorNavigationItems : authNavigationItems) 
+    : publicNavigationItems
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-ocean-50 via-white to-sapphire-50 dark:from-midnight-950 dark:via-midnight-900 dark:to-midnight-950">
@@ -495,6 +534,24 @@ export function MainLayout({ children, currentPage, showSearch = false }: MainLa
                           <Button variant="ghost" className="w-full justify-start h-12">
                             <FileText className="w-4 h-4 mr-3" />
                             Reviewer Portal
+                          </Button>
+                        </Link>
+                      )}
+                      
+                      {(userData.role === 'manager') && (
+                        <Link href="/manager" onClick={() => setIsMenuOpen(false)}>
+                          <Button variant="ghost" className="w-full justify-start h-12">
+                            <UserCheck className="w-4 h-4 mr-3" />
+                            Manager Dashboard
+                          </Button>
+                        </Link>
+                      )}
+                      
+                      {(userData.role === 'sponsor') && (
+                        <Link href="/sponsor/dashboard" onClick={() => setIsMenuOpen(false)}>
+                          <Button variant="ghost" className="w-full justify-start h-12">
+                            <Award className="w-4 h-4 mr-3" />
+                            Sponsor Portal
                           </Button>
                         </Link>
                       )}

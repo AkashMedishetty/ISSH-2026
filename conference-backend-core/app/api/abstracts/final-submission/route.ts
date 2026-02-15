@@ -104,13 +104,14 @@ export async function POST(request: NextRequest) {
     // Send confirmation email
     try {
       await EmailService.sendFinalSubmissionConfirmation({
+        userId: user._id.toString(),
         email: user.email,
         name: `${user.profile?.firstName || user.firstName || ''} ${user.profile?.lastName || user.lastName || ''}`.trim() || user.email,
         registrationId: user.registration?.registrationId || 'N/A',
         abstractId: abstract.abstractId,
         finalDisplayId,
         title: abstract.title,
-        track: abstract.track,
+        track: abstract.track || 'N/A',
         authors: abstract.authors,
         submittedAt: abstract.final.submittedAt?.toISOString() || new Date().toISOString(),
         fileName: file.name

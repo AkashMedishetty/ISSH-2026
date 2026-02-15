@@ -36,24 +36,27 @@ export function getTierSummary(now: Date = new Date()): string {
 }
 
 // Pricing per tier - configured via admin panel
-export type RegistrationCategory = "postgraduate" | "consultant"
+export type RegistrationCategory = "resident" | "delegate"
 
 export interface TierPricing {
-	[category: string]: { amount: number; currency: "INR" }
+	[category: string]: { amount: number; currency: "INR"; label?: string }
 }
 
 const PRICING_BY_TIER: Record<RegistrationTier, TierPricing> = {
 	"Early Bird": {
-		"postgraduate": { amount: 2500, currency: "INR" },
-		"consultant": { amount: 5000, currency: "INR" },
+		"resident": { amount: 4000, currency: "INR", label: "Resident (Postgraduate)" },
+		"delegate": { amount: 5500, currency: "INR", label: "Delegate" },
+		"accompanying": { amount: 3500, currency: "INR", label: "Accompanying Person" },
 	},
 	"Regular": {
-		"postgraduate": { amount: 2500, currency: "INR" },
-		"consultant": { amount: 5000, currency: "INR" },
+		"resident": { amount: 5000, currency: "INR", label: "Resident (Postgraduate)" },
+		"delegate": { amount: 6500, currency: "INR", label: "Delegate" },
+		"accompanying": { amount: 4500, currency: "INR", label: "Accompanying Person" },
 	},
 	"Late / Spot": {
-		"postgraduate": { amount: 2500, currency: "INR" },
-		"consultant": { amount: 5000, currency: "INR" },
+		"resident": { amount: 6000, currency: "INR", label: "Resident (Postgraduate)" },
+		"delegate": { amount: 8000, currency: "INR", label: "Delegate" },
+		"accompanying": { amount: 5000, currency: "INR", label: "Accompanying Person" },
 	},
 }
 

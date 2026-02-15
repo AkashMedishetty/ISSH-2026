@@ -21,12 +21,20 @@ export async function POST(request: NextRequest) {
   const doc = await Abstract.findOne({ abstractId })
   if (!doc) return NextResponse.json({ success: false, message: 'Abstract not found' }, { status: 404 })
 
-  // Compute average score
+  // Compute average score using the 5 criteria (each 1-10, total max 50)
   const reviews = await Review.find({ abstractId: doc._id })
   if (reviews.length > 0) {
-    const sum = reviews.reduce((acc, r) => acc + ((r.scores?.originality || 0) + (r.scores?.methodology || 0) + (r.scores?.relevance || 0) + (r.scores?.clarity || 0)), 0)
-    const maxPerReview = 30 // 10*3 (+ clarity up to 10)
-    doc.averageScore = sum / reviews.length // simple average of summed scores
+    const sum = reviews.reduce((acc, r) => {
+      const total = r.scores?.total || (
+        (r.scores?.originality || 0) + 
+        (r.scores?.levelOfEvidence || 0) + 
+        (r.scores?.scientificImpact || 0) + 
+        (r.scores?.socialSignificance || 0) + 
+        (r.scores?.qualityOfManuscript || 0)
+      )
+      return acc + total
+    }, 0)
+    doc.averageScore = sum / reviews.length // average of total scores (out of 50)
   }
   doc.status = decision
   doc.decisionAt = new Date()

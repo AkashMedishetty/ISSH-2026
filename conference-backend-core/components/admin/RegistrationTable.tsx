@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { motion } from "framer-motion"
+import { useState, useEffect, useCallback, useMemo } from "react"
+import { motion, AnimatePresence } from "framer-motion"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card"
 import { Button } from "../ui/button"
 import { Input } from "../ui/input"
@@ -9,212 +9,31 @@ import { Badge } from "../ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table"
 import { Alert, AlertDescription } from "../ui/alert"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "../ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "../ui/dialog"
 import { Label } from "../ui/label"
 import { Textarea } from "../ui/textarea"
 import { Checkbox } from "../ui/checkbox"
+import { Skeleton } from "../ui/skeleton"
+import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover"
 import {
-  Users,
-  Search,
-  Filter,
-  Download,
-  Mail,
-  Eye,
-  Edit,
-  Trash2,
-  CheckCircle,
-  Clock,
-  AlertTriangle,
-  User,
-  Building,
-  Phone,
-  Calendar,
-  MoreVertical,
-  Plus,
-  Upload,
-  FileSpreadsheet,
-  Save,
-  X,
-  DollarSign,
-  Gift,
-  Award,
-  MapPin,
-  BookOpen,
-  FileText,
-  Send
+  Users, Search, Filter, Download, Mail, Eye, Edit, Trash2, CheckCircle, Clock,
+  AlertTriangle, User, Phone, Calendar, MoreVertical, Plus, Upload, FileSpreadsheet,
+  Save, X, DollarSign, Gift, Award, FileText, Send, RefreshCw, Settings2, Columns,
+  ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowUpDown, ArrowUp, ArrowDown,
+  FileDown, Printer, BadgeCheck, ScrollText, Copy, UserPlus, Link, CreditCard
 } from "lucide-react"
 import { useToast } from "../ui/use-toast"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/dropdown-menu"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuCheckboxItem, DropdownMenuLabel } from "../ui/dropdown-menu"
 import { EmailDialog } from "./EmailDialog"
 import { VerifiedImportDialog } from "./VerifiedImportDialog"
+import { SponsoredImportDialog } from "./SponsoredImportDialog"
+import { RegistrationDetailsModal } from "./RegistrationDetailsModal"
 import { conferenceConfig, getCategoryLabel } from "@/config/conference.config"
 
-// Workshop Selection Editor Component
-interface WorkshopSelectionEditorProps {
-  selectedWorkshops: string[]
-  onSelectionChange: (workshops: string[]) => void
-}
+// Theme colors from config
+const theme = conferenceConfig.theme
 
-function WorkshopSelectionEditor({ selectedWorkshops, onSelectionChange }: WorkshopSelectionEditorProps) {
-  const [availableWorkshops, setAvailableWorkshops] = useState([
-    { id: "joint-replacement", label: "Advanced Joint Replacement Techniques" },
-    { id: "spinal-surgery", label: "Spine Surgery and Instrumentation" },
-    { id: "pediatric-orthopaedics", label: "Pediatric Orthopaedics" },
-    { id: "arthroscopy", label: "Arthroscopic Surgery Techniques" },
-    { id: "orthopaedic-rehab", label: "Orthopaedic Rehabilitation" },
-    { id: "trauma-surgery", label: "Orthopaedic Trauma Surgery" }
-  ])
-
-  const handleWorkshopToggle = (workshopId: string, checked: boolean) => {
-    if (checked) {
-      onSelectionChange([...selectedWorkshops, workshopId])
-    } else {
-      onSelectionChange(selectedWorkshops.filter(id => id !== workshopId))
-    }
-  }
-
-  return (
-    <div className="space-y-3">
-      {availableWorkshops.map((workshop) => (
-        <div key={workshop.id} className="flex items-center space-x-3 p-3 border rounded-lg">
-          <Checkbox
-            id={`workshop-${workshop.id}`}
-            checked={selectedWorkshops.includes(workshop.id)}
-            onCheckedChange={(checked) => handleWorkshopToggle(workshop.id, checked as boolean)}
-          />
-          <Label htmlFor={`workshop-${workshop.id}`} className="flex-1 cursor-pointer">
-            {workshop.label}
-          </Label>
-        </div>
-      ))}
-      {selectedWorkshops.length === 0 && (
-        <p className="text-sm text-gray-500 italic">No workshops selected</p>
-      )}
-    </div>
-  )
-}
-
-// Accompanying Persons Editor Component
-interface AccompanyingPersonsEditorProps {
-  accompanyingPersons: Array<{
-    name: string
-    age: number
-    relationship: string
-    dietaryRequirements?: string
-  }>
-  onPersonsChange: (persons: Array<{
-    name: string
-    age: number
-    relationship: string
-    dietaryRequirements?: string
-  }>) => void
-}
-
-function AccompanyingPersonsEditor({ accompanyingPersons, onPersonsChange }: AccompanyingPersonsEditorProps) {
-  const addPerson = () => {
-    onPersonsChange([
-      ...accompanyingPersons,
-      { name: '', age: 0, relationship: '', dietaryRequirements: '' }
-    ])
-  }
-
-  const removePerson = (index: number) => {
-    onPersonsChange(accompanyingPersons.filter((_, i) => i !== index))
-  }
-
-  const updatePerson = (index: number, field: string, value: any) => {
-    const updated = accompanyingPersons.map((person, i) =>
-      i === index ? { ...person, [field]: value } : person
-    )
-    onPersonsChange(updated)
-  }
-
-  return (
-    <div className="space-y-4">
-      {accompanyingPersons.map((person, index) => (
-        <div key={index} className="p-4 border rounded-lg space-y-3">
-          <div className="flex items-center justify-between">
-            <h4 className="font-medium">Person {index + 1}</h4>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => removePerson(index)}
-              className="text-red-600 hover:text-red-700"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div>
-              <Label>Name</Label>
-              <Input
-                value={person.name}
-                onChange={(e) => updatePerson(index, 'name', e.target.value)}
-                placeholder="Full name"
-              />
-            </div>
-            <div>
-              <Label>Age</Label>
-              <Input
-                type="number"
-                value={person.age}
-                onChange={(e) => updatePerson(index, 'age', parseInt(e.target.value) || 0)}
-                placeholder="Age"
-              />
-            </div>
-            <div>
-              <Label>Relationship</Label>
-              <Select
-                value={person.relationship}
-                onValueChange={(value) => updatePerson(index, 'relationship', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select relationship" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="spouse">Spouse</SelectItem>
-                  <SelectItem value="child">Child</SelectItem>
-                  <SelectItem value="parent">Parent</SelectItem>
-                  <SelectItem value="sibling">Sibling</SelectItem>
-                  <SelectItem value="colleague">Colleague</SelectItem>
-                  <SelectItem value="friend">Friend</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <div>
-            <Label>Dietary Requirements</Label>
-            <Input
-              value={person.dietaryRequirements || ''}
-              onChange={(e) => updatePerson(index, 'dietaryRequirements', e.target.value)}
-              placeholder="Any dietary restrictions"
-            />
-          </div>
-        </div>
-      ))}
-
-      <Button
-        variant="outline"
-        onClick={addPerson}
-        className="w-full"
-        disabled={accompanyingPersons.length >= 5}
-      >
-        <Plus className="h-4 w-4 mr-2" />
-        Add Accompanying Person
-      </Button>
-
-      {accompanyingPersons.length === 0 && (
-        <p className="text-sm text-gray-500 italic">No accompanying persons added</p>
-      )}
-
-      {accompanyingPersons.length >= 5 && (
-        <p className="text-sm text-amber-600">Maximum 5 accompanying persons allowed</p>
-      )}
-    </div>
-  )
-}
-
+// Types
 interface Registration {
   _id: string
   email: string
@@ -224,11 +43,10 @@ interface Registration {
     lastName: string
     phone: string
     institution: string
-    address: {
-      city: string
-      state: string
-      country: string
-    }
+    designation?: string
+    specialization?: string
+    mciNumber?: string
+    address: { city: string; state: string; country: string }
     dietaryRequirements?: string
     specialNeeds?: string
   }
@@ -238,774 +56,864 @@ interface Registration {
     status: string
     membershipNumber?: string
     workshopSelections: string[]
-    accompanyingPersons: Array<{
-      name: string
-      age: number
-      relationship: string
-      dietaryRequirements?: string
-    }>
+    accompanyingPersons: Array<{ name: string; age: number; relationship: string; dietaryRequirements?: string }>
     registrationDate: string
     paymentDate?: string
-    paymentType?: 'regular' | 'complementary' | 'sponsored'
+    paymentType?: 'regular' | 'pending' | 'online' | 'bank-transfer' | 'complementary' | 'complimentary' | 'sponsored'
+    sponsorId?: string
     sponsorName?: string
-    sponsorCategory?: string
-    paymentRemarks?: string
   }
-  paymentInfo?: {
-    amount: number
-    currency: string
-    transactionId: string
-    status?: string
-    breakdown?: {
-      baseAmount?: number
-      workshopFees?: Array<{ name: string; amount: number }>
-      accompanyingPersonFees?: number
-      discountsApplied?: Array<{ type: string; percentage: number; amount: number }>
-    }
+  payment?: { 
+    method?: 'bank-transfer' | 'online' | 'pay-now' | 'cash'
+    status?: 'pending' | 'verified' | 'rejected' | 'processing'
+    amount?: number
+    bankTransferUTR?: string
+    transactionId?: string
+    screenshotUrl?: string
   }
+  paymentInfo?: { amount: number; currency: string; transactionId: string; status?: string }
 }
 
-interface NewRegistration {
-  email: string
-  password: string
-  profile: {
-    title: string
-    firstName: string
-    lastName: string
-    phone: string
-    institution: string
-    designation: string
-    address: {
-      city: string
-      state: string
-      country: string
-    }
-    dietaryRequirements?: string
-    specialNeeds?: string
-  }
-  registration: {
-    type: string
-    status: string
-    membershipNumber?: string
-    workshopSelections: string[]
-    accompanyingPersons: Array<{
-      name: string
-      age: number
-      relationship: string
-      dietaryRequirements?: string
-    }>
-    paymentType?: 'regular' | 'complementary' | 'sponsored'
-    sponsorName?: string
-    sponsorCategory?: string
-    paymentRemarks?: string
-  }
-  paymentInfo?: {
-    amount: number
-    currency: string
-    status?: string
-    breakdown?: {
-      baseAmount?: number
-      workshopFees?: Array<{ name: string; amount: number }>
-      accompanyingPersonFees?: number
-      discountsApplied?: Array<{ type: string; percentage: number; amount: number }>
-    }
-  }
+interface PaginationInfo {
+  page: number
+  limit: number
+  total: number
+  totalPages: number
 }
 
-interface RegistrationTableProps {
-  searchTerm?: string
-  statusFilter?: string
-  typeFilter?: string
-  workshopFilter?: string
-  paymentTypeFilter?: string
-  onSelectionChange?: (selectedIds: string[]) => void
+interface ColumnConfig {
+  key: string
+  label: string
+  visible: boolean
+  sortable: boolean
 }
 
-export function RegistrationTable({
-  onSelectionChange
-}: RegistrationTableProps) {
+// Storage keys
+const STORAGE_KEYS = {
+  columns: 'reg-table-columns',
+  pageSize: 'reg-table-page-size',
+  sortBy: 'reg-table-sort-by',
+  sortOrder: 'reg-table-sort-order'
+}
+
+// Default columns
+const DEFAULT_COLUMNS: ColumnConfig[] = [
+  { key: 'select', label: '', visible: true, sortable: false },
+  { key: 'attendee', label: 'Attendee', visible: true, sortable: true },
+  { key: 'registrationId', label: 'Reg ID', visible: true, sortable: true },
+  { key: 'type', label: 'Type', visible: true, sortable: true },
+  { key: 'status', label: 'Status', visible: true, sortable: true },
+  { key: 'paymentType', label: 'Payment Type', visible: true, sortable: true },
+  { key: 'date', label: 'Date', visible: true, sortable: true },
+  { key: 'amount', label: 'Amount', visible: true, sortable: true },
+  { key: 'actions', label: '', visible: true, sortable: false }
+]
+
+// Loading Skeleton Component
+function TableSkeleton() {
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-4 p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
+        {[1, 2, 3, 4].map(i => (
+          <div key={i} className="flex-1 text-center">
+            <Skeleton className="h-8 w-16 mx-auto mb-2" />
+            <Skeleton className="h-4 w-12 mx-auto" />
+          </div>
+        ))}
+      </div>
+      <div className="flex gap-4">
+        <Skeleton className="h-10 flex-1" />
+        <Skeleton className="h-10 w-40" />
+        <Skeleton className="h-10 w-40" />
+      </div>
+      <div className="border rounded-lg overflow-hidden">
+        <div className="bg-slate-100 dark:bg-slate-800 p-3">
+          <div className="flex gap-4">
+            {[1, 2, 3, 4, 5, 6, 7].map(i => (
+              <Skeleton key={i} className="h-4 flex-1" />
+            ))}
+          </div>
+        </div>
+        {[1, 2, 3, 4, 5].map(row => (
+          <div key={row} className="p-4 border-t flex gap-4 items-center">
+            <Skeleton className="h-4 w-4" />
+            <div className="flex items-center gap-3 flex-1">
+              <Skeleton className="h-10 w-10 rounded-full" />
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-3 w-48" />
+              </div>
+            </div>
+            <Skeleton className="h-6 w-24" />
+            <Skeleton className="h-6 w-20" />
+            <Skeleton className="h-6 w-16" />
+            <Skeleton className="h-6 w-20" />
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-8 w-8" />
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// Status Badge Component with theme colors
+function StatusBadge({ status }: { status: string }) {
+  const config: Record<string, { bg: string; text: string; icon: React.ReactNode }> = {
+    paid: { bg: 'bg-emerald-100 dark:bg-emerald-900/30', text: 'text-emerald-700 dark:text-emerald-300', icon: <CheckCircle className="h-3 w-3" /> },
+    confirmed: { bg: 'bg-blue-100 dark:bg-blue-900/30', text: 'text-blue-700 dark:text-blue-300', icon: <CheckCircle className="h-3 w-3" /> },
+    pending: { bg: 'bg-amber-100 dark:bg-amber-900/30', text: 'text-amber-700 dark:text-amber-300', icon: <Clock className="h-3 w-3" /> },
+    'pending-payment': { bg: 'bg-orange-100 dark:bg-orange-900/30', text: 'text-orange-700 dark:text-orange-300', icon: <Clock className="h-3 w-3" /> },
+    cancelled: { bg: 'bg-red-100 dark:bg-red-900/30', text: 'text-red-700 dark:text-red-300', icon: <X className="h-3 w-3" /> }
+  }
+  const c = config[status] || config.pending
+  return (
+    <Badge className={`${c.bg} ${c.text} border-0 flex items-center gap-1 font-medium`}>
+      {c.icon}
+      {status.charAt(0).toUpperCase() + status.slice(1).replace('-', ' ')}
+    </Badge>
+  )
+}
+
+// Payment Type Badge with theme colors
+function PaymentTypeBadge({ type, sponsorName }: { type?: string; sponsorName?: string }) {
+  const config: Record<string, { bg: string; text: string; icon: React.ReactNode; label: string }> = {
+    regular: { 
+      bg: 'bg-blue-100 dark:bg-blue-900/30', 
+      text: 'text-blue-700 dark:text-blue-300', 
+      icon: <DollarSign className="h-3 w-3" />,
+      label: 'Online'
+    },
+    online: { 
+      bg: 'bg-blue-100 dark:bg-blue-900/30', 
+      text: 'text-blue-700 dark:text-blue-300', 
+      icon: <DollarSign className="h-3 w-3" />,
+      label: 'Online'
+    },
+    'bank-transfer': { 
+      bg: 'bg-orange-100 dark:bg-orange-900/30', 
+      text: 'text-orange-700 dark:text-orange-300', 
+      icon: <FileText className="h-3 w-3" />,
+      label: 'Bank Transfer'
+    },
+    complementary: { 
+      bg: 'bg-gradient-to-r from-emerald-500 to-teal-500', 
+      text: 'text-white', 
+      icon: <Gift className="h-3 w-3" />,
+      label: 'Complimentary'
+    },
+    complimentary: { 
+      bg: 'bg-gradient-to-r from-emerald-500 to-teal-500', 
+      text: 'text-white', 
+      icon: <Gift className="h-3 w-3" />,
+      label: 'Complimentary'
+    },
+    sponsored: { 
+      bg: 'bg-gradient-to-r from-purple-500 to-indigo-500', 
+      text: 'text-white', 
+      icon: <Award className="h-3 w-3" />,
+      label: 'Sponsored'
+    },
+    pending: { 
+      bg: 'bg-amber-100 dark:bg-amber-900/30', 
+      text: 'text-amber-700 dark:text-amber-300', 
+      icon: <Clock className="h-3 w-3" />,
+      label: 'Pending'
+    }
+  }
+  
+  const normalizedType = type?.toLowerCase() || 'pending'
+  const c = config[normalizedType] || config.pending
+  
+  return (
+    <div className="flex flex-col gap-1">
+      <Badge className={`${c.bg} ${c.text} border-0 flex items-center gap-1 font-medium`}>
+        {c.icon}
+        {c.label}
+      </Badge>
+      {sponsorName && (
+        <span className="text-xs text-muted-foreground truncate max-w-[120px]" title={sponsorName}>
+          {sponsorName}
+        </span>
+      )}
+    </div>
+  )
+}
+
+// Registration Type Badge
+function TypeBadge({ type }: { type: string }) {
+  const label = getCategoryLabel(type) || type.charAt(0).toUpperCase() + type.slice(1)
+  return (
+    <Badge variant="outline" className="font-medium border-slate-300 dark:border-slate-600">
+      {label}
+    </Badge>
+  )
+}
+
+// Main Component
+export function RegistrationTable() {
+  // State
   const [registrations, setRegistrations] = useState<Registration[]>([])
-  const [filteredRegistrations, setFilteredRegistrations] = useState<Registration[]>([])
-  const [totalFilteredCount, setTotalFilteredCount] = useState(0)
-  const [selectedRegistrations, setSelectedRegistrations] = useState<string[]>([])
+  const [pagination, setPagination] = useState<PaginationInfo>({ page: 1, limit: 10, total: 0, totalPages: 0 })
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState("")
+  
+  // Server-side stats (from API - reflects total database, not just current page)
+  const [serverStats, setServerStats] = useState({
+    total: 0,
+    confirmed: 0,
+    paid: 0,
+    pendingPayment: 0,
+    cancelled: 0,
+    sponsored: 0,
+    complimentary: 0,
+    workshopRegistrations: 0,
+    accompanyingPersons: 0
+  })
+  
+  // Sponsors list for filter
+  const [sponsors, setSponsors] = useState<Array<{ _id: string; companyName: string }>>([])
+  
+  // Filters
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [typeFilter, setTypeFilter] = useState("all")
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState("")
+  const [paymentTypeFilter, setPaymentTypeFilter] = useState("all")
+  const [sponsorFilter, setSponsorFilter] = useState("all")
+  const [specializationFilter, setSpecializationFilter] = useState("all")
+  const [sortBy, setSortBy] = useState("registrationDate")
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
+  
+  // Column visibility
+  const [columns, setColumns] = useState<ColumnConfig[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem(STORAGE_KEYS.columns)
+      return saved ? JSON.parse(saved) : DEFAULT_COLUMNS
+    }
+    return DEFAULT_COLUMNS
+  })
+  
+  // Modals
   const [selectedRegistration, setSelectedRegistration] = useState<Registration | null>(null)
   const [isDetailsOpen, setIsDetailsOpen] = useState(false)
-  const [isEditOpen, setIsEditOpen] = useState(false)
-  const [isAddOpen, setIsAddOpen] = useState(false)
-  const [isImportOpen, setIsImportOpen] = useState(false)
-  const [isPaymentOpen, setIsPaymentOpen] = useState(false)
-  const [currentPage, setCurrentPage] = useState(1)
-  const [itemsPerPage, setItemsPerPage] = useState(10)
-  const [editingRegistration, setEditingRegistration] = useState<Registration | null>(null)
-  const [newRegistration, setNewRegistration] = useState<NewRegistration>({
-    email: "",
-    password: "",
-    profile: {
-      title: "",
-      firstName: "",
-      lastName: "",
-      phone: "",
-      institution: "",
-      designation: "",
-      address: {
-        city: "",
-        state: "",
-        country: "India"
-      }
-    },
-    registration: {
-      type: "consultant",
-      status: "pending",
-      workshopSelections: [],
-      accompanyingPersons: []
-    }
-  })
-  const [importFile, setImportFile] = useState<File | null>(null)
-  const [paymentData, setPaymentData] = useState({
-    paymentType: 'regular' as 'regular' | 'complementary' | 'sponsored',
-    sponsorName: '',
-    sponsorCategory: '',
-    paymentRemarks: '',
-    amount: 0,
-    bankTransferUTR: '',
-    transactionId: ''
-  })
   const [isEmailDialogOpen, setIsEmailDialogOpen] = useState(false)
-  const [selectedRegistrationForEmail, setSelectedRegistrationForEmail] = useState<Registration | null>(null)
   const [isBulkEmailOpen, setIsBulkEmailOpen] = useState(false)
-  const [bulkEmailConfig, setBulkEmailConfig] = useState({
-    template: 'custom',
-    subject: '',
-    message: '',
-    sendTo: 'selected' as 'selected' | 'filtered' | 'all'
+  const [isBulkActionLoading, setIsBulkActionLoading] = useState(false)
+  const [isAddRegistrationOpen, setIsAddRegistrationOpen] = useState(false)
+  const [isAddingRegistration, setIsAddingRegistration] = useState(false)
+  
+  // Add registration form
+  const [newRegistration, setNewRegistration] = useState({
+    email: '',
+    password: '',
+    title: 'Dr.',
+    firstName: '',
+    lastName: '',
+    phone: '',
+    designation: 'Consultant',
+    specialization: 'not-specified',
+    institution: '',
+    mciNumber: '',
+    city: '',
+    state: '',
+    country: 'India',
+    registrationType: 'delegate',
+    paymentType: 'pending' as 'pending' | 'complimentary' | 'bank-transfer',
+    amount: 0,
+    remarks: ''
   })
-
+  
   const { toast } = useToast()
 
-  // Email template definitions
-  const emailTemplates = {
-    registrationConfirmation: {
-      subject: 'Registration Confirmation - NeuroVascon 2026',
-      message: `Dear {name},\n\nThank you for registering for NeuroVascon 2026!\n\nYour Registration Details:\nRegistration ID: {registrationId}\nEmail: {email}\nInstitution: {institution}\n\nWe look forward to seeing you at the conference.\n\nBest regards,\nNeuroVascon 2026 Organizing Committee`
-    },
-    paymentReminder: {
-      subject: 'Payment Reminder - NeuroVascon 2026 Registration',
-      message: `Dear {name},\n\nThis is a friendly reminder regarding your registration payment for NeuroVascon 2026.\n\nRegistration ID: {registrationId}\nInstitution: {institution}\n\nPlease complete your payment at your earliest convenience to confirm your participation.\n\nFor any queries, please contact us.\n\nBest regards,\nNeuroVascon 2026 Team`
-    },
-    eventUpdate: {
-      subject: 'Important Update - NeuroVascon 2026',
-      message: `Dear {name},\n\nWe have an important update regarding NeuroVascon 2026.\n\n[Please add your update details here]\n\nRegistration ID: {registrationId}\n\nThank you for your attention.\n\nBest regards,\nNeuroVascon 2026 Organizing Committee`
-    },
-    welcomeEmail: {
-      subject: 'Welcome to NeuroVascon 2026!',
-      message: `Dear {name},\n\nWelcome to NeuroVascon 2026!\n\nWe are excited to have you join us. Your registration has been successfully processed.\n\nRegistration ID: {registrationId}\nEmail: {email}\nInstitution: {institution}\n\nStay tuned for more updates about the conference schedule and activities.\n\nWarm regards,\nNeuroVascon 2026 Team`
-    },
-    custom: {
-      subject: '',
-      message: ''
-    }
-  }
-
+  // Load preferences from localStorage
   useEffect(() => {
-    fetchRegistrations()
+    if (typeof window !== 'undefined') {
+      const savedPageSize = localStorage.getItem(STORAGE_KEYS.pageSize)
+      const savedSortBy = localStorage.getItem(STORAGE_KEYS.sortBy)
+      const savedSortOrder = localStorage.getItem(STORAGE_KEYS.sortOrder)
+      
+      if (savedPageSize) setPagination(p => ({ ...p, limit: parseInt(savedPageSize) }))
+      if (savedSortBy) setSortBy(savedSortBy)
+      if (savedSortOrder) setSortOrder(savedSortOrder as "asc" | "desc")
+    }
   }, [])
 
+  // Fetch sponsors list for filter dropdown
   useEffect(() => {
-    filterAndPaginateRegistrations()
-  }, [registrations, searchTerm, statusFilter, typeFilter, currentPage, itemsPerPage])
-
-  useEffect(() => {
-    if (onSelectionChange) {
-      onSelectionChange(selectedRegistrations)
+    const fetchSponsors = async () => {
+      try {
+        const response = await fetch('/api/admin/sponsors')
+        const data = await response.json()
+        if (data.success && data.sponsors) {
+          setSponsors(data.sponsors.map((s: any) => ({
+            _id: s._id,
+            companyName: s.sponsorProfile?.companyName || s.email
+          })))
+        }
+      } catch (err) {
+        console.error('Failed to fetch sponsors:', err)
+      }
     }
-  }, [selectedRegistrations, onSelectionChange])
+    fetchSponsors()
+  }, [])
 
-  const fetchRegistrations = async () => {
+  // Save preferences
+  const savePreference = useCallback((key: string, value: string) => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(key, value)
+    }
+  }, [])
+
+  // Fetch registrations with server-side pagination
+  const fetchRegistrations = useCallback(async () => {
     try {
       setIsLoading(true)
-      const response = await fetch("/api/admin/registrations")
+      const params = new URLSearchParams({
+        page: pagination.page.toString(),
+        limit: pagination.limit.toString(),
+        sortBy,
+        sortOrder,
+        ...(searchTerm && { search: searchTerm }),
+        ...(statusFilter !== 'all' && { status: statusFilter }),
+        ...(typeFilter !== 'all' && { type: typeFilter }),
+        ...(paymentTypeFilter !== 'all' && { paymentType: paymentTypeFilter }),
+        ...(sponsorFilter !== 'all' && { sponsorId: sponsorFilter }),
+        ...(specializationFilter !== 'all' && { specialization: specializationFilter })
+      })
+      
+      const response = await fetch(`/api/admin/registrations?${params}`)
       const data = await response.json()
-
+      
       if (data.success) {
         setRegistrations(data.data)
+        setPagination(p => ({
+          ...p,
+          total: data.pagination.total,
+          totalPages: data.pagination.totalPages
+        }))
+        // Update server-side stats
+        if (data.stats) {
+          setServerStats({
+            total: data.stats.total || 0,
+            confirmed: data.stats.confirmed || 0,
+            paid: data.stats.paid || 0,
+            pendingPayment: data.stats.pendingPayment || 0,
+            cancelled: data.stats.cancelled || 0,
+            sponsored: data.stats.sponsored || 0,
+            complimentary: data.stats.complimentary || 0,
+            workshopRegistrations: data.stats.workshopRegistrations || 0,
+            accompanyingPersons: data.stats.accompanyingPersons || 0
+          })
+        }
       } else {
         setError(data.message || "Failed to fetch registrations")
       }
-    } catch (error) {
-      console.error("Registrations fetch error:", error)
+    } catch (err) {
+      console.error("Fetch error:", err)
       setError("An error occurred while fetching registrations")
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [pagination.page, pagination.limit, sortBy, sortOrder, searchTerm, statusFilter, typeFilter, paymentTypeFilter, sponsorFilter, specializationFilter])
 
-  const filterAndPaginateRegistrations = () => {
-    let filtered = registrations
+  useEffect(() => {
+    const debounce = setTimeout(fetchRegistrations, 300)
+    return () => clearTimeout(debounce)
+  }, [fetchRegistrations])
 
-    // Search filter
-    if (searchTerm) {
-      filtered = filtered.filter(reg =>
-        reg.profile.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        reg.profile.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        reg.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        reg.registration.registrationId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        reg.profile.institution?.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-    }
-
-    // Status filter
-    if (statusFilter !== "all") {
-      filtered = filtered.filter(reg => reg.registration.status === statusFilter)
-    }
-
-    // Type filter
-    if (typeFilter !== "all") {
-      filtered = filtered.filter(reg => reg.registration.type === typeFilter)
-    }
-
-    // Store total filtered count for pagination
-    setTotalFilteredCount(filtered.length)
-
-    // Apply pagination
-    const startIndex = (currentPage - 1) * itemsPerPage
-    const endIndex = startIndex + itemsPerPage
-    const paginated = filtered.slice(startIndex, endIndex)
-
-    setFilteredRegistrations(paginated)
-    
-    // Reset to page 1 if current page is out of range
-    if (filtered.length > 0 && currentPage > Math.ceil(filtered.length / itemsPerPage)) {
-      setCurrentPage(1)
-    }
-  }
-
+  // Selection handlers
   const handleSelectAll = (checked: boolean) => {
-    if (checked) {
-      setSelectedRegistrations(filteredRegistrations.map(reg => reg._id))
-    } else {
-      setSelectedRegistrations([])
-    }
+    setSelectedIds(checked ? registrations.map(r => r._id) : [])
   }
 
-  const handleSelectRegistration = (id: string, checked: boolean) => {
-    if (checked) {
-      setSelectedRegistrations(prev => [...prev, id])
-    } else {
-      setSelectedRegistrations(prev => prev.filter(regId => regId !== id))
-    }
+  const handleSelectOne = (id: string, checked: boolean) => {
+    setSelectedIds(prev => checked ? [...prev, id] : prev.filter(i => i !== id))
   }
 
-  const handleStatusUpdate = async (registrationId: string, newStatus: string) => {
-    try {
-      const response = await fetch(`/api/admin/registrations/${registrationId}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ status: newStatus })
-      })
+  const isAllSelected = registrations.length > 0 && selectedIds.length === registrations.length
+  const isSomeSelected = selectedIds.length > 0 && selectedIds.length < registrations.length
 
-      const data = await response.json()
-
-      if (data.success) {
-        toast({
-          title: "Status Updated",
-          description: "Registration status has been updated successfully."
-        })
-        fetchRegistrations()
-      } else {
-        toast({
-          title: "Update Failed",
-          description: data.message || "Failed to update registration status",
-          variant: "destructive"
-        })
-      }
-    } catch (error) {
-      console.error("Status update error:", error)
-      toast({
-        title: "Error",
-        description: "An error occurred while updating the status",
-        variant: "destructive"
-      })
-    }
+  // Sort handler
+  const handleSort = (column: string) => {
+    const newOrder = sortBy === column && sortOrder === 'asc' ? 'desc' : 'asc'
+    setSortBy(column)
+    setSortOrder(newOrder)
+    savePreference(STORAGE_KEYS.sortBy, column)
+    savePreference(STORAGE_KEYS.sortOrder, newOrder)
   }
 
-  const handleExport = async () => {
-    try {
-      const response = await fetch("/api/admin/export/registrations")
-
-      if (response.ok) {
-        const blob = await response.blob()
-        const url = window.URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.style.display = 'none'
-        a.href = url
-        a.download = `registrations-${new Date().toISOString().split('T')[0]}.csv`
-        document.body.appendChild(a)
-        a.click()
-        window.URL.revokeObjectURL(url)
-
-        toast({
-          title: "Export Started",
-          description: "Registration data is being downloaded."
-        })
-      } else {
-        toast({
-          title: "Export Failed",
-          description: "Unable to export registration data",
-          variant: "destructive"
-        })
-      }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "An error occurred during export",
-        variant: "destructive"
-      })
-    }
+  // Column visibility toggle
+  const toggleColumn = (key: string) => {
+    const updated = columns.map(c => c.key === key ? { ...c, visible: !c.visible } : c)
+    setColumns(updated)
+    savePreference(STORAGE_KEYS.columns, JSON.stringify(updated))
   }
 
-  const handleEditRegistration = (registration: Registration) => {
-    setEditingRegistration({ ...registration })
-    setIsEditOpen(true)
+  // Page size change
+  const handlePageSizeChange = (size: string) => {
+    const newLimit = parseInt(size)
+    setPagination(p => ({ ...p, limit: newLimit, page: 1 }))
+    savePreference(STORAGE_KEYS.pageSize, size)
   }
 
-  const handleSaveEdit = async () => {
-    if (!editingRegistration) return
-
-    try {
-      // Sync paymentType with registration type for complementary and sponsored
-      const updatedRegistration = { ...editingRegistration }
-      if (updatedRegistration.registration.type === 'complementary') {
-        updatedRegistration.registration.paymentType = 'complementary'
-        updatedRegistration.registration.status = 'paid'
-        updatedRegistration.registration.paymentDate = new Date().toISOString()
-      } else if (updatedRegistration.registration.type === 'sponsored') {
-        updatedRegistration.registration.paymentType = 'sponsored'
-        updatedRegistration.registration.status = 'paid'
-        updatedRegistration.registration.paymentDate = new Date().toISOString()
-      } else {
-        updatedRegistration.registration.paymentType = 'regular'
-      }
-
-      const response = await fetch(`/api/admin/registrations/${editingRegistration._id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(updatedRegistration)
-      })
-
-      const data = await response.json()
-
-      if (data.success) {
-        toast({
-          title: "Registration Updated",
-          description: "Registration has been updated successfully."
-        })
-        setIsEditOpen(false)
-        setEditingRegistration(null)
-        fetchRegistrations()
-      } else {
-        toast({
-          title: "Update Failed",
-          description: data.message || "Failed to update registration",
-          variant: "destructive"
-        })
-      }
-    } catch (error) {
-      console.error("Edit error:", error)
-      toast({
-        title: "Error",
-        description: "An error occurred while updating the registration",
-        variant: "destructive"
-      })
-    }
+  // Row Actions
+  const handleViewDetails = (reg: Registration) => {
+    setSelectedRegistration(reg)
+    setIsDetailsOpen(true)
   }
 
-  const handleAddRegistration = async () => {
-    try {
-      const response = await fetch("/api/admin/registrations", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(newRegistration)
-      })
-
-      const data = await response.json()
-
-      if (data.success) {
-        toast({
-          title: "Registration Added",
-          description: "New registration has been created successfully."
-        })
-        setIsAddOpen(false)
-        setNewRegistration({
-          email: "",
-          password: "",
-          profile: {
-            title: "",
-            firstName: "",
-            lastName: "",
-            phone: "",
-            institution: "",
-            designation: "",
-            address: {
-              city: "",
-              state: "",
-              country: "India"
-            }
-          },
-          registration: {
-            type: "consultant",
-            status: "pending",
-            workshopSelections: [],
-            accompanyingPersons: []
-          }
-        })
-        fetchRegistrations()
-      } else {
-        toast({
-          title: "Add Failed",
-          description: data.message || "Failed to add registration",
-          variant: "destructive"
-        })
-      }
-    } catch (error) {
-      console.error("Add error:", error)
-      toast({
-        title: "Error",
-        description: "An error occurred while adding the registration",
-        variant: "destructive"
-      })
-    }
-  }
-
-  const handleImportRegistrations = async () => {
-    if (!importFile) return
-
-    const formData = new FormData()
-    formData.append('file', importFile)
-
-    try {
-      const response = await fetch("/api/admin/registrations/import", {
-        method: "POST",
-        body: formData
-      })
-
-      const data = await response.json()
-
-      if (data.success) {
-        toast({
-          title: "Import Successful",
-          description: `${data.imported} registrations imported successfully.`
-        })
-        setIsImportOpen(false)
-        setImportFile(null)
-        fetchRegistrations()
-      } else {
-        toast({
-          title: "Import Failed",
-          description: data.message || "Failed to import registrations",
-          variant: "destructive"
-        })
-      }
-    } catch (error) {
-      console.error("Import error:", error)
-      toast({
-        title: "Error",
-        description: "An error occurred during import",
-        variant: "destructive"
-      })
-    }
-  }
-
-  const handleMarkAsPaid = (registration: Registration) => {
-    setSelectedRegistration(registration)
-    setPaymentData({
-      paymentType: registration.registration.paymentType || 'regular',
-      sponsorName: registration.registration.sponsorName || '',
-      sponsorCategory: registration.registration.sponsorCategory || '',
-      paymentRemarks: registration.registration.paymentRemarks || '',
-      amount: registration.paymentInfo?.amount || 0,
-      bankTransferUTR: registration.paymentInfo?.transactionId || '',
-      transactionId: ''
-    })
-    setIsPaymentOpen(true)
-  }
-
-  const handleSavePayment = async () => {
-    if (!selectedRegistration) return
-
-    try {
-      // Determine status based on payment type
-      let status = "pending"
-      if (paymentData.paymentType === 'complementary' || paymentData.paymentType === 'sponsored') {
-        status = "paid" // Complementary and sponsored are automatically paid
-      } else if (paymentData.amount && parseFloat(paymentData.amount.toString()) > 0) {
-        status = "paid" // Regular payment with amount
-      }
-
-      const response = await fetch(`/api/admin/registrations/${selectedRegistration._id}/payment`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          status,
-          paymentType: paymentData.paymentType,
-          sponsorName: paymentData.sponsorName,
-          sponsorCategory: paymentData.sponsorCategory,
-          paymentRemarks: paymentData.paymentRemarks,
-          amount: paymentData.amount,
-          bankTransferUTR: paymentData.bankTransferUTR || undefined,
-          transactionId: paymentData.transactionId || undefined
-        })
-      })
-
-      const data = await response.json()
-
-      if (data.success) {
-        toast({
-          title: "Payment Updated",
-          description: "Payment status has been updated successfully."
-        })
-        setIsPaymentOpen(false)
-        setSelectedRegistration(null)
-        fetchRegistrations()
-      } else {
-        toast({
-          title: "Update Failed",
-          description: data.message || "Failed to update payment status",
-          variant: "destructive"
-        })
-      }
-    } catch (error) {
-      console.error("Payment update error:", error)
-      toast({
-        title: "Error",
-        description: "An error occurred while updating payment status",
-        variant: "destructive"
-      })
-    }
-  }
-
-  const downloadTemplate = () => {
-    const template = `Title,First Name,Last Name,Email,Phone,Designation,Institution,City,State,Country,Registration Type,Membership Number,Dietary Requirements,Special Needs
-Dr.,John,Doe,john.doe@example.com,+1234567890,Consultant,Example Hospital,Hyderabad,Telangana,India,consultant,,Vegetarian,None
-Prof.,Jane,Smith,jane.smith@example.com,+0987654321,Consultant,Medical College,Mumbai,Maharashtra,India,consultant,MED123,None,Wheelchair access
-Dr.,Alice,Johnson,alice.johnson@example.com,+1122334455,PG/Student,University Hospital,Chennai,Tamil Nadu,India,postgraduate,,None,None`
-
-    const blob = new Blob([template], { type: 'text/csv' })
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.style.display = 'none'
-    a.href = url
-    a.download = 'registration-template.csv'
-    document.body.appendChild(a)
-    a.click()
-    window.URL.revokeObjectURL(url)
-
-    toast({
-      title: "Template Downloaded",
-      description: "Excel template has been downloaded."
-    })
-  }
-
-  const handleSendEmail = (registration: Registration | null) => {
-    if (!registration) return
-    setSelectedRegistrationForEmail(registration)
+  const handleSendEmail = (reg: Registration) => {
+    setSelectedRegistration(reg)
     setIsEmailDialogOpen(true)
   }
 
-  const handleBulkEmail = () => {
-    if (selectedRegistrations.length === 0) {
-      toast({
-        title: "No Recipients Selected",
-        description: "Please select at least one registration to send bulk emails",
-        variant: "destructive"
+  const handleVerifyPayment = async (reg: Registration) => {
+    try {
+      // Use approve endpoint which updates status, sends email with invoice
+      const response = await fetch(`/api/admin/registrations/${reg._id}/approve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ remarks: 'Payment verified by admin' })
       })
+      const data = await response.json()
+      if (response.ok && data.success) {
+        toast({ 
+          title: "Payment Verified", 
+          description: `${reg.profile.firstName}'s payment has been verified and confirmation email sent` 
+        })
+        fetchRegistrations()
+      } else {
+        throw new Error(data.message || 'Failed to verify payment')
+      }
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message || "Failed to verify payment", variant: "destructive" })
+    }
+  }
+
+  const handleCancelRegistration = async (reg: Registration) => {
+    if (!confirm(`Are you sure you want to permanently delete the registration for ${reg.profile.firstName} ${reg.profile.lastName}? This cannot be undone.`)) return
+    try {
+      const response = await fetch(`/api/admin/users/${reg._id}`, {
+        method: 'DELETE'
+      })
+      const result = await response.json()
+      if (response.ok && result.success) {
+        toast({ title: "Registration Deleted", description: result.message || "The registration has been permanently removed" })
+        fetchRegistrations()
+      } else {
+        toast({ title: "Error", description: result.message || "Failed to delete registration", variant: "destructive" })
+      }
+    } catch (err) {
+      toast({ title: "Error", description: "Failed to delete registration", variant: "destructive" })
+    }
+  }
+
+  const handleGenerateBadge = async (reg: Registration) => {
+    toast({ title: "Generating Badge...", description: `Creating badge for ${reg.profile.firstName}` })
+    try {
+      const response = await fetch(`/api/admin/registrations/${reg._id}/badge`, { method: 'POST' })
+      if (response.ok) {
+        const blob = await response.blob()
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `badge-${reg.registration.registrationId}.pdf`
+        a.click()
+        toast({ title: "Badge Generated", description: "Badge PDF has been downloaded" })
+      }
+    } catch (err) {
+      toast({ title: "Error", description: "Failed to generate badge", variant: "destructive" })
+    }
+  }
+
+  const handleGenerateCertificate = async (reg: Registration) => {
+    toast({ title: "Generating Certificate...", description: `Creating certificate for ${reg.profile.firstName}` })
+    try {
+      const response = await fetch(`/api/admin/registrations/${reg._id}/certificate`, { method: 'POST' })
+      if (response.ok) {
+        const blob = await response.blob()
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `certificate-${reg.registration.registrationId}.pdf`
+        a.click()
+        toast({ title: "Certificate Generated", description: "Certificate PDF has been downloaded" })
+      }
+    } catch (err) {
+      toast({ title: "Error", description: "Failed to generate certificate", variant: "destructive" })
+    }
+  }
+
+  const handleGenerateInvoice = async (reg: Registration) => {
+    toast({ title: "Generating Invoice...", description: `Creating invoice for ${reg.profile.firstName}` })
+    try {
+      const response = await fetch(`/api/admin/registrations/${reg._id}/invoice`, { method: 'POST' })
+      if (response.ok) {
+        const blob = await response.blob()
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `invoice-${reg.registration.registrationId}.pdf`
+        a.click()
+        toast({ title: "Invoice Generated", description: "Invoice PDF has been downloaded" })
+      }
+    } catch (err) {
+      toast({ title: "Error", description: "Failed to generate invoice", variant: "destructive" })
+    }
+  }
+
+  // Bulk Actions
+  const handleBulkEmail = () => {
+    if (selectedIds.length === 0) {
+      toast({ title: "No Selection", description: "Please select registrations first", variant: "destructive" })
       return
     }
     setIsBulkEmailOpen(true)
   }
 
-  const handleBulkInvoice = async () => {
-    if (selectedRegistrations.length === 0) return
+  const handleBulkExport = async () => {
+    if (selectedIds.length === 0) {
+      toast({ title: "No Selection", description: "Please select registrations first", variant: "destructive" })
+      return
+    }
+    setIsBulkActionLoading(true)
+    try {
+      const response = await fetch('/api/admin/export/registrations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: selectedIds })
+      })
+      if (response.ok) {
+        const blob = await response.blob()
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `registrations-export-${new Date().toISOString().split('T')[0]}.csv`
+        a.click()
+        toast({ title: "Export Complete", description: `Exported ${selectedIds.length} registrations` })
+      }
+    } catch (err) {
+      toast({ title: "Error", description: "Failed to export", variant: "destructive" })
+    } finally {
+      setIsBulkActionLoading(false)
+    }
+  }
+
+  const handleBulkBadges = async () => {
+    if (selectedIds.length === 0) return
+    setIsBulkActionLoading(true)
+    toast({ title: "Generating Badges...", description: `Creating ${selectedIds.length} badges` })
+    
+    let success = 0, failed = 0
+    for (const id of selectedIds) {
+      try {
+        const response = await fetch(`/api/admin/registrations/${id}/badge`, { method: 'POST' })
+        if (response.ok) success++
+        else failed++
+      } catch { failed++ }
+    }
     
     toast({
-      title: "Sending Bulk Invoices...",
-      description: `Preparing to send invoices to ${selectedRegistrations.length} recipients`,
+      title: success > 0 ? "Badges Generated" : "Generation Failed",
+      description: `Success: ${success}, Failed: ${failed}`,
+      variant: failed > 0 ? "destructive" : "default"
     })
+    setIsBulkActionLoading(false)
+    setSelectedIds([])
+  }
 
-    let successCount = 0
-    let failCount = 0
-
-    for (const regId of selectedRegistrations) {
+  const handleBulkCertificates = async () => {
+    if (selectedIds.length === 0) return
+    setIsBulkActionLoading(true)
+    toast({ title: "Generating Certificates...", description: `Creating ${selectedIds.length} certificates` })
+    
+    let success = 0, failed = 0
+    for (const id of selectedIds) {
       try {
-        const response = await fetch(`/api/admin/registrations/${regId}/send-invoice`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
-        })
-
-        if (response.ok) {
-          successCount++
-        } else {
-          failCount++
-        }
-      } catch (error) {
-        failCount++
-      }
+        const response = await fetch(`/api/admin/registrations/${id}/certificate`, { method: 'POST' })
+        if (response.ok) success++
+        else failed++
+      } catch { failed++ }
     }
-
+    
     toast({
-      title: successCount > 0 ? "✅ Bulk Invoices Sent" : "❌ Bulk Invoice Failed",
-      description: `Successfully sent: ${successCount}, Failed: ${failCount}`,
-      variant: failCount > 0 ? "destructive" : "default"
+      title: success > 0 ? "Certificates Generated" : "Generation Failed",
+      description: `Success: ${success}, Failed: ${failed}`,
+      variant: failed > 0 ? "destructive" : "default"
     })
-
-    setSelectedRegistrations([])
+    setIsBulkActionLoading(false)
+    setSelectedIds([])
   }
 
-  const handleSendInvoice = async (registration: Registration | null) => {
-    if (!registration) return
+  // Validation state for add registration form
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({})
+  const [checkingEmail, setCheckingEmail] = useState(false)
+  const [emailAvailable, setEmailAvailable] = useState<boolean | null>(null)
 
+  // Email validation
+  const validateEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    return emailRegex.test(email)
+  }
+
+  // Phone validation (10 digits, numbers only)
+  const validatePhone = (phone: string): boolean => {
+    const phoneRegex = /^[0-9]{10}$/
+    return phoneRegex.test(phone.replace(/[\s\-\+]/g, '').slice(-10))
+  }
+
+  // Check email availability
+  const checkEmailAvailability = async (email: string) => {
+    if (!email || !validateEmail(email)) {
+      setEmailAvailable(null)
+      return
+    }
+    
+    setCheckingEmail(true)
     try {
-      toast({
-        title: "Sending Invoice...",
-        description: `Preparing invoice for ${registration.profile.firstName} ${registration.profile.lastName}`,
-      })
-
-      const response = await fetch(`/api/admin/registrations/${registration._id}/send-invoice`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      })
-
-      if (response.ok) {
-        toast({
-          title: "✅ Invoice Sent Successfully",
-          description: `Invoice sent to ${registration.email}`,
-        })
-      } else {
-        toast({
-          title: "❌ Failed to Send Invoice",
-          description: "Please try again or contact support",
-          variant: "destructive"
-        })
-      }
-    } catch (error) {
-      console.error("Send invoice error:", error)
-      toast({
-        title: "Error",
-        description: "An error occurred while sending invoice",
-        variant: "destructive"
-      })
+      const response = await fetch(`/api/admin/users/search?email=${encodeURIComponent(email)}`)
+      const data = await response.json()
+      setEmailAvailable(!data.user) // Available if user not found
+    } catch {
+      setEmailAvailable(null)
+    } finally {
+      setCheckingEmail(false)
     }
   }
 
-  const handleSendCertificate = async (registration: Registration | null) => {
-    if (!registration) return
+  // Validate form field
+  const validateField = (field: string, value: string): string => {
+    switch (field) {
+      case 'email':
+        if (!value) return 'Email is required'
+        if (!validateEmail(value)) return 'Invalid email format'
+        if (emailAvailable === false) return 'Email already registered'
+        return ''
+      case 'password':
+        if (!value) return 'Password is required'
+        if (value.length < 8) return 'Password must be at least 8 characters'
+        return ''
+      case 'firstName':
+        if (!value) return 'First name is required'
+        if (value.length < 2) return 'First name must be at least 2 characters'
+        return ''
+      case 'lastName':
+        if (!value) return 'Last name is required'
+        if (value.length < 2) return 'Last name must be at least 2 characters'
+        return ''
+      case 'phone':
+        if (!value) return 'Phone number is required'
+        if (!validatePhone(value)) return 'Phone must be 10 digits'
+        return ''
+      case 'institution':
+        if (!value) return 'Institution is required'
+        return ''
+      default:
+        return ''
+    }
+  }
 
+  // Handle field change with validation
+  const handleFieldChange = (field: string, value: string) => {
+    setNewRegistration(prev => ({ ...prev, [field]: value }))
+    
+    // Validate on change
+    const error = validateField(field, value)
+    setFormErrors(prev => ({ ...prev, [field]: error }))
+    
+    // Check email availability with debounce
+    if (field === 'email' && validateEmail(value)) {
+      const timeoutId = setTimeout(() => checkEmailAvailability(value), 500)
+      return () => clearTimeout(timeoutId)
+    }
+  }
+
+  // Add new registration
+  const handleAddRegistration = async () => {
+    // Validate all required fields
+    const errors: Record<string, string> = {}
+    errors.email = validateField('email', newRegistration.email)
+    errors.password = validateField('password', newRegistration.password)
+    errors.firstName = validateField('firstName', newRegistration.firstName)
+    errors.lastName = validateField('lastName', newRegistration.lastName)
+    errors.phone = validateField('phone', newRegistration.phone)
+    errors.institution = validateField('institution', newRegistration.institution)
+    
+    // Check if any errors
+    const hasErrors = Object.values(errors).some(e => e)
+    if (hasErrors) {
+      setFormErrors(errors)
+      const firstError = Object.values(errors).find(e => e)
+      toast({ title: "Validation Error", description: firstError, variant: "destructive" })
+      return
+    }
+
+    // Check email availability one more time
+    if (emailAvailable === false) {
+      toast({ title: "Email Taken", description: "This email is already registered", variant: "destructive" })
+      return
+    }
+
+    setIsAddingRegistration(true)
     try {
-      toast({
-        title: "Sending Certificate...",
-        description: `Preparing certificate for ${registration.profile.firstName} ${registration.profile.lastName}`,
-      })
-
-      const response = await fetch(`/api/admin/registrations/${registration._id}/send-certificate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      })
-
-      if (response.ok) {
-        toast({
-          title: "✅ Certificate Sent Successfully",
-          description: `Certificate sent to ${registration.email}`,
-        })
-      } else {
-        const data = await response.json()
-        toast({
-          title: "❌ Failed to Send Certificate",
-          description: data.message || "Please try again or contact support",
-          variant: "destructive"
-        })
+      const registrationData = {
+        email: newRegistration.email.toLowerCase().trim(),
+        password: newRegistration.password,
+        profile: {
+          title: newRegistration.title || 'Dr.',
+          firstName: newRegistration.firstName.trim(),
+          lastName: newRegistration.lastName.trim(),
+          phone: newRegistration.phone.trim(),
+          designation: newRegistration.designation || 'Consultant',
+          specialization: newRegistration.specialization === 'not-specified' ? '' : (newRegistration.specialization || ''),
+          institution: newRegistration.institution.trim(),
+          mciNumber: newRegistration.mciNumber?.trim() || 'N/A',
+          address: {
+            street: '',
+            city: newRegistration.city?.trim() || '',
+            state: newRegistration.state?.trim() || '',
+            country: newRegistration.country || 'India',
+            pincode: ''
+          }
+        },
+        registration: {
+          type: newRegistration.registrationType || 'delegate',
+          status: newRegistration.paymentType === 'complimentary' ? 'paid' : 'pending-payment',
+          paymentType: newRegistration.paymentType === 'complimentary' ? 'complimentary' : 
+                       newRegistration.paymentType === 'bank-transfer' ? 'bank-transfer' : 'pending',
+          source: 'admin-created',
+          paymentRemarks: newRegistration.remarks?.trim() || '',
+          workshopSelections: [],
+          accompanyingPersons: []
+        },
+        payment: newRegistration.paymentType !== 'complimentary' ? {
+          method: newRegistration.paymentType === 'bank-transfer' ? 'bank-transfer' : 'online',
+          status: 'pending',
+          amount: newRegistration.amount || 0
+        } : undefined
       }
-    } catch (error) {
-      console.error("Send certificate error:", error)
-      toast({
-        title: "Error",
-        description: "An error occurred while sending certificate",
-        variant: "destructive"
+
+      const response = await fetch('/api/admin/registrations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(registrationData)
       })
+
+      const data = await response.json()
+      
+      if (data.success) {
+        toast({ 
+          title: "Registration Created", 
+          description: `Registration ID: ${data.data.registration.registrationId}` 
+        })
+        setIsAddRegistrationOpen(false)
+        // Reset all form state
+        setFormErrors({})
+        setEmailAvailable(null)
+        setNewRegistration({
+          email: '',
+          password: '',
+          title: 'Dr.',
+          firstName: '',
+          lastName: '',
+          phone: '',
+          designation: 'Consultant',
+          specialization: '',
+          institution: '',
+          mciNumber: '',
+          city: '',
+          state: '',
+          country: 'India',
+          registrationType: 'delegate',
+          paymentType: 'pending',
+          amount: 0,
+          remarks: ''
+        })
+        fetchRegistrations()
+      } else {
+        toast({ title: "Error", description: data.message || "Failed to create registration", variant: "destructive" })
+      }
+    } catch (err) {
+      console.error('Registration error:', err)
+      toast({ title: "Error", description: "Failed to create registration", variant: "destructive" })
+    } finally {
+      setIsAddingRegistration(false)
     }
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case "paid":
-        return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-      case "pending":
-        return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
-      case "cancelled":
-        return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
-      default:
-        return "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200"
+  // Generate payment link
+  const handleGeneratePaymentLink = async (reg: Registration) => {
+    const paymentUrl = `${window.location.origin}/register/status?email=${encodeURIComponent(reg.email)}`
+    try {
+      await navigator.clipboard.writeText(paymentUrl)
+      toast({ title: "Link Copied", description: "Payment link copied to clipboard" })
+    } catch {
+      toast({ title: "Payment Link", description: paymentUrl })
     }
   }
 
-  const getStatusIcon = (status: string) => {
-    switch (status.toLowerCase()) {
-      case "paid":
-        return <CheckCircle className="h-3 w-3" />
-      case "pending":
-        return <Clock className="h-3 w-3" />
-      case "cancelled":
-        return <AlertTriangle className="h-3 w-3" />
-      default:
-        return <Clock className="h-3 w-3" />
+  const handleExportAll = async () => {
+    try {
+      const response = await fetch('/api/admin/export/registrations')
+      if (response.ok) {
+        const blob = await response.blob()
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `all-registrations-${new Date().toISOString().split('T')[0]}.csv`
+        a.click()
+        toast({ title: "Export Complete", description: "All registrations exported" })
+      }
+    } catch (err) {
+      toast({ title: "Error", description: "Failed to export", variant: "destructive" })
     }
   }
 
-  const getTypeLabel = (type: string) => {
-    switch (type) {
-      case "postgraduate": return "Postgraduate"
-      case "consultant": return "Consultant"
-      case "iscsg-member": return "ISCSG Member"
-      case "complimentary": return "Complimentary"
-      case "sponsored": return "Sponsored"
-      default: return type.charAt(0).toUpperCase() + type.slice(1)
+  // Export with current filters (including sponsor filter)
+  const handleExportFiltered = async () => {
+    try {
+      const params = new URLSearchParams()
+      if (sponsorFilter !== 'all') params.append('sponsorId', sponsorFilter)
+      if (paymentTypeFilter !== 'all') params.append('paymentType', paymentTypeFilter)
+      if (statusFilter !== 'all') params.append('status', statusFilter)
+      if (specializationFilter !== 'all') params.append('specialization', specializationFilter)
+      if (typeFilter !== 'all') params.append('type', typeFilter)
+      
+      const url = `/api/admin/export/registrations${params.toString() ? '?' + params.toString() : ''}`
+      const response = await fetch(url)
+      if (response.ok) {
+        const blob = await response.blob()
+        const downloadUrl = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = downloadUrl
+        const sponsorName = sponsorFilter !== 'all' ? sponsors.find(s => s._id === sponsorFilter)?.companyName || 'sponsor' : 'filtered'
+        a.download = `registrations-${sponsorName}-${new Date().toISOString().split('T')[0]}.csv`
+        a.click()
+        toast({ title: "Export Complete", description: "Filtered registrations exported" })
+      }
+    } catch (err) {
+      toast({ title: "Error", description: "Failed to export", variant: "destructive" })
     }
   }
 
-  const formatCurrency = (amount: number, currency: string) => {
-    if (currency === "USD") {
-      return `$${amount.toFixed(2)}`
-    }
-    return `₹${amount.toLocaleString()}`
-  }
+  // Stats - use server stats for all totals (reflects entire database, not just current page)
+  const stats = useMemo(() => ({
+    paid: serverStats.paid,
+    confirmed: serverStats.confirmed,
+    pending: serverStats.pendingPayment,
+    total: serverStats.total,
+    workshops: serverStats.workshopRegistrations,
+    accompanying: serverStats.accompanyingPersons
+  }), [serverStats])
 
-  if (isLoading) {
-    return (
-      <Card>
-        <CardHeader>
-          <div className="h-6 bg-gray-200 rounded w-1/4 animate-pulse"></div>
-          <div className="h-4 bg-gray-200 rounded w-1/3 animate-pulse"></div>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {[...Array(5)].map((_, index) => (
-              <div key={index} className="h-16 bg-gray-200 rounded animate-pulse"></div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-    )
+  // Format currency
+  const formatCurrency = (amount: number) => `₹${amount.toLocaleString('en-IN')}`
+
+  // Render sort icon
+  const SortIcon = ({ column }: { column: string }) => {
+    if (sortBy !== column) return <ArrowUpDown className="h-3 w-3 ml-1 opacity-50" />
+    return sortOrder === 'asc' ? <ArrowUp className="h-3 w-3 ml-1" /> : <ArrowDown className="h-3 w-3 ml-1" />
   }
 
   if (error) {
@@ -1018,1920 +926,1043 @@ Dr.,Alice,Johnson,alice.johnson@example.com,+1122334455,PG/Student,University Ho
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4 }}
-    >
-      <Card className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
-        <CardHeader className="border-b border-slate-200 dark:border-slate-700">
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
+      <Card className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 shadow-lg">
+        <CardHeader className="border-b border-slate-200 dark:border-slate-700 pb-4">
           <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
             <div>
-              <CardTitle className="flex items-center gap-2 text-slate-900 dark:text-white">
-                <Users className="h-5 w-5 text-orange-500" />
-                Registrations ({registrations.length})
+              <CardTitle className="flex items-center gap-2 text-slate-900 dark:text-white text-xl">
+                <div className="p-2 rounded-lg" style={{ backgroundColor: `${theme.primary}20` }}>
+                  <Users className="h-5 w-5" style={{ color: theme.primary }} />
+                </div>
+                Registrations
+                <Badge variant="secondary" className="ml-2">{pagination.total}</Badge>
               </CardTitle>
-              <CardDescription className="text-slate-600 dark:text-slate-400">
+              <CardDescription className="text-slate-600 dark:text-slate-400 mt-1">
                 Manage conference registrations and attendee information
               </CardDescription>
             </div>
+            
+            {/* Action Buttons */}
             <div className="flex flex-wrap items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  console.log('Add Registration clicked')
-                  setIsAddOpen(true)
-                }}
-                className="flex items-center gap-2 bg-green-50 hover:bg-green-100 dark:bg-green-900/20 dark:hover:bg-green-900/30 border-green-200 dark:border-green-700 text-green-700 dark:text-green-300"
+              <Button 
+                size="sm" 
+                onClick={() => setIsAddRegistrationOpen(true)}
+                className="gap-2"
+                style={{ backgroundColor: theme.primary }}
               >
-                <Plus className="h-4 w-4" />
-                <span className="hidden sm:inline">Add</span>
-                <span className="hidden lg:inline">Registration</span>
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  console.log('Import clicked')
-                  setIsImportOpen(true)
-                }}
-                className="flex items-center gap-2 bg-orange-50 hover:bg-orange-100 dark:bg-orange-900/20 dark:hover:bg-orange-900/30 border-orange-200 dark:border-orange-700 text-orange-700 dark:text-orange-300"
-              >
-                <Upload className="h-4 w-4" />
-                <span className="hidden sm:inline">Import Basic</span>
+                <UserPlus className="h-4 w-4" />
+                <span className="hidden sm:inline">Add Registration</span>
               </Button>
               <VerifiedImportDialog onImportComplete={fetchRegistrations} />
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleExport}
-                className="flex items-center gap-2 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300"
-              >
+              <SponsoredImportDialog onImportComplete={fetchRegistrations} />
+              <Button variant="outline" size="sm" onClick={handleExportAll} className="gap-2">
                 <Download className="h-4 w-4" />
-                <span className="hidden sm:inline">Export</span>
+                <span className="hidden sm:inline">Export All</span>
               </Button>
-              {selectedRegistrations.length > 0 && (
-                <>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleBulkEmail}
-                    className="flex items-center gap-2 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/30 border-blue-200 dark:border-blue-700 text-blue-700 dark:text-blue-300"
-                  >
-                    <Mail className="h-4 w-4" />
-                    <span className="hidden sm:inline">Email ({selectedRegistrations.length})</span>
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleBulkInvoice}
-                    className="flex items-center gap-2 bg-purple-50 hover:bg-purple-100 dark:bg-purple-900/20 dark:hover:bg-purple-900/30 border-purple-200 dark:border-purple-700 text-purple-700 dark:text-purple-300"
-                  >
-                    <FileText className="h-4 w-4" />
-                    <span className="hidden sm:inline">Invoice ({selectedRegistrations.length})</span>
-                  </Button>
-                </>
+              {(sponsorFilter !== 'all' || paymentTypeFilter !== 'all' || statusFilter !== 'all' || specializationFilter !== 'all' || typeFilter !== 'all') && (
+                <Button variant="outline" size="sm" onClick={handleExportFiltered} className="gap-2 border-purple-300 text-purple-700 hover:bg-purple-50">
+                  <FileDown className="h-4 w-4" />
+                  <span className="hidden sm:inline">Export Filtered</span>
+                </Button>
               )}
+              
+              {/* Column Visibility */}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <Columns className="h-4 w-4" />
+                    <span className="hidden sm:inline">Columns</span>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-48" align="end">
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium mb-2">Toggle Columns</p>
+                    {columns.filter(c => c.key !== 'select' && c.key !== 'actions').map(col => (
+                      <div key={col.key} className="flex items-center gap-2">
+                        <Checkbox
+                          id={`col-${col.key}`}
+                          checked={col.visible}
+                          onCheckedChange={() => toggleColumn(col.key)}
+                        />
+                        <Label htmlFor={`col-${col.key}`} className="text-sm cursor-pointer">{col.label}</Label>
+                      </div>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+              
+              <Button variant="outline" size="sm" onClick={fetchRegistrations} disabled={isLoading}>
+                <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+              </Button>
             </div>
           </div>
         </CardHeader>
 
-        <CardContent className="bg-white dark:bg-slate-900">
-          <div className="space-y-6">
-            {/* Summary Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-                  {registrations.filter(r => r.registration.status === 'paid').length}
+        <CardContent className="p-4 space-y-4">
+          {isLoading && registrations.length === 0 ? (
+            <TableSkeleton />
+          ) : (
+            <>
+              {/* Stats Cards */}
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                <div className="p-3 rounded-lg border bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800">
+                  <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{stats.paid}</div>
+                  <div className="text-xs text-emerald-700 dark:text-emerald-300">Paid</div>
                 </div>
-                <div className="text-xs text-slate-600 dark:text-slate-400">Paid</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">
-                  {registrations.filter(r => r.registration.status === 'pending').length}
+                <div className="p-3 rounded-lg border bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
+                  <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{stats.confirmed}</div>
+                  <div className="text-xs text-blue-700 dark:text-blue-300">Confirmed</div>
                 </div>
-                <div className="text-xs text-slate-600 dark:text-slate-400">Pending</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">
-                  {registrations.reduce((sum, r) => sum + r.registration.workshopSelections.length, 0)}
+                <div className="p-3 rounded-lg border bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800">
+                  <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">{stats.pending}</div>
+                  <div className="text-xs text-amber-700 dark:text-amber-300">Pending</div>
                 </div>
-                <div className="text-xs text-slate-600 dark:text-slate-400">Workshop Registrations</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-                  {registrations.reduce((sum, r) => sum + r.registration.accompanyingPersons.length, 0)}
+                <div className="p-3 rounded-lg border bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800">
+                  <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">{stats.workshops}</div>
+                  <div className="text-xs text-purple-700 dark:text-purple-300">Workshop Regs</div>
                 </div>
-                <div className="text-xs text-slate-600 dark:text-slate-400">Accompanying Persons</div>
+                <div className="p-3 rounded-lg border bg-indigo-50 dark:bg-indigo-900/20 border-indigo-200 dark:border-indigo-800">
+                  <div className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">{stats.accompanying}</div>
+                  <div className="text-xs text-indigo-700 dark:text-indigo-300">Accompanying</div>
+                </div>
               </div>
-            </div>
 
-            {/* Search and Filters */}
-            <div className="flex flex-col lg:flex-row gap-4 p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg">
-              <div className="flex-1">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+              {/* Filters */}
+              <div className="flex flex-col lg:flex-row gap-3 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg border">
+                <div className="flex-1 relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                   <Input
-                    placeholder="Search by name, email, registration ID, or institution..."
+                    placeholder="Search by name, email, ID, phone, institution..."
                     value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white"
+                    onChange={(e) => { setSearchTerm(e.target.value); setPagination(p => ({ ...p, page: 1 })) }}
+                    className="pl-10 bg-white dark:bg-slate-900"
                   />
                 </div>
-              </div>
-              <div className="flex gap-2">
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-[160px] bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-600">
-                    <Filter className="h-4 w-4 mr-2" />
-                    <SelectValue placeholder="Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="paid">Paid</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="confirmed">Confirmed</SelectItem>
-                    <SelectItem value="cancelled">Cancelled</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select value={typeFilter} onValueChange={setTypeFilter}>
-                  <SelectTrigger className="w-[180px] bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-600">
-                    <SelectValue placeholder="Type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Types</SelectItem>
-                    {conferenceConfig.registration.categories.map(cat => (
-                      <SelectItem key={cat.key} value={cat.key}>{cat.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {(searchTerm || statusFilter !== "all" || typeFilter !== "all") && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setSearchTerm("")
-                      setStatusFilter("all")
-                      setTypeFilter("all")
-                    }}
-                    className="bg-white dark:bg-slate-900"
-                  >
-                    <X className="h-4 w-4 mr-1" />
-                    Clear
-                  </Button>
-                )}
-              </div>
-            </div>
-
-            {/* Mobile Cards View */}
-            <div className="block md:hidden space-y-4">
-              {filteredRegistrations.map((registration) => (
-                <Card key={registration._id} className="p-4 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="checkbox"
-                        checked={selectedRegistrations.includes(registration._id)}
-                        onChange={(e) => handleSelectRegistration(registration._id, e.target.checked)}
-                        className="rounded border-gray-300"
-                      />
-                      <div className="w-10 h-10 bg-orange-100 dark:bg-orange-900 rounded-full flex items-center justify-center">
-                        <User className="h-5 w-5 text-orange-600 dark:text-orange-400" />
-                      </div>
-                    </div>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm">
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
-                        <DropdownMenuItem onClick={() => {
-                          setSelectedRegistration(registration)
-                          setIsDetailsOpen(true)
-                        }} className="text-slate-700 dark:text-slate-300 cursor-pointer">
-                          <Eye className="h-4 w-4 mr-2" />
-                          View Details
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleEditRegistration(registration)} className="text-slate-700 dark:text-slate-300 cursor-pointer">
-                          <Edit className="h-4 w-4 mr-2" />
-                          Edit Registration
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleMarkAsPaid(registration)} className="text-slate-700 dark:text-slate-300 cursor-pointer">
-                          <DollarSign className="h-4 w-4 mr-2" />
-                          Mark as Paid
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="text-red-600 dark:text-red-400 cursor-pointer" onClick={() => handleStatusUpdate(registration._id, 'cancelled')}>
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Cancel Registration
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div>
-                      <div className="font-medium text-slate-900 dark:text-white">
-                        {registration.profile.title} {registration.profile.firstName} {registration.profile.lastName}
-                      </div>
-                      <div className="text-sm text-slate-600 dark:text-slate-400">{registration.email}</div>
-                      <div className="text-xs text-slate-500 dark:text-slate-500">{registration.profile.institution}</div>
-                    </div>
-
-                    <div className="flex flex-wrap gap-2">
-                      <Badge
-                        variant="outline"
-                        className="cursor-pointer hover:bg-orange-50"
-                        onClick={() => {
-                          setSelectedRegistration(registration)
-                          setIsDetailsOpen(true)
-                        }}
-                      >
-                        {registration.registration.registrationId}
-                      </Badge>
-                      <Badge variant="secondary">
-                        {getTypeLabel(registration.registration.type)}
-                      </Badge>
-                      <Badge className={`${getStatusColor(registration.registration.status)} flex items-center gap-1`}>
-                        {getStatusIcon(registration.registration.status)}
-                        {registration.registration.status.charAt(0).toUpperCase() + registration.registration.status.slice(1)}
-                      </Badge>
-                    </div>
-
-                    <div className="text-sm text-slate-600 dark:text-slate-400">
-                      <div>Registered: {new Date(registration.registration.registrationDate).toLocaleDateString()}</div>
-                      {registration.paymentInfo && (
-                        <div className="font-medium text-green-600 dark:text-green-400">Payment: {formatCurrency(registration.paymentInfo.amount, registration.paymentInfo.currency)}</div>
-                      )}
-                      {registration.registration.paymentType && registration.registration.paymentType !== 'regular' && (
-                        <div className="flex items-center gap-1 mt-1">
-                          {registration.registration.paymentType === 'complementary' ? (
-                            <Gift className="h-3 w-3 text-green-600" />
-                          ) : (
-                            <Award className="h-3 w-3 text-theme-primary-600" />
-                          )}
-                          <span className="text-xs capitalize">{registration.registration.paymentType}</span>
-                          {registration.registration.sponsorName && (
-                            <span className="text-xs">- {registration.registration.sponsorName}</span>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </Card>
-              ))}
-            </div>
-
-            {/* Desktop Table View */}
-            <div className="hidden md:block rounded-lg border overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredRegistrations.map((registration) => (
-                    <TableRow key={registration._id} className="hover:bg-slate-50 dark:hover:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
-                      <TableCell className="bg-white dark:bg-slate-900">
-                        <input
-                          type="checkbox"
-                          checked={selectedRegistrations.includes(registration._id)}
-                          onChange={(e) => handleSelectRegistration(registration._id, e.target.checked)}
-                          className="rounded border-gray-300"
-                        />
-                      </TableCell>
-                      <TableCell className="bg-white dark:bg-slate-900">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-orange-100 dark:bg-orange-900 rounded-full flex items-center justify-center">
-                            <User className="h-5 w-5 text-orange-600 dark:text-orange-400" />
-                          </div>
-                          <div>
-                            <div className="font-medium text-slate-900 dark:text-white">
-                              {registration.profile.title} {registration.profile.firstName} {registration.profile.lastName}
-                            </div>
-                            <div className="text-sm text-slate-600 dark:text-slate-400">{registration.email}</div>
-                            <div className="text-xs text-slate-500 dark:text-slate-500">{registration.profile.institution}</div>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="bg-white dark:bg-slate-900">
-                        <div>
-                          <Badge
-                            variant="outline"
-                            className="mb-1 cursor-pointer hover:bg-orange-50"
-                            onClick={() => {
-                              setSelectedRegistration(registration)
-                              setIsDetailsOpen(true)
-                            }}
-                          >
-                            {registration.registration.registrationId}
-                          </Badge>
-                          <div className="text-xs text-gray-500">
-                            {registration.registration.workshopSelections.length} workshops
-                          </div>
-                          {registration.registration.accompanyingPersons.length > 0 && (
-                            <div className="text-xs text-gray-500">
-                              +{registration.registration.accompanyingPersons.length} accompanying
-                            </div>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="bg-white dark:bg-slate-900">
-                        <Badge variant="secondary">
-                          {getTypeLabel(registration.registration.type)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="bg-white dark:bg-slate-900">
-                        <Badge className={`${getStatusColor(registration.registration.status)} flex items-center gap-1 w-fit`}>
-                          {getStatusIcon(registration.registration.status)}
-                          {registration.registration.status.charAt(0).toUpperCase() + registration.registration.status.slice(1)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="bg-white dark:bg-slate-900">
-                        <div className="text-sm">
-                          {new Date(registration.registration.registrationDate).toLocaleDateString()}
-                        </div>
-                        {registration.registration.paymentDate && (
-                          <div className="text-xs text-gray-500">
-                            Paid: {new Date(registration.registration.paymentDate).toLocaleDateString()}
-                          </div>
-                        )}
-                      </TableCell>
-                      <TableCell className="bg-white dark:bg-slate-900">
-                        {registration.paymentInfo ? (
-                          <div className="text-sm">
-                            <div className="font-medium">
-                              {formatCurrency(registration.paymentInfo.amount, registration.paymentInfo.currency)}
-                            </div>
-                            <div className="text-xs text-gray-500">
-                              {registration.paymentInfo.transactionId}
-                            </div>
-                            {registration.registration.paymentType && registration.registration.paymentType !== 'regular' && (
-                              <div className="flex items-center gap-1 mt-1">
-                                {registration.registration.paymentType === 'complementary' ? (
-                                  <Gift className="h-3 w-3 text-green-600" />
-                                ) : (
-                                  <Award className="h-3 w-3 text-theme-primary-600" />
-                                )}
-                                <span className="text-xs capitalize">{registration.registration.paymentType}</span>
-                              </div>
-                            )}
-                            {registration.registration.sponsorName && (
-                              <div className="text-xs text-gray-500">
-                                Sponsor: {registration.registration.sponsorName}
-                              </div>
-                            )}
-                          </div>
-                        ) : (
-                          <div className="text-sm text-gray-500">
-                            Pending
-                          </div>
-                        )}
-                      </TableCell>
-                      <TableCell className="bg-white dark:bg-slate-900">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm">
-                              <MoreVertical className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
-                            <DropdownMenuItem
-                              onClick={() => {
-                                setSelectedRegistration(registration)
-                                setIsDetailsOpen(true)
-                              }}
-                              className="text-slate-700 dark:text-slate-300 cursor-pointer"
-                            >
-                              <Eye className="h-4 w-4 mr-2" />
-                              View Details
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleEditRegistration(registration)} className="text-slate-700 dark:text-slate-300 cursor-pointer">
-                              <Edit className="h-4 w-4 mr-2" />
-                              Edit Registration
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleMarkAsPaid(registration)} className="text-slate-700 dark:text-slate-300 cursor-pointer">
-                              <DollarSign className="h-4 w-4 mr-2" />
-                              Mark as Paid
-                            </DropdownMenuItem>
-                            <DropdownMenuItem className="text-red-600 dark:text-red-400 cursor-pointer" onClick={() => handleStatusUpdate(registration._id, 'cancelled')}>
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Cancel Registration
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-
-            {filteredRegistrations.length === 0 && (
-              <div className="text-center py-8 text-slate-500 dark:text-slate-400">
-                No registrations found matching your criteria.
-              </div>
-            )}
-
-            {/* Pagination */}
-            {filteredRegistrations.length > 0 && (
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 pt-4 border-t border-slate-200 dark:border-slate-700">
-                <div className="text-sm text-slate-600 dark:text-slate-400">
-                  Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, totalFilteredCount)} of {totalFilteredCount} results
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                    disabled={currentPage === 1}
-                    className="bg-white dark:bg-slate-900"
-                  >
-                    Previous
-                  </Button>
-                  <div className="flex items-center gap-1">
-                    {Array.from({ length: Math.ceil(totalFilteredCount / itemsPerPage) }, (_, i) => i + 1)
-                      .filter(page => {
-                        return page === 1 || 
-                               page === Math.ceil(totalFilteredCount / itemsPerPage) ||
-                               Math.abs(page - currentPage) <= 1
-                      })
-                      .map((page, index, array) => (
-                        <div key={page} className="flex items-center">
-                          {index > 0 && array[index - 1] !== page - 1 && (
-                            <span className="px-2 text-slate-400">...</span>
-                          )}
-                          <Button
-                            variant={currentPage === page ? "default" : "outline"}
-                            size="sm"
-                            onClick={() => setCurrentPage(page)}
-                            className={currentPage === page ? "bg-orange-500 hover:bg-orange-600" : "bg-white dark:bg-slate-900"}
-                          >
-                            {page}
-                          </Button>
-                        </div>
-                      ))}
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage(p => Math.min(Math.ceil(totalFilteredCount / itemsPerPage), p + 1))}
-                    disabled={currentPage >= Math.ceil(totalFilteredCount / itemsPerPage)}
-                    className="bg-white dark:bg-slate-900"
-                  >
-                    Next
-                  </Button>
-                </div>
-                <Select value={itemsPerPage.toString()} onValueChange={(v) => {
-                  setItemsPerPage(parseInt(v))
-                  setCurrentPage(1)
-                }}>
-                  <SelectTrigger className="w-[120px] bg-white dark:bg-slate-900">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="10">10 / page</SelectItem>
-                    <SelectItem value="25">25 / page</SelectItem>
-                    <SelectItem value="50">50 / page</SelectItem>
-                    <SelectItem value="100">100 / page</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Enhanced Registration Details Dialog */}
-      <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
-        <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] overflow-y-auto bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 p-4 sm:p-6">
-          <DialogHeader>
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <DialogTitle className="text-lg sm:text-xl">Registration Details</DialogTitle>
-                <DialogDescription className="text-sm">
-                  Complete information for {selectedRegistration?.profile.firstName} {selectedRegistration?.profile.lastName}
-                </DialogDescription>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleSendEmail(selectedRegistration)}
-                  className="flex items-center gap-2"
-                >
-                  <Mail className="h-4 w-4" />
-                  Send Email
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleSendInvoice(selectedRegistration)}
-                  className="flex items-center gap-2"
-                >
-                  <FileText className="h-4 w-4" />
-                  Send Invoice
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleSendCertificate(selectedRegistration)}
-                  className="flex items-center gap-2"
-                >
-                  <Award className="h-4 w-4" />
-                  Send Certificate
-                </Button>
-              </div>
-            </div>
-          </DialogHeader>
-
-          {selectedRegistration && (
-            <div className="space-y-4 sm:space-y-6 w-full max-w-full overflow-hidden">
-              {/* Registration Summary Card */}
-              <Card className="bg-gradient-to-r from-blue-50 to-blue-100 dark:from-slate-800 dark:to-slate-700 border-slate-300 dark:border-slate-600">
-                <CardContent className="p-4 sm:p-6 break-words">
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                    <div>
-                      <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">
-                        {selectedRegistration.profile.title} {selectedRegistration.profile.firstName} {selectedRegistration.profile.lastName}
-                      </h2>
-                      <p className="text-sm sm:text-base text-slate-600 dark:text-slate-300 font-medium">
-                        {selectedRegistration.profile.institution}
-                      </p>
-                      <div className="flex items-center gap-4 mt-2">
-                        <Badge variant="outline" className="text-lg px-3 py-1">
-                          {selectedRegistration.registration.registrationId}
-                        </Badge>
-                        <Badge className={`${getStatusColor(selectedRegistration.registration.status)} text-sm`}>
-                          {getStatusIcon(selectedRegistration.registration.status)}
-                          {selectedRegistration.registration.status.charAt(0).toUpperCase() + selectedRegistration.registration.status.slice(1)}
-                        </Badge>
-                      </div>
-                    </div>
-                    <div className="text-right text-slate-900 dark:text-white">
-                      <div className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">Registration Type</div>
-                      <div className="text-base sm:text-lg font-semibold text-slate-900 dark:text-white">{getTypeLabel(selectedRegistration.registration.type)}</div>
-                      {selectedRegistration.paymentInfo && (
-                        <div className="text-xl sm:text-2xl font-bold text-green-600 mt-2">
-                          {formatCurrency(selectedRegistration.paymentInfo.amount, selectedRegistration.paymentInfo.currency)}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-                {/* Personal Information */}
-                <Card className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-slate-900 dark:text-white">
-                      <User className="h-5 w-5 text-orange-500" />
-                      Personal Information
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3 break-words">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                      <div>
-                        <span className="text-sm text-gray-600">Full Name:</span>
-                        <p className="font-medium">
-                          {selectedRegistration.profile.title} {selectedRegistration.profile.firstName} {selectedRegistration.profile.lastName}
-                        </p>
-                      </div>
-                      <div>
-                        <span className="text-sm text-gray-600">Email:</span>
-                        <p className="font-medium text-theme-primary-600">{selectedRegistration.email}</p>
-                      </div>
-                      <div>
-                        <span className="text-sm text-gray-600">Phone:</span>
-                        <p className="font-medium">{selectedRegistration.profile.phone}</p>
-                      </div>
-                      <div>
-                        <span className="text-sm text-gray-600">Institution:</span>
-                        <p className="font-medium">{selectedRegistration.profile.institution}</p>
-                      </div>
-                    </div>
-
-                    {selectedRegistration.profile.address && (
-                      <div>
-                        <span className="text-sm text-gray-600">Address:</span>
-                        <p className="font-medium">
-                          {[
-                            selectedRegistration.profile.address.city,
-                            selectedRegistration.profile.address.state,
-                            selectedRegistration.profile.address.country
-                          ].filter(Boolean).join(', ')}
-                        </p>
-                      </div>
-                    )}
-
-                    {selectedRegistration.registration.membershipNumber && (
-                      <div>
-                        <span className="text-sm text-gray-600">Membership Number:</span>
-                        <p className="font-medium">{selectedRegistration.registration.membershipNumber}</p>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-
-                {/* Registration Details */}
-                                                                                                                                                                          <Card className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Calendar className="h-5 w-5 text-green-500" />
-                      Registration Details
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3 break-words">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                      <div>
-                        <span className="text-sm text-gray-600">Registration Date:</span>
-                        <p className="font-medium">
-                          {new Date(selectedRegistration.registration.registrationDate).toLocaleDateString('en-IN', {
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric'
-                          })}
-                        </p>
-                      </div>
-                      <div>
-                        <span className="text-sm text-gray-600">Registration Type:</span>
-                        <p className="font-medium">{getTypeLabel(selectedRegistration.registration.type)}</p>
-                      </div>
-                      <div>
-                        <span className="text-sm text-gray-600">Current Status:</span>
-                        <Badge className={`${getStatusColor(selectedRegistration.registration.status)} w-fit`}>
-                          {getStatusIcon(selectedRegistration.registration.status)}
-                          {selectedRegistration.registration.status.charAt(0).toUpperCase() + selectedRegistration.registration.status.slice(1)}
-                        </Badge>
-                      </div>
-                      {selectedRegistration.registration.paymentDate && (
-                        <div>
-                          <span className="text-sm text-gray-600">Payment Date:</span>
-                          <p className="font-medium">
-                            {new Date(selectedRegistration.registration.paymentDate).toLocaleDateString('en-IN', {
-                              year: 'numeric',
-                              month: 'long',
-                              day: 'numeric'
-                            })}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Workshop Selections */}
-              {selectedRegistration.registration.workshopSelections.length > 0 && (
-                <Card className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <BookOpen className="h-5 w-5 text-purple-500" />
-                      Workshop Selections ({selectedRegistration.registration.workshopSelections.length})
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {selectedRegistration.registration.workshopSelections.map((workshop, index) => (
-                        <div key={index} className="flex items-center gap-3 p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200">
-                          <CheckCircle className="h-5 w-5 text-theme-accent-600" />
-                          <span className="font-medium">{workshop}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Accompanying Persons */}
-              {selectedRegistration.registration.accompanyingPersons.length > 0 && (
-                <Card className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Users className="h-5 w-5 text-indigo-500" />
-                      Accompanying Persons ({selectedRegistration.registration.accompanyingPersons.length})
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {selectedRegistration.registration.accompanyingPersons.map((person, index) => (
-                        <div key={index} className="p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg border border-indigo-200">
-                          <div className="flex items-start justify-between">
-                            <div>
-                              <h4 className="font-semibold text-indigo-800 dark:text-indigo-200">{person.name}</h4>
-                              <div className="flex items-center gap-4 mt-1 text-sm text-gray-600">
-                                <span>Age: {person.age}</span>
-                                <span>Relationship: {person.relationship}</span>
-                              </div>
-                              {person.dietaryRequirements && (
-                                <div className="mt-2">
-                                  <span className="text-xs text-gray-500">Dietary Requirements:</span>
-                                  <p className="text-sm">{person.dietaryRequirements}</p>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Payment Information */}
-              {selectedRegistration.paymentInfo && (
-                <Card className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <DollarSign className="h-5 w-5 text-green-500" />
-                      Payment Information
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-3">
-                        <div>
-                          <span className="text-sm text-gray-600">Total Amount:</span>
-                          <p className="text-2xl font-bold text-green-600">
-                            {formatCurrency(selectedRegistration.paymentInfo.amount, selectedRegistration.paymentInfo.currency)}
-                          </p>
-                        </div>
-                        <div>
-                          <span className="text-sm text-gray-600">Transaction ID:</span>
-                          <p className="font-mono text-sm bg-gray-100 dark:bg-gray-800 p-2 rounded">
-                            {selectedRegistration.paymentInfo.transactionId}
-                          </p>
-                        </div>
-                        <div>
-                          <span className="text-sm text-gray-600">Payment Status:</span>
-                          <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                            {selectedRegistration.paymentInfo.status}
-                          </Badge>
-                        </div>
-                      </div>
-
-                      {selectedRegistration.paymentInfo.breakdown && (
-                        <div>
-                          <h4 className="font-semibold mb-3">Payment Breakdown</h4>
-                          <div className="space-y-2 text-sm">
-                            <div className="flex justify-between">
-                              <span>Registration Fee:</span>
-                              <span className="font-medium">₹{selectedRegistration.paymentInfo.breakdown.baseAmount?.toLocaleString()}</span>
-                            </div>
-                            {selectedRegistration.paymentInfo.breakdown.workshopFees && selectedRegistration.paymentInfo.breakdown.workshopFees.length > 0 && (
-                              <div className="flex justify-between">
-                                <span>Workshop Fees:</span>
-                                <span className="font-medium">
-                                  ₹{selectedRegistration.paymentInfo.breakdown.workshopFees.reduce((sum: number, w: any) => sum + w.amount, 0).toLocaleString()}
-                                </span>
-                              </div>
-                            )}
-                            {selectedRegistration.paymentInfo.breakdown.accompanyingPersonFees && selectedRegistration.paymentInfo.breakdown.accompanyingPersonFees > 0 && (
-                              <div className="flex justify-between">
-                                <span>Accompanying Persons:</span>
-                                <span className="font-medium">₹{selectedRegistration.paymentInfo.breakdown.accompanyingPersonFees.toLocaleString()}</span>
-                              </div>
-                            )}
-                            {selectedRegistration.paymentInfo.breakdown.discountsApplied && selectedRegistration.paymentInfo.breakdown.discountsApplied.length > 0 && (
-                              <div className="flex justify-between text-green-600">
-                                <span>Discount Applied:</span>
-                                <span className="font-medium">
-                                  -₹{selectedRegistration.paymentInfo.breakdown.discountsApplied.reduce((sum: number, d: any) => sum + d.amount, 0).toLocaleString()}
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Special Requirements */}
-              {(selectedRegistration.profile.dietaryRequirements || selectedRegistration.profile.specialNeeds) && (
-                <Card className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <AlertTriangle className="h-5 w-5 text-amber-500" />
-                      Special Requirements
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {selectedRegistration.profile.dietaryRequirements && (
-                      <div>
-                        <span className="text-sm font-medium text-gray-600">Dietary Requirements:</span>
-                        <p className="mt-1 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200">
-                          {selectedRegistration.profile.dietaryRequirements}
-                        </p>
-                      </div>
-                    )}
-                    {selectedRegistration.profile.specialNeeds && (
-                      <div>
-                        <span className="text-sm font-medium text-gray-600">Special Needs:</span>
-                        <p className="mt-1 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200">
-                          {selectedRegistration.profile.specialNeeds}
-                        </p>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Payment Type Information */}
-              {selectedRegistration.registration.paymentType && selectedRegistration.registration.paymentType !== 'regular' && (
-                <Card className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      {selectedRegistration.registration.paymentType === 'complementary' ? (
-                        <Gift className="h-5 w-5 text-green-500" />
-                      ) : (
-                        <Award className="h-5 w-5 text-theme-primary-500" />
-                      )}
-                      {selectedRegistration.registration.paymentType === 'complementary' ? 'Complementary Registration' : 'Sponsored Registration'}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      <div>
-                        <span className="text-sm text-gray-600">Payment Type:</span>
-                        <Badge className={selectedRegistration.registration.paymentType === 'complementary' ? 'bg-green-100 text-green-800' : 'bg-theme-primary-100 text-blue-800'}>
-                          {selectedRegistration.registration.paymentType.charAt(0).toUpperCase() + selectedRegistration.registration.paymentType.slice(1)}
-                        </Badge>
-                      </div>
-                      {selectedRegistration.registration.sponsorName && (
-                        <div>
-                          <span className="text-sm text-gray-600">Sponsor Name:</span>
-                          <p className="font-medium">{selectedRegistration.registration.sponsorName}</p>
-                        </div>
-                      )}
-                      {selectedRegistration.registration.sponsorCategory && (
-                        <div>
-                          <span className="text-sm text-gray-600">Sponsor Category:</span>
-                          <p className="font-medium">{selectedRegistration.registration.sponsorCategory}</p>
-                        </div>
-                      )}
-                      {selectedRegistration.registration.paymentRemarks && (
-                        <div>
-                          <span className="text-sm text-gray-600">Remarks:</span>
-                          <p className="mt-1 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                            {selectedRegistration.registration.paymentRemarks}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-          )}
-
-          <DialogFooter className="flex flex-col sm:flex-row justify-between gap-2 sm:gap-0">
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                onClick={() => selectedRegistration && handleEditRegistration(selectedRegistration)}
-                className="flex items-center gap-2"
-              >
-                <Edit className="h-4 w-4" />
-                Edit Registration
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => selectedRegistration && handleMarkAsPaid(selectedRegistration)}
-                className="flex items-center gap-2"
-              >
-                <DollarSign className="h-4 w-4" />
-                Update Payment
-              </Button>
-            </div>
-            <Button variant="outline" onClick={() => setIsDetailsOpen(false)}>
-              Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Registration Dialog */}
-      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent className="w-[95vw] max-w-2xl max-h-[85vh] overflow-y-auto bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 p-4 sm:p-6">
-          <DialogHeader>
-            <DialogTitle>Edit Registration</DialogTitle>
-            <DialogDescription>
-              Update registration information for {editingRegistration?.profile.firstName} {editingRegistration?.profile.lastName}
-            </DialogDescription>
-          </DialogHeader>
-
-          {editingRegistration && (
-            <div className="space-y-4 w-full max-w-full overflow-hidden">
-              <div className="space-y-6">
-                {/* Personal Information */}
-                <div>
-                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                    <User className="h-5 w-5" />
-                    Personal Information
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="edit-title">Title</Label>
-                      <Select
-                        value={editingRegistration.profile.title}
-                        onValueChange={(value) => setEditingRegistration({
-                          ...editingRegistration,
-                          profile: { ...editingRegistration.profile, title: value }
-                        })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Dr.">Dr.</SelectItem>
-                          <SelectItem value="Prof.">Prof.</SelectItem>
-                          <SelectItem value="Mr.">Mr.</SelectItem>
-                          <SelectItem value="Ms.">Ms.</SelectItem>
-                          <SelectItem value="Mrs.">Mrs.</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label htmlFor="edit-firstName">First Name</Label>
-                      <Input
-                        id="edit-firstName"
-                        value={editingRegistration.profile.firstName}
-                        onChange={(e) => setEditingRegistration({
-                          ...editingRegistration,
-                          profile: { ...editingRegistration.profile, firstName: e.target.value }
-                        })}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="edit-lastName">Last Name</Label>
-                      <Input
-                        id="edit-lastName"
-                        value={editingRegistration.profile.lastName}
-                        onChange={(e) => setEditingRegistration({
-                          ...editingRegistration,
-                          profile: { ...editingRegistration.profile, lastName: e.target.value }
-                        })}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="edit-email">Email</Label>
-                      <Input
-                        id="edit-email"
-                        type="email"
-                        value={editingRegistration.email}
-                        onChange={(e) => setEditingRegistration({
-                          ...editingRegistration,
-                          email: e.target.value
-                        })}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="edit-phone">Phone</Label>
-                      <Input
-                        id="edit-phone"
-                        value={editingRegistration.profile.phone}
-                        onChange={(e) => setEditingRegistration({
-                          ...editingRegistration,
-                          profile: { ...editingRegistration.profile, phone: e.target.value }
-                        })}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="edit-institution">Institution</Label>
-                      <Input
-                        id="edit-institution"
-                        value={editingRegistration.profile.institution}
-                        onChange={(e) => setEditingRegistration({
-                          ...editingRegistration,
-                          profile: { ...editingRegistration.profile, institution: e.target.value }
-                        })}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Address Information */}
-                <div>
-                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                    <MapPin className="h-5 w-5" />
-                    Address Information
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="edit-city">City</Label>
-                      <Input
-                        id="edit-city"
-                        value={editingRegistration.profile.address?.city || ''}
-                        onChange={(e) => setEditingRegistration({
-                          ...editingRegistration,
-                          profile: {
-                            ...editingRegistration.profile,
-                            address: {
-                              ...editingRegistration.profile.address,
-                              city: e.target.value
-                            }
-                          }
-                        })}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="edit-state">State</Label>
-                      <Input
-                        id="edit-state"
-                        value={editingRegistration.profile.address?.state || ''}
-                        onChange={(e) => setEditingRegistration({
-                          ...editingRegistration,
-                          profile: {
-                            ...editingRegistration.profile,
-                            address: {
-                              ...editingRegistration.profile.address,
-                              state: e.target.value
-                            }
-                          }
-                        })}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="edit-country">Country</Label>
-                      <Input
-                        id="edit-country"
-                        value={editingRegistration.profile.address?.country || ''}
-                        onChange={(e) => setEditingRegistration({
-                          ...editingRegistration,
-                          profile: {
-                            ...editingRegistration.profile,
-                            address: {
-                              ...editingRegistration.profile.address,
-                              country: e.target.value
-                            }
-                          }
-                        })}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Registration Details */}
-                <div>
-                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                    <Calendar className="h-5 w-5" />
-                    Registration Details
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="edit-type">Registration Type</Label>
-                      <Select
-                        value={editingRegistration.registration.type}
-                        onValueChange={(value) => setEditingRegistration({
-                          ...editingRegistration,
-                          registration: { ...editingRegistration.registration, type: value }
-                        })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {conferenceConfig.registration.categories.map(cat => (
-                            <SelectItem key={cat.key} value={cat.key}>{cat.label}</SelectItem>
-                          ))}
-                          <SelectItem value="sponsored">Sponsored</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label htmlFor="edit-status">Status</Label>
-                      <Select
-                        value={editingRegistration.registration.status}
-                        onValueChange={(value) => setEditingRegistration({
-                          ...editingRegistration,
-                          registration: { ...editingRegistration.registration, status: value }
-                        })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="pending">Pending</SelectItem>
-                          <SelectItem value="confirmed">Confirmed</SelectItem>
-                          <SelectItem value="paid">Paid</SelectItem>
-                          <SelectItem value="cancelled">Cancelled</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label htmlFor="edit-membership">Membership Number</Label>
-                      <Input
-                        id="edit-membership"
-                        value={editingRegistration.registration.membershipNumber || ''}
-                        onChange={(e) => setEditingRegistration({
-                          ...editingRegistration,
-                          registration: { ...editingRegistration.registration, membershipNumber: e.target.value }
-                        })}
-                        placeholder="Enter membership number"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Workshop Selections */}
-                <div>
-                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                    <BookOpen className="h-5 w-5" />
-                    Workshop Selections
-                  </h3>
-                  <WorkshopSelectionEditor
-                    selectedWorkshops={editingRegistration.registration.workshopSelections}
-                    onSelectionChange={(workshops) => setEditingRegistration({
-                      ...editingRegistration,
-                      registration: { ...editingRegistration.registration, workshopSelections: workshops }
-                    })}
-                  />
-                </div>
-
-                {/* Accompanying Persons */}
-                <div>
-                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                    <Users className="h-5 w-5" />
-                    Accompanying Persons
-                  </h3>
-                  <AccompanyingPersonsEditor
-                    accompanyingPersons={editingRegistration.registration.accompanyingPersons}
-                    onPersonsChange={(persons) => setEditingRegistration({
-                      ...editingRegistration,
-                      registration: { ...editingRegistration.registration, accompanyingPersons: persons }
-                    })}
-                  />
-                </div>
-
-                {/* Special Requirements */}
-                <div>
-                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                    <AlertTriangle className="h-5 w-5" />
-                    Special Requirements
-                  </h3>
-                  <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="edit-dietary">Dietary Requirements</Label>
-                      <Textarea
-                        id="edit-dietary"
-                        value={editingRegistration.profile.dietaryRequirements || ''}
-                        onChange={(e) => setEditingRegistration({
-                          ...editingRegistration,
-                          profile: { ...editingRegistration.profile, dietaryRequirements: e.target.value }
-                        })}
-                        placeholder="Any dietary restrictions or preferences"
-                        rows={2}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="edit-special">Special Needs</Label>
-                      <Textarea
-                        id="edit-special"
-                        value={editingRegistration.profile.specialNeeds || ''}
-                        onChange={(e) => setEditingRegistration({
-                          ...editingRegistration,
-                          profile: { ...editingRegistration.profile, specialNeeds: e.target.value }
-                        })}
-                        placeholder="Any accessibility requirements or special needs"
-                        rows={2}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2">
-            <Button variant="outline" onClick={() => setIsEditOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSaveEdit}>
-              <Save className="h-4 w-4 mr-2" />
-              Save Changes
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Add Registration Dialog */}
-      <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-        <DialogContent className="w-[95vw] max-w-2xl max-h-[85vh] overflow-y-auto bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 p-4 sm:p-6">
-          <DialogHeader>
-            <DialogTitle>Add New Registration</DialogTitle>
-            <DialogDescription>
-              Create a new registration manually
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-6">
-            {/* Personal Information */}
-            <div>
-              <h3 className="text-lg font-semibold mb-4">Personal Information</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="new-title">Title</Label>
-                  <Select
-                    value={newRegistration.profile.title}
-                    onValueChange={(value) => setNewRegistration({
-                      ...newRegistration,
-                      profile: { ...newRegistration.profile, title: value }
-                    })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select title" />
+                <div className="flex flex-wrap gap-2">
+                  <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPagination(p => ({ ...p, page: 1 })) }}>
+                    <SelectTrigger className="w-[140px] bg-white dark:bg-slate-900">
+                      <Filter className="h-4 w-4 mr-2" />
+                      <SelectValue placeholder="Status" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Dr.">Dr.</SelectItem>
-                      <SelectItem value="Prof.">Prof.</SelectItem>
-                      <SelectItem value="Mr.">Mr.</SelectItem>
-                      <SelectItem value="Ms.">Ms.</SelectItem>
-                      <SelectItem value="Mrs.">Mrs.</SelectItem>
+                      <SelectItem value="all">All Status</SelectItem>
+                      <SelectItem value="paid">Paid</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="pending-payment">Pending Payment</SelectItem>
+                      <SelectItem value="confirmed">Confirmed</SelectItem>
+                      <SelectItem value="cancelled">Cancelled</SelectItem>
                     </SelectContent>
                   </Select>
-                </div>
-                <div>
-                  <Label htmlFor="new-firstName">First Name</Label>
-                  <Input
-                    id="new-firstName"
-                    value={newRegistration.profile.firstName}
-                    onChange={(e) => setNewRegistration({
-                      ...newRegistration,
-                      profile: { ...newRegistration.profile, firstName: e.target.value }
-                    })}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="new-lastName">Last Name</Label>
-                  <Input
-                    id="new-lastName"
-                    value={newRegistration.profile.lastName}
-                    onChange={(e) => setNewRegistration({
-                      ...newRegistration,
-                      profile: { ...newRegistration.profile, lastName: e.target.value }
-                    })}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="new-email">Email</Label>
-                  <Input
-                    id="new-email"
-                    type="email"
-                    value={newRegistration.email}
-                    onChange={(e) => setNewRegistration({
-                      ...newRegistration,
-                      email: e.target.value
-                    })}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="new-phone">Phone</Label>
-                  <Input
-                    id="new-phone"
-                    value={newRegistration.profile.phone}
-                    onChange={(e) => setNewRegistration({
-                      ...newRegistration,
-                      profile: { ...newRegistration.profile, phone: e.target.value }
-                    })}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="new-institution">Institution</Label>
-                  <Input
-                    id="new-institution"
-                    value={newRegistration.profile.institution}
-                    onChange={(e) => setNewRegistration({
-                      ...newRegistration,
-                      profile: { ...newRegistration.profile, institution: e.target.value }
-                    })}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="new-designation">Designation</Label>
-                  <Select
-                    value={newRegistration.profile.designation}
-                    onValueChange={(value) => setNewRegistration({
-                      ...newRegistration,
-                      profile: { ...newRegistration.profile, designation: value }
-                    })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select designation" />
+                  
+                  <Select value={typeFilter} onValueChange={(v) => { setTypeFilter(v); setPagination(p => ({ ...p, page: 1 })) }}>
+                    <SelectTrigger className="w-[150px] bg-white dark:bg-slate-900">
+                      <SelectValue placeholder="Type" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Consultant">Consultant</SelectItem>
-                      <SelectItem value="PG/Student">PG/Student</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="new-password">Password</Label>
-                  <Input
-                    id="new-password"
-                    type="password"
-                    value={newRegistration.password}
-                    onChange={(e) => setNewRegistration({
-                      ...newRegistration,
-                      password: e.target.value
-                    })}
-                    placeholder="Minimum 8 characters"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Address Information */}
-            <div>
-              <h3 className="text-lg font-semibold mb-4">Address Information</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="new-city">City</Label>
-                  <Input
-                    id="new-city"
-                    value={newRegistration.profile.address.city}
-                    onChange={(e) => setNewRegistration({
-                      ...newRegistration,
-                      profile: {
-                        ...newRegistration.profile,
-                        address: { ...newRegistration.profile.address, city: e.target.value }
-                      }
-                    })}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="new-state">State</Label>
-                  <Input
-                    id="new-state"
-                    value={newRegistration.profile.address.state}
-                    onChange={(e) => setNewRegistration({
-                      ...newRegistration,
-                      profile: {
-                        ...newRegistration.profile,
-                        address: { ...newRegistration.profile.address, state: e.target.value }
-                      }
-                    })}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="new-country">Country</Label>
-                  <Input
-                    id="new-country"
-                    value={newRegistration.profile.address.country}
-                    onChange={(e) => setNewRegistration({
-                      ...newRegistration,
-                      profile: {
-                        ...newRegistration.profile,
-                        address: { ...newRegistration.profile.address, country: e.target.value }
-                      }
-                    })}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Registration Details */}
-            <div>
-              <h3 className="text-lg font-semibold mb-4">Registration Details</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="new-type">Registration Type</Label>
-                  <Select
-                    value={newRegistration.registration.type}
-                    onValueChange={(value) => setNewRegistration({
-                      ...newRegistration,
-                      registration: { ...newRegistration.registration, type: value }
-                    })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
+                      <SelectItem value="all">All Types</SelectItem>
                       {conferenceConfig.registration.categories.map(cat => (
                         <SelectItem key={cat.key} value={cat.key}>{cat.label}</SelectItem>
                       ))}
-                      <SelectItem value="sponsored">Sponsored</SelectItem>
                     </SelectContent>
                   </Select>
-                </div>
-                <div>
-                  <Label htmlFor="new-status">Status</Label>
-                  <Select
-                    value={newRegistration.registration.status}
-                    onValueChange={(value) => setNewRegistration({
-                      ...newRegistration,
-                      registration: { ...newRegistration.registration, status: value }
-                    })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
+                  
+                  <Select value={paymentTypeFilter} onValueChange={(v) => { setPaymentTypeFilter(v); setPagination(p => ({ ...p, page: 1 })) }}>
+                    <SelectTrigger className="w-[150px] bg-white dark:bg-slate-900">
+                      <SelectValue placeholder="Payment Type" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="pending">Pending</SelectItem>
-                      <SelectItem value="confirmed">Confirmed</SelectItem>
-                      <SelectItem value="paid">Paid</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="new-membership">Membership Number</Label>
-                  <Input
-                    id="new-membership"
-                    value={newRegistration.registration.membershipNumber || ''}
-                    onChange={(e) => setNewRegistration({
-                      ...newRegistration,
-                      registration: { ...newRegistration.registration, membershipNumber: e.target.value }
-                    })}
-                    placeholder="Enter membership number"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="new-paymentType">Payment Type</Label>
-                  <Select
-                    value={newRegistration.registration.paymentType || 'regular'}
-                    onValueChange={(value) => setNewRegistration({
-                      ...newRegistration,
-                      registration: { ...newRegistration.registration, paymentType: value as 'regular' | 'complementary' | 'sponsored' }
-                    })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
+                      <SelectItem value="all">All Payment Types</SelectItem>
                       <SelectItem value="regular">Regular</SelectItem>
                       <SelectItem value="complementary">Complimentary</SelectItem>
                       <SelectItem value="sponsored">Sponsored</SelectItem>
                     </SelectContent>
                   </Select>
-                </div>
-                {newRegistration.registration.paymentType === 'sponsored' && (
-                  <>
-                    <div>
-                      <Label htmlFor="new-sponsorName">Sponsor Name</Label>
-                      <Input
-                        id="new-sponsorName"
-                        value={newRegistration.registration.sponsorName || ''}
-                        onChange={(e) => setNewRegistration({
-                          ...newRegistration,
-                          registration: { ...newRegistration.registration, sponsorName: e.target.value }
-                        })}
-                        placeholder="Enter sponsor name"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="new-sponsorCategory">Sponsor Category</Label>
-                      <Input
-                        id="new-sponsorCategory"
-                        value={newRegistration.registration.sponsorCategory || ''}
-                        onChange={(e) => setNewRegistration({
-                          ...newRegistration,
-                          registration: { ...newRegistration.registration, sponsorCategory: e.target.value }
-                        })}
-                        placeholder="Enter sponsor category"
-                      />
-                    </div>
-                  </>
-                )}
-                <div>
-                  <Label htmlFor="new-paymentRemarks">Payment Remarks</Label>
-                  <Input
-                    id="new-paymentRemarks"
-                    value={newRegistration.registration.paymentRemarks || ''}
-                    onChange={(e) => setNewRegistration({
-                      ...newRegistration,
-                      registration: { ...newRegistration.registration, paymentRemarks: e.target.value }
-                    })}
-                    placeholder="Additional payment notes"
-                  />
+                  
+                  {sponsors.length > 0 && (
+                    <Select value={sponsorFilter} onValueChange={(v) => { setSponsorFilter(v); setPagination(p => ({ ...p, page: 1 })) }}>
+                      <SelectTrigger className="w-[180px] bg-white dark:bg-slate-900">
+                        <Award className="h-4 w-4 mr-2" />
+                        <SelectValue placeholder="Sponsor" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Sponsors</SelectItem>
+                        {sponsors.map(sponsor => (
+                          <SelectItem key={sponsor._id} value={sponsor._id}>{sponsor.companyName}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                  
+                  <Select value={specializationFilter} onValueChange={(v) => { setSpecializationFilter(v); setPagination(p => ({ ...p, page: 1 })) }}>
+                    <SelectTrigger className="w-[160px] bg-white dark:bg-slate-900">
+                      <SelectValue placeholder="Specialization" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Specializations</SelectItem>
+                      <SelectItem value="Neurology">Neurology</SelectItem>
+                      <SelectItem value="Neurosurgery">Neurosurgery</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  
+                  {(searchTerm || statusFilter !== 'all' || typeFilter !== 'all' || paymentTypeFilter !== 'all' || sponsorFilter !== 'all' || specializationFilter !== 'all') && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setSearchTerm("")
+                        setStatusFilter("all")
+                        setTypeFilter("all")
+                        setPaymentTypeFilter("all")
+                        setSponsorFilter("all")
+                        setSpecializationFilter("all")
+                        setPagination(p => ({ ...p, page: 1 }))
+                      }}
+                    >
+                      <X className="h-4 w-4 mr-1" /> Clear
+                    </Button>
+                  )}
                 </div>
               </div>
-            </div>
 
-            {/* Workshop Selections */}
-            <div>
-              <h3 className="text-lg font-semibold mb-4">Workshop Selections</h3>
-              <WorkshopSelectionEditor
-                selectedWorkshops={newRegistration.registration.workshopSelections}
-                onSelectionChange={(workshops) => setNewRegistration({
-                  ...newRegistration,
-                  registration: { ...newRegistration.registration, workshopSelections: workshops }
-                })}
-              />
-            </div>
+              {/* Bulk Actions Bar */}
+              <AnimatePresence>
+                {selectedIds.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="flex items-center gap-3 p-3 rounded-lg border-2"
+                    style={{ backgroundColor: `${theme.secondary}10`, borderColor: theme.secondary }}
+                  >
+                    <Badge variant="secondary" className="font-medium">
+                      {selectedIds.length} selected
+                    </Badge>
+                    <div className="flex-1" />
+                    <Button size="sm" variant="outline" onClick={handleBulkEmail} disabled={isBulkActionLoading}>
+                      <Mail className="h-4 w-4 mr-1" /> Email
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={handleBulkExport} disabled={isBulkActionLoading}>
+                      <FileDown className="h-4 w-4 mr-1" /> Export
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={handleBulkBadges} disabled={isBulkActionLoading}>
+                      <BadgeCheck className="h-4 w-4 mr-1" /> Badges
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={handleBulkCertificates} disabled={isBulkActionLoading}>
+                      <ScrollText className="h-4 w-4 mr-1" /> Certificates
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => setSelectedIds([])}>
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
-            {/* Accompanying Persons */}
-            <div>
-              <h3 className="text-lg font-semibold mb-4">Accompanying Persons</h3>
-              <AccompanyingPersonsEditor
-                accompanyingPersons={newRegistration.registration.accompanyingPersons}
-                onPersonsChange={(persons) => setNewRegistration({
-                  ...newRegistration,
-                  registration: { ...newRegistration.registration, accompanyingPersons: persons }
-                })}
-              />
-            </div>
-          </div>
+              {/* Table */}
+              <div className="rounded-lg border overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-slate-50 dark:bg-slate-800/50">
+                      {columns.find(c => c.key === 'select')?.visible && (
+                        <TableHead className="w-12">
+                          <Checkbox
+                            checked={isAllSelected}
+                            onCheckedChange={handleSelectAll}
+                            aria-label="Select all"
+                            className={isSomeSelected ? 'data-[state=checked]:bg-primary/50' : ''}
+                          />
+                        </TableHead>
+                      )}
+                      {columns.find(c => c.key === 'attendee')?.visible && (
+                        <TableHead className="min-w-[200px]">
+                          <button onClick={() => handleSort('firstName')} className="flex items-center font-medium hover:text-primary">
+                            Attendee <SortIcon column="firstName" />
+                          </button>
+                        </TableHead>
+                      )}
+                      {columns.find(c => c.key === 'registrationId')?.visible && (
+                        <TableHead>
+                          <button onClick={() => handleSort('registrationId')} className="flex items-center font-medium hover:text-primary">
+                            Reg ID <SortIcon column="registrationId" />
+                          </button>
+                        </TableHead>
+                      )}
+                      {columns.find(c => c.key === 'type')?.visible && (
+                        <TableHead>
+                          <button onClick={() => handleSort('type')} className="flex items-center font-medium hover:text-primary">
+                            Type <SortIcon column="type" />
+                          </button>
+                        </TableHead>
+                      )}
+                      {columns.find(c => c.key === 'status')?.visible && (
+                        <TableHead>
+                          <button onClick={() => handleSort('status')} className="flex items-center font-medium hover:text-primary">
+                            Status <SortIcon column="status" />
+                          </button>
+                        </TableHead>
+                      )}
+                      {columns.find(c => c.key === 'paymentType')?.visible && (
+                        <TableHead>Payment Type</TableHead>
+                      )}
+                      {columns.find(c => c.key === 'date')?.visible && (
+                        <TableHead>
+                          <button onClick={() => handleSort('registrationDate')} className="flex items-center font-medium hover:text-primary">
+                            Date <SortIcon column="registrationDate" />
+                          </button>
+                        </TableHead>
+                      )}
+                      {columns.find(c => c.key === 'amount')?.visible && (
+                        <TableHead>
+                          <button onClick={() => handleSort('amount')} className="flex items-center font-medium hover:text-primary">
+                            Amount <SortIcon column="amount" />
+                          </button>
+                        </TableHead>
+                      )}
+                      {columns.find(c => c.key === 'actions')?.visible && (
+                        <TableHead className="w-12"></TableHead>
+                      )}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {registrations.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={columns.filter(c => c.visible).length} className="h-32 text-center">
+                          <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                            <Users className="h-8 w-8 opacity-50" />
+                            <p>No registrations found</p>
+                            {(searchTerm || statusFilter !== 'all' || typeFilter !== 'all' || sponsorFilter !== 'all') && (
+                              <Button variant="link" onClick={() => { setSearchTerm(""); setStatusFilter("all"); setTypeFilter("all"); setPaymentTypeFilter("all"); setSponsorFilter("all") }}>
+                                Clear filters
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      registrations.map((reg) => (
+                        <TableRow key={reg._id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                          {columns.find(c => c.key === 'select')?.visible && (
+                            <TableCell>
+                              <Checkbox
+                                checked={selectedIds.includes(reg._id)}
+                                onCheckedChange={(checked) => handleSelectOne(reg._id, checked as boolean)}
+                              />
+                            </TableCell>
+                          )}
+                          {columns.find(c => c.key === 'attendee')?.visible && (
+                            <TableCell>
+                              <div className="flex items-center gap-3">
+                                <div className="h-10 w-10 rounded-full flex items-center justify-center text-white font-medium text-sm"
+                                  style={{ backgroundColor: theme.primary }}>
+                                  {reg.profile.firstName[0]}{reg.profile.lastName[0]}
+                                </div>
+                                <div className="min-w-0">
+                                  <div className="font-medium text-slate-900 dark:text-white truncate">
+                                    {reg.profile.title} {reg.profile.firstName} {reg.profile.lastName}
+                                  </div>
+                                  <div className="text-sm text-slate-500 dark:text-slate-400 truncate">{reg.email}</div>
+                                  <div className="text-xs text-slate-400 dark:text-slate-500 truncate">{reg.profile.institution}</div>
+                                </div>
+                              </div>
+                            </TableCell>
+                          )}
+                          {columns.find(c => c.key === 'registrationId')?.visible && (
+                            <TableCell>
+                              <button
+                                onClick={() => handleViewDetails(reg)}
+                                className="font-mono text-sm px-2 py-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                                style={{ color: theme.primary }}
+                              >
+                                {reg.registration.registrationId}
+                              </button>
+                            </TableCell>
+                          )}
+                          {columns.find(c => c.key === 'type')?.visible && (
+                            <TableCell><TypeBadge type={reg.registration.type} /></TableCell>
+                          )}
+                          {columns.find(c => c.key === 'status')?.visible && (
+                            <TableCell><StatusBadge status={reg.registration.status} /></TableCell>
+                          )}
+                          {columns.find(c => c.key === 'paymentType')?.visible && (
+                            <TableCell>
+                              <PaymentTypeBadge 
+                                type={reg.registration.paymentType === 'regular' && reg.payment?.method ? reg.payment.method : reg.registration.paymentType} 
+                                sponsorName={reg.registration.sponsorName} 
+                              />
+                            </TableCell>
+                          )}
+                          {columns.find(c => c.key === 'date')?.visible && (
+                            <TableCell>
+                              <div className="text-sm">{new Date(reg.registration.registrationDate).toLocaleDateString()}</div>
+                              {reg.registration.paymentDate && (
+                                <div className="text-xs text-muted-foreground">
+                                  Paid: {new Date(reg.registration.paymentDate).toLocaleDateString()}
+                                </div>
+                              )}
+                            </TableCell>
+                          )}
+                          {columns.find(c => c.key === 'amount')?.visible && (
+                            <TableCell>
+                              {reg.paymentInfo ? (
+                                <span className="font-medium text-emerald-600 dark:text-emerald-400">
+                                  {formatCurrency(reg.paymentInfo.amount)}
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )}
+                            </TableCell>
+                          )}
+                          {columns.find(c => c.key === 'actions')?.visible && (
+                            <TableCell>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                    <MoreVertical className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-48">
+                                  <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem onClick={() => handleViewDetails(reg)}>
+                                    <Eye className="h-4 w-4 mr-2" /> View Details
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleSendEmail(reg)}>
+                                    <Mail className="h-4 w-4 mr-2" /> Send Email
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  {reg.registration.status !== 'paid' && (
+                                    <DropdownMenuItem onClick={() => handleVerifyPayment(reg)}>
+                                      <CheckCircle className="h-4 w-4 mr-2" /> Verify Payment
+                                    </DropdownMenuItem>
+                                  )}
+                                  {reg.registration.status !== 'paid' && (
+                                    <DropdownMenuItem onClick={() => handleGeneratePaymentLink(reg)}>
+                                      <Link className="h-4 w-4 mr-2" /> Copy Payment Link
+                                    </DropdownMenuItem>
+                                  )}
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem onClick={() => handleGenerateBadge(reg)}>
+                                    <BadgeCheck className="h-4 w-4 mr-2" /> Generate Badge
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleGenerateCertificate(reg)}>
+                                    <ScrollText className="h-4 w-4 mr-2" /> Generate Certificate
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleGenerateInvoice(reg)}>
+                                    <FileText className="h-4 w-4 mr-2" /> Generate Invoice
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem onClick={() => handleCancelRegistration(reg)} className="text-red-600">
+                                    <Trash2 className="h-4 w-4 mr-2" /> Delete Registration
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </TableCell>
+                          )}
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
 
-          <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2">
-            <Button variant="outline" onClick={() => setIsAddOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleAddRegistration}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Registration
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+              {/* Pagination */}
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <span>Rows per page:</span>
+                  <Select value={pagination.limit.toString()} onValueChange={handlePageSizeChange}>
+                    <SelectTrigger className="w-[70px] h-8">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="25">25</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                      <SelectItem value="100">100</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <span className="ml-2">
+                    {((pagination.page - 1) * pagination.limit) + 1}-{Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total}
+                  </span>
+                </div>
+                
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPagination(p => ({ ...p, page: 1 }))}
+                    disabled={pagination.page === 1}
+                  >
+                    <ChevronsLeft className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPagination(p => ({ ...p, page: p.page - 1 }))}
+                    disabled={pagination.page === 1}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  
+                  <div className="flex items-center gap-1 mx-2">
+                    {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
+                      let pageNum: number
+                      if (pagination.totalPages <= 5) {
+                        pageNum = i + 1
+                      } else if (pagination.page <= 3) {
+                        pageNum = i + 1
+                      } else if (pagination.page >= pagination.totalPages - 2) {
+                        pageNum = pagination.totalPages - 4 + i
+                      } else {
+                        pageNum = pagination.page - 2 + i
+                      }
+                      return (
+                        <Button
+                          key={pageNum}
+                          variant={pagination.page === pageNum ? "default" : "outline"}
+                          size="sm"
+                          className="w-8 h-8 p-0"
+                          onClick={() => setPagination(p => ({ ...p, page: pageNum }))}
+                          style={pagination.page === pageNum ? { backgroundColor: theme.primary } : {}}
+                        >
+                          {pageNum}
+                        </Button>
+                      )
+                    })}
+                  </div>
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPagination(p => ({ ...p, page: p.page + 1 }))}
+                    disabled={pagination.page === pagination.totalPages}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPagination(p => ({ ...p, page: p.totalPages }))}
+                    disabled={pagination.page === pagination.totalPages}
+                  >
+                    <ChevronsRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
 
-      {/* Import Dialog */}
-      <Dialog open={isImportOpen} onOpenChange={setIsImportOpen}>
-        <DialogContent className="w-[95vw] max-w-lg bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 p-4 sm:p-6">
+      {/* Details Modal */}
+      <RegistrationDetailsModal
+        registration={selectedRegistration}
+        isOpen={isDetailsOpen}
+        onClose={() => { setIsDetailsOpen(false); setSelectedRegistration(null) }}
+        onRefresh={fetchRegistrations}
+      />
+
+      {/* Email Dialog */}
+      {selectedRegistration && (
+        <EmailDialog
+          isOpen={isEmailDialogOpen}
+          registration={selectedRegistration}
+          onClose={() => { setIsEmailDialogOpen(false); setSelectedRegistration(null) }}
+          onEmailSent={() => { setIsEmailDialogOpen(false); setSelectedRegistration(null) }}
+        />
+      )}
+
+      {/* Bulk Email Dialog */}
+      <BulkEmailDialog
+        isOpen={isBulkEmailOpen}
+        selectedIds={selectedIds}
+        registrations={registrations}
+        onClose={() => setIsBulkEmailOpen(false)}
+        onSent={() => { setIsBulkEmailOpen(false); setSelectedIds([]) }}
+      />
+
+      {/* Add Registration Dialog */}
+      <Dialog open={isAddRegistrationOpen} onOpenChange={(open) => {
+        setIsAddRegistrationOpen(open)
+        if (!open) {
+          // Reset form state when closing
+          setFormErrors({})
+          setEmailAvailable(null)
+          setNewRegistration({
+            email: '',
+            password: '',
+            title: 'Dr.',
+            firstName: '',
+            lastName: '',
+            phone: '',
+            designation: 'Consultant',
+            specialization: '',
+            institution: '',
+            mciNumber: '',
+            city: '',
+            state: '',
+            country: 'India',
+            registrationType: 'delegate',
+            paymentType: 'pending',
+            amount: 0,
+            remarks: ''
+          })
+        }
+      }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Import Registrations</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <UserPlus className="h-5 w-5" style={{ color: theme.primary }} />
+              Add New Registration
+            </DialogTitle>
             <DialogDescription>
-              Upload a CSV file to import multiple registrations
+              Create a new registration manually. The user will receive login credentials via email.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="import-file">CSV File</Label>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="col-span-2">
+              <Label htmlFor="reg-email">Email *</Label>
+              <div className="relative">
+                <Input
+                  id="reg-email"
+                  type="email"
+                  value={newRegistration.email}
+                  onChange={(e) => handleFieldChange('email', e.target.value)}
+                  onBlur={() => newRegistration.email && checkEmailAvailability(newRegistration.email)}
+                  placeholder="user@example.com"
+                  className={formErrors.email ? 'border-red-500' : emailAvailable === true ? 'border-green-500' : ''}
+                />
+                {checkingEmail && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <RefreshCw className="h-4 w-4 animate-spin text-gray-400" />
+                  </div>
+                )}
+                {!checkingEmail && emailAvailable === true && newRegistration.email && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <CheckCircle className="h-4 w-4 text-green-500" />
+                  </div>
+                )}
+                {!checkingEmail && emailAvailable === false && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <X className="h-4 w-4 text-red-500" />
+                  </div>
+                )}
+              </div>
+              {formErrors.email && <p className="text-xs text-red-500 mt-1">{formErrors.email}</p>}
+              {emailAvailable === false && <p className="text-xs text-red-500 mt-1">This email is already registered</p>}
+            </div>
+
+            <div className="col-span-2">
+              <Label htmlFor="reg-password">Password * (min 8 characters)</Label>
               <Input
-                id="import-file"
-                type="file"
-                accept=".csv"
-                onChange={(e) => setImportFile(e.target.files?.[0] || null)}
+                id="reg-password"
+                type="text"
+                value={newRegistration.password}
+                onChange={(e) => handleFieldChange('password', e.target.value)}
+                placeholder="Enter password for user"
+                className={formErrors.password ? 'border-red-500' : ''}
               />
+              {formErrors.password && <p className="text-xs text-red-500 mt-1">{formErrors.password}</p>}
+              <p className="text-xs text-muted-foreground mt-1">This password will be shared with the user for login</p>
             </div>
 
-            <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
-              <h4 className="font-medium mb-2">Template Format</h4>
-              <p className="text-sm text-gray-600 mb-3">
-                Download the template to see the required format for importing registrations.
-              </p>
-              <Button variant="outline" size="sm" onClick={downloadTemplate}>
-                <FileSpreadsheet className="h-4 w-4 mr-2" />
-                Download Template
-              </Button>
-            </div>
-          </div>
-
-          <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2">
-            <Button variant="outline" onClick={() => setIsImportOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleImportRegistrations} disabled={!importFile}>
-              <Upload className="h-4 w-4 mr-2" />
-              Import Registrations
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Payment Management Dialog */}
-      <Dialog open={isPaymentOpen} onOpenChange={setIsPaymentOpen}>
-        <DialogContent className="w-[95vw] max-w-lg bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 p-4 sm:p-6">
-          <DialogHeader>
-            <DialogTitle>Mark as Paid</DialogTitle>
-            <DialogDescription>
-              Update payment status and details for {selectedRegistration?.profile.firstName} {selectedRegistration?.profile.lastName}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
             <div>
-              <Label htmlFor="payment-type">Payment Type</Label>
-              <Select
-                value={paymentData.paymentType}
-                onValueChange={(value: 'regular' | 'complementary' | 'sponsored') =>
-                  setPaymentData({ ...paymentData, paymentType: value })
-                }
+              <Label htmlFor="reg-title">Title *</Label>
+              <Select 
+                value={newRegistration.title} 
+                onValueChange={(v) => setNewRegistration(prev => ({ ...prev, title: v }))}
               >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="regular">Regular Payment</SelectItem>
-                  <SelectItem value="complementary">Complementary</SelectItem>
-                  <SelectItem value="sponsored">Sponsored</SelectItem>
+                  <SelectItem value="Dr.">Dr.</SelectItem>
+                  <SelectItem value="Prof.">Prof.</SelectItem>
+                  <SelectItem value="Mr.">Mr.</SelectItem>
+                  <SelectItem value="Mrs.">Mrs.</SelectItem>
+                  <SelectItem value="Ms.">Ms.</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
-            {paymentData.paymentType === 'sponsored' && (
-              <>
-                <div>
-                  <Label htmlFor="sponsor-name">Sponsor Name</Label>
-                  <Input
-                    id="sponsor-name"
-                    value={paymentData.sponsorName}
-                    onChange={(e) => setPaymentData({ ...paymentData, sponsorName: e.target.value })}
-                    placeholder="Enter sponsor name"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="sponsor-category">Sponsor Category</Label>
-                  <Select
-                    value={paymentData.sponsorCategory}
-                    onValueChange={(value) => setPaymentData({ ...paymentData, sponsorCategory: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="platinum">Platinum Sponsor</SelectItem>
-                      <SelectItem value="gold">Gold Sponsor</SelectItem>
-                      <SelectItem value="silver">Silver Sponsor</SelectItem>
-                      <SelectItem value="bronze">Bronze Sponsor</SelectItem>
-                      <SelectItem value="exhibitor">Exhibitor</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </>
-            )}
-
             <div>
-              <Label htmlFor="payment-amount">Amount</Label>
-              <Input
-                id="payment-amount"
-                type="number"
-                value={paymentData.amount}
-                onChange={(e) => setPaymentData({ ...paymentData, amount: parseFloat(e.target.value) || 0 })}
-                placeholder="Enter amount"
-              />
-            </div>
-
-            {paymentData.paymentType === 'regular' && (
-              <>
-                <div>
-                  <Label htmlFor="bank-utr">Bank UTR / Reference ID</Label>
-                  <Input
-                    id="bank-utr"
-                    value={paymentData.bankTransferUTR}
-                    onChange={(e) => setPaymentData({ ...paymentData, bankTransferUTR: e.target.value })}
-                    placeholder="Enter bank UTR / reference"
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="txn-id">Internal Transaction ID (optional)</Label>
-                  <Input
-                    id="txn-id"
-                    value={paymentData.transactionId}
-                    onChange={(e) => setPaymentData({ ...paymentData, transactionId: e.target.value })}
-                    placeholder="Enter transaction id"
-                  />
-                </div>
-              </>
-            )}
-
-            <div>
-              <Label htmlFor="payment-remarks">Remarks</Label>
-              <Textarea
-                id="payment-remarks"
-                value={paymentData.paymentRemarks}
-                onChange={(e) => setPaymentData({ ...paymentData, paymentRemarks: e.target.value })}
-                placeholder="Additional remarks or notes"
-                rows={3}
-              />
-            </div>
-          </div>
-
-          <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2">
-            <Button variant="outline" onClick={() => setIsPaymentOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSavePayment}>
-              <CheckCircle className="h-4 w-4 mr-2" />
-              Mark as Paid
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Email Dialog */}
-      {selectedRegistrationForEmail && (
-        <EmailDialog
-          isOpen={isEmailDialogOpen}
-          registration={selectedRegistrationForEmail}
-          onClose={() => {
-            setIsEmailDialogOpen(false)
-            setSelectedRegistrationForEmail(null)
-          }}
-          onEmailSent={() => {
-            setIsEmailDialogOpen(false)
-            setSelectedRegistrationForEmail(null)
-          }}
-        />
-      )}
-
-      {/* Bulk Email Dialog */}
-      <Dialog open={isBulkEmailOpen} onOpenChange={setIsBulkEmailOpen}>
-        <DialogContent className="w-[95vw] max-w-3xl max-h-[90vh] overflow-y-auto bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 p-4 sm:p-6">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-slate-900 dark:text-white">
-              <Mail className="h-5 w-5 text-blue-500" />
-              Send Bulk Emails
-            </DialogTitle>
-            <DialogDescription className="text-slate-600 dark:text-slate-400">
-              Configure and send emails to {selectedRegistrations.length} selected registration{selectedRegistrations.length !== 1 ? 's' : ''}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-6 w-full max-w-full overflow-hidden">
-            {/* Recipients Info */}
-            <Card className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700">
-              <CardContent className="p-4">
-                <div className="flex items-start gap-3">
-                  <div className="bg-blue-100 dark:bg-blue-900/40 p-2 rounded-full">
-                    <User className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-slate-900 dark:text-white">
-                      {selectedRegistrations.length} Recipient{selectedRegistrations.length !== 1 ? 's' : ''}
-                    </h4>
-                    <p className="text-sm text-slate-600 dark:text-slate-400">
-                      Emails will be sent to all selected registrations
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Email Template Selection */}
-            <div className="space-y-3">
-              <Label className="text-slate-900 dark:text-white">Email Template</Label>
+              <Label htmlFor="reg-designation">Designation *</Label>
               <Select 
-                value={bulkEmailConfig.template} 
-                onValueChange={(value) => {
-                  const template = emailTemplates[value as keyof typeof emailTemplates]
-                  if (template) {
-                    setBulkEmailConfig({
-                      ...bulkEmailConfig,
-                      template: value,
-                      subject: template.subject,
-                      message: template.message
-                    })
-                  }
+                value={newRegistration.designation} 
+                onValueChange={(v) => {
+                  // Auto-select registration type based on designation
+                  const regType = v === 'PG/Student' ? 'resident' : 'delegate'
+                  setNewRegistration(prev => ({ ...prev, designation: v, registrationType: regType }))
                 }}
               >
-                <SelectTrigger className="bg-white dark:bg-slate-900">
-                  <SelectValue placeholder="Select template" />
+                <SelectTrigger>
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="registrationConfirmation">
-                    <div className="flex items-center gap-2">
-                      <FileText className="h-4 w-4" />
-                      <span>Registration Confirmation</span>
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="paymentReminder">
-                    <div className="flex items-center gap-2">
-                      <DollarSign className="h-4 w-4" />
-                      <span>Payment Reminder</span>
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="eventUpdate">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4" />
-                      <span>Event Update</span>
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="welcomeEmail">
-                    <div className="flex items-center gap-2">
-                      <Mail className="h-4 w-4" />
-                      <span>Welcome Email</span>
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="custom">
-                    <div className="flex items-center gap-2">
-                      <Edit className="h-4 w-4" />
-                      <span>Custom Message</span>
-                    </div>
-                  </SelectItem>
+                  <SelectItem value="Consultant">Consultant</SelectItem>
+                  <SelectItem value="PG/Student">PG/Student</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
-            {/* Subject Line */}
-            <div className="space-y-2">
-              <Label htmlFor="bulk-subject" className="text-slate-900 dark:text-white">Subject Line</Label>
+            <div>
+              <Label htmlFor="reg-specialization">Specialization</Label>
+              <Select 
+                value={newRegistration.specialization} 
+                onValueChange={(v) => setNewRegistration(prev => ({ ...prev, specialization: v }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select specialization" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="not-specified">Not specified</SelectItem>
+                  <SelectItem value="Neurology">Neurology</SelectItem>
+                  <SelectItem value="Neurosurgery">Neurosurgery</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="reg-firstName">First Name *</Label>
               <Input
-                id="bulk-subject"
-                value={bulkEmailConfig.subject}
-                onChange={(e) => setBulkEmailConfig({...bulkEmailConfig, subject: e.target.value})}
-                placeholder="Enter email subject..."
-                className="bg-white dark:bg-slate-900"
+                id="reg-firstName"
+                value={newRegistration.firstName}
+                onChange={(e) => handleFieldChange('firstName', e.target.value)}
+                placeholder="First name"
+                className={formErrors.firstName ? 'border-red-500' : ''}
+              />
+              {formErrors.firstName && <p className="text-xs text-red-500 mt-1">{formErrors.firstName}</p>}
+            </div>
+
+            <div>
+              <Label htmlFor="reg-lastName">Last Name *</Label>
+              <Input
+                id="reg-lastName"
+                value={newRegistration.lastName}
+                onChange={(e) => handleFieldChange('lastName', e.target.value)}
+                placeholder="Last name"
+                className={formErrors.lastName ? 'border-red-500' : ''}
+              />
+              {formErrors.lastName && <p className="text-xs text-red-500 mt-1">{formErrors.lastName}</p>}
+            </div>
+
+            <div>
+              <Label htmlFor="reg-phone">Phone * (10 digits)</Label>
+              <Input
+                id="reg-phone"
+                value={newRegistration.phone}
+                onChange={(e) => {
+                  // Only allow numbers
+                  const value = e.target.value.replace(/[^0-9]/g, '').slice(0, 10)
+                  handleFieldChange('phone', value)
+                }}
+                placeholder="9876543210"
+                maxLength={10}
+                className={formErrors.phone ? 'border-red-500' : ''}
+              />
+              {formErrors.phone && <p className="text-xs text-red-500 mt-1">{formErrors.phone}</p>}
+              {newRegistration.phone && !formErrors.phone && (
+                <p className="text-xs text-green-500 mt-1">{newRegistration.phone.length}/10 digits</p>
+              )}
+            </div>
+
+            <div>
+              <Label htmlFor="reg-mci">MCI/Registration Number</Label>
+              <Input
+                id="reg-mci"
+                value={newRegistration.mciNumber}
+                onChange={(e) => setNewRegistration(prev => ({ ...prev, mciNumber: e.target.value }))}
+                placeholder="MCI number"
               />
             </div>
 
-            {/* Message Body */}
-            <div className="space-y-2">
-              <Label htmlFor="bulk-message" className="text-slate-900 dark:text-white">Message</Label>
-              <Textarea
-                id="bulk-message"
-                value={bulkEmailConfig.message}
-                onChange={(e) => setBulkEmailConfig({...bulkEmailConfig, message: e.target.value})}
-                placeholder="Enter your message..."
-                rows={8}
-                className="bg-white dark:bg-slate-900 resize-none"
+            <div className="col-span-2">
+              <Label htmlFor="reg-institution">Institution *</Label>
+              <Input
+                id="reg-institution"
+                value={newRegistration.institution}
+                onChange={(e) => handleFieldChange('institution', e.target.value)}
+                placeholder="Hospital/Institution name"
+                className={formErrors.institution ? 'border-red-500' : ''}
               />
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Available variables: {'{name}'}, {'{email}'}, {'{registrationId}'}, {'{institution}'}
+              {formErrors.institution && <p className="text-xs text-red-500 mt-1">{formErrors.institution}</p>}
+            </div>
+
+            <div>
+              <Label htmlFor="reg-city">City</Label>
+              <Input
+                id="reg-city"
+                value={newRegistration.city}
+                onChange={(e) => setNewRegistration(prev => ({ ...prev, city: e.target.value }))}
+                placeholder="City"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="reg-state">State</Label>
+              <Input
+                id="reg-state"
+                value={newRegistration.state}
+                onChange={(e) => setNewRegistration(prev => ({ ...prev, state: e.target.value }))}
+                placeholder="State"
+              />
+            </div>
+
+            <div className="col-span-2">
+              <Label htmlFor="reg-type">Registration Type *</Label>
+              <Select 
+                value={newRegistration.registrationType} 
+                onValueChange={(v) => setNewRegistration(prev => ({ ...prev, registrationType: v }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {conferenceConfig.registration.categories
+                    .filter(cat => {
+                      // Filter based on designation
+                      if (newRegistration.designation === 'PG/Student') {
+                        return cat.key === 'resident'
+                      }
+                      return cat.key === 'delegate'
+                    })
+                    .map(cat => (
+                      <SelectItem key={cat.key} value={cat.key}>{cat.label}</SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">
+                {newRegistration.designation === 'PG/Student' 
+                  ? 'PG/Students are registered as Residents' 
+                  : 'Consultants are registered as Delegates'}
               </p>
             </div>
 
-            {/* Preview Info */}
-            {bulkEmailConfig.subject && bulkEmailConfig.message && (
-              <Alert className="bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700">
-                <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
-                <AlertDescription className="text-slate-700 dark:text-slate-300">
-                  <strong>Ready to send!</strong> Your bulk email is configured and ready to be sent to {selectedRegistrations.length} recipient{selectedRegistrations.length !== 1 ? 's' : ''}.
-                </AlertDescription>
-              </Alert>
+            <div className="col-span-2">
+              <Label>Payment Type *</Label>
+              <div className="grid grid-cols-3 gap-3 mt-2">
+                <div
+                  onClick={() => setNewRegistration(prev => ({ ...prev, paymentType: 'pending' }))}
+                  className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                    newRegistration.paymentType === 'pending'
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <CreditCard className={`h-4 w-4 ${newRegistration.paymentType === 'pending' ? 'text-blue-600' : 'text-gray-400'}`} />
+                    <span className="font-medium text-sm">Pending Payment</span>
+                  </div>
+                  <p className="text-xs text-gray-500">User will pay later</p>
+                </div>
+                <div
+                  onClick={() => setNewRegistration(prev => ({ ...prev, paymentType: 'bank-transfer' }))}
+                  className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                    newRegistration.paymentType === 'bank-transfer'
+                      ? 'border-orange-500 bg-orange-50'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <FileText className={`h-4 w-4 ${newRegistration.paymentType === 'bank-transfer' ? 'text-orange-600' : 'text-gray-400'}`} />
+                    <span className="font-medium text-sm">Bank Transfer</span>
+                  </div>
+                  <p className="text-xs text-gray-500">Manual verification</p>
+                </div>
+                <div
+                  onClick={() => setNewRegistration(prev => ({ ...prev, paymentType: 'complimentary' }))}
+                  className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                    newRegistration.paymentType === 'complimentary'
+                      ? 'border-emerald-500 bg-emerald-50'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <Gift className={`h-4 w-4 ${newRegistration.paymentType === 'complimentary' ? 'text-emerald-600' : 'text-gray-400'}`} />
+                    <span className="font-medium text-sm">Complimentary</span>
+                  </div>
+                  <p className="text-xs text-gray-500">No payment required</p>
+                </div>
+              </div>
+            </div>
+
+            {newRegistration.paymentType !== 'complimentary' && (
+              <div>
+                <Label htmlFor="reg-amount">Amount (₹)</Label>
+                <Input
+                  id="reg-amount"
+                  type="number"
+                  value={newRegistration.amount}
+                  onChange={(e) => setNewRegistration(prev => ({ ...prev, amount: parseInt(e.target.value) || 0 }))}
+                  placeholder="0"
+                />
+              </div>
             )}
+
+            <div className={newRegistration.paymentType !== 'complimentary' ? '' : 'col-span-2'}>
+              <Label htmlFor="reg-remarks">Remarks</Label>
+              <Input
+                id="reg-remarks"
+                value={newRegistration.remarks}
+                onChange={(e) => setNewRegistration(prev => ({ ...prev, remarks: e.target.value }))}
+                placeholder="Optional notes"
+              />
+            </div>
           </div>
 
-          <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2">
-            <Button 
-              variant="outline" 
-              onClick={() => setIsBulkEmailOpen(false)}
-              className="w-full sm:w-auto"
-            >
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAddRegistrationOpen(false)} disabled={isAddingRegistration}>
               Cancel
             </Button>
-            <Button
-              onClick={async () => {
-                if (!bulkEmailConfig.subject || !bulkEmailConfig.message) {
-                  toast({
-                    title: "Missing Information",
-                    description: "Please fill in both subject and message",
-                    variant: "destructive"
-                  })
-                  return
-                }
-
-                toast({
-                  title: "Sending Bulk Emails...",
-                  description: `Preparing to send emails to ${selectedRegistrations.length} recipients`,
-                })
-
-                let successCount = 0
-                let failCount = 0
-
-                for (const regId of selectedRegistrations) {
-                  const registration = registrations.find(r => r._id === regId)
-                  if (!registration) continue
-
-                  try {
-                    const response = await fetch(`/api/admin/registrations/${regId}/send-email`, {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({
-                        type: bulkEmailConfig.template,
-                        subject: bulkEmailConfig.subject,
-                        message: bulkEmailConfig.message
-                      })
-                    })
-
-                    if (response.ok) {
-                      successCount++
-                    } else {
-                      failCount++
-                    }
-                  } catch (error) {
-                    failCount++
-                  }
-                }
-
-                toast({
-                  title: successCount > 0 ? "✅ Bulk Email Sent" : "❌ Bulk Email Failed",
-                  description: `Successfully sent: ${successCount}, Failed: ${failCount}`,
-                  variant: failCount > 0 ? "destructive" : "default"
-                })
-
-                setSelectedRegistrations([])
-                setIsBulkEmailOpen(false)
-                setBulkEmailConfig({
-                  template: 'custom',
-                  subject: '',
-                  message: '',
-                  sendTo: 'selected'
-                })
-              }}
-              disabled={!bulkEmailConfig.subject || !bulkEmailConfig.message}
-              className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white w-full sm:w-auto"
+            <Button 
+              onClick={handleAddRegistration} 
+              disabled={isAddingRegistration || !newRegistration.email || !newRegistration.password || !newRegistration.firstName || !newRegistration.lastName || !newRegistration.phone || !newRegistration.institution}
+              style={{ backgroundColor: theme.primary }}
             >
-              <Send className="h-4 w-4 mr-2" />
-              Send to {selectedRegistrations.length} Recipient{selectedRegistrations.length !== 1 ? 's' : ''}
+              {isAddingRegistration ? (
+                <><RefreshCw className="h-4 w-4 mr-2 animate-spin" /> Creating...</>
+              ) : (
+                <><UserPlus className="h-4 w-4 mr-2" /> Create Registration</>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     </motion.div>
+  )
+}
+
+// Bulk Email Dialog Component
+function BulkEmailDialog({
+  isOpen,
+  selectedIds,
+  registrations,
+  onClose,
+  onSent
+}: {
+  isOpen: boolean
+  selectedIds: string[]
+  registrations: Registration[]
+  onClose: () => void
+  onSent: () => void
+}) {
+  const [template, setTemplate] = useState('custom')
+  const [subject, setSubject] = useState('')
+  const [message, setMessage] = useState('')
+  const [isSending, setIsSending] = useState(false)
+  const { toast } = useToast()
+
+  const templates: Record<string, { subject: string; message: string }> = {
+    confirmation: {
+      subject: `Registration Confirmation - ${conferenceConfig.shortName}`,
+      message: `Dear {name},\n\nThank you for registering for ${conferenceConfig.shortName}!\n\nYour Registration ID: {registrationId}\nEmail: {email}\nInstitution: {institution}\n\nWe look forward to seeing you at the conference.\n\nBest regards,\n${conferenceConfig.organizationName}`
+    },
+    reminder: {
+      subject: `Payment Reminder - ${conferenceConfig.shortName}`,
+      message: `Dear {name},\n\nThis is a friendly reminder regarding your registration payment for ${conferenceConfig.shortName}.\n\nRegistration ID: {registrationId}\n\nPlease complete your payment to confirm your participation.\n\nBest regards,\n${conferenceConfig.organizationName}`
+    },
+    update: {
+      subject: `Important Update - ${conferenceConfig.shortName}`,
+      message: `Dear {name},\n\nWe have an important update regarding ${conferenceConfig.shortName}.\n\n[Your update here]\n\nBest regards,\n${conferenceConfig.organizationName}`
+    },
+    custom: { subject: '', message: '' }
+  }
+
+  const handleTemplateChange = (t: string) => {
+    setTemplate(t)
+    setSubject(templates[t].subject)
+    setMessage(templates[t].message)
+  }
+
+  const handleSend = async () => {
+    if (!subject || !message) {
+      toast({ title: "Missing Fields", description: "Please fill in subject and message", variant: "destructive" })
+      return
+    }
+
+    setIsSending(true)
+    let success = 0, failed = 0
+
+    for (const id of selectedIds) {
+      try {
+        const response = await fetch(`/api/admin/registrations/${id}/send-email`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: template, subject, message })
+        })
+        if (response.ok) success++
+        else failed++
+      } catch { failed++ }
+    }
+
+    toast({
+      title: success > 0 ? "Emails Sent" : "Send Failed",
+      description: `Success: ${success}, Failed: ${failed}`,
+      variant: failed > 0 ? "destructive" : "default"
+    })
+
+    setIsSending(false)
+    if (success > 0) onSent()
+  }
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Mail className="h-5 w-5" style={{ color: theme.secondary }} />
+            Send Bulk Email
+          </DialogTitle>
+          <DialogDescription>
+            Send email to {selectedIds.length} selected registration{selectedIds.length !== 1 ? 's' : ''}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-800">
+            <div className="flex items-center gap-2">
+              <Users className="h-4 w-4 text-muted-foreground" />
+              <span className="font-medium">{selectedIds.length} Recipients</span>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Template</Label>
+            <Select value={template} onValueChange={handleTemplateChange}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="confirmation">Registration Confirmation</SelectItem>
+                <SelectItem value="reminder">Payment Reminder</SelectItem>
+                <SelectItem value="update">Event Update</SelectItem>
+                <SelectItem value="custom">Custom Message</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Subject</Label>
+            <Input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Email subject..." />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Message</Label>
+            <Textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={8} placeholder="Email message..." />
+            <p className="text-xs text-muted-foreground">
+              Variables: {'{name}'}, {'{email}'}, {'{registrationId}'}, {'{institution}'}
+            </p>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={isSending}>Cancel</Button>
+          <Button onClick={handleSend} disabled={isSending || !subject || !message} style={{ backgroundColor: theme.secondary }}>
+            {isSending ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
+            Send to {selectedIds.length} Recipients
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }

@@ -49,6 +49,7 @@ export function PricingCalculator() {
   const [discountCode, setDiscountCode] = useState("")
   const [calculation, setCalculation] = useState({
     registrationFee: 0,
+    gst: 0,
     workshopFees: 0,
     accompanyingPersonFees: 0,
     subtotal: 0,
@@ -94,6 +95,9 @@ export function PricingCalculator() {
     let registrationFee = registrationCategory.amount
     const currency = registrationCategory.currency
 
+    // Calculate GST (18% on base registration amount only)
+    const gst = Math.round(registrationFee * 18 / 100)
+
     // Calculate workshop fees
     let workshopFees = 0
     selectedWorkshops.forEach(workshopName => {
@@ -106,7 +110,7 @@ export function PricingCalculator() {
     // Calculate accompanying person fees
     const accompanyingPersonFees = accompanyingPersons.length * (pricingData.registration_categories.accompanying?.amount || 3000)
 
-    const subtotal = registrationFee + workshopFees + accompanyingPersonFees
+    const subtotal = registrationFee + gst + workshopFees + accompanyingPersonFees
 
     // Apply basic discount logic (this is a simplified version)
     let discount = 0
@@ -120,6 +124,7 @@ export function PricingCalculator() {
 
     setCalculation({
       registrationFee,
+      gst,
       workshopFees,
       accompanyingPersonFees,
       subtotal,
@@ -335,6 +340,13 @@ export function PricingCalculator() {
                     <span>Registration Fee:</span>
                     <span>{formatCurrency(calculation.registrationFee, calculation.currency)}</span>
                   </div>
+                  
+                  {calculation.gst > 0 && (
+                    <div className="flex justify-between">
+                      <span>GST (18%):</span>
+                      <span>{formatCurrency(calculation.gst, calculation.currency)}</span>
+                    </div>
+                  )}
                   
                   {calculation.workshopFees > 0 && (
                     <div className="flex justify-between">

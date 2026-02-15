@@ -3,24 +3,24 @@
 @tailwind utilities;
 
 :root {
-  /* Light mode - TASCON 2026 Theme */
+  /* Light mode - ISSH 2026 Theme */
   --background: #ffffff;
-  --foreground: #0e192b;
-  --primary: #f97316;
+  --foreground: #25406b;
+  --primary: #25406b;
   --primary-foreground: #ffffff;
-  --secondary: #ffb246;
-  --secondary-foreground: #0e192b;
-  --accent: #2196F3;
+  --secondary: #ebc975;
+  --secondary-foreground: #25406b;
+  --accent: #852016;
   --accent-foreground: #ffffff;
-  --muted: #f5f0eb;
+  --muted: #f5f0e6;
   --muted-foreground: #64748b;
   --card: #ffffff;
-  --card-foreground: #0e192b;
+  --card-foreground: #25406b;
   --popover: #ffffff;
-  --popover-foreground: #0e192b;
+  --popover-foreground: #25406b;
   --border: #e2e8f0;
   --input: #e2e8f0;
-  --ring: #f97316;
+  --ring: #25406b;
   --radius: 0.5rem;
   
   /* Homepage Redesign Color Palette */
@@ -39,14 +39,14 @@
 }
 
 .dark {
-  /* Dark mode - TASCON 2026 Theme */
+  /* Dark mode - ISSH 2026 Theme */
   --background: #0e192b;
   --foreground: #ffffff;
-  --primary: #f97316;
+  --primary: #25406b;
   --primary-foreground: #ffffff;
-  --secondary: #ffb246;
-  --secondary-foreground: #0e192b;
-  --accent: #2196F3;
+  --secondary: #ebc975;
+  --secondary-foreground: #25406b;
+  --accent: #852016;
   --accent-foreground: #ffffff;
   --muted: #1a3a52;
   --muted-foreground: #94a3b8;
@@ -56,7 +56,7 @@
   --popover-foreground: #ffffff;
   --border: #334155;
   --input: #334155;
-  --ring: #f97316;
+  --ring: #25406b;
 }
 
 @layer base {

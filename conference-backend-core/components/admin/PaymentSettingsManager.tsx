@@ -7,7 +7,7 @@ import { Label } from '../ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card'
 import { Switch } from '../ui/switch'
 import { useToast } from '../ui/use-toast'
-import { Upload, CreditCard, Building, Save, Loader2, X, Check } from 'lucide-react'
+import { Upload, CreditCard, Building, Save, Loader2, X, Check, AlertTriangle } from 'lucide-react'
 
 export function PaymentSettingsManager() {
   const { toast } = useToast()
@@ -20,13 +20,15 @@ export function PaymentSettingsManager() {
     bankTransfer: true,
     externalRedirect: false,
     externalRedirectUrl: '',
+    maintenanceMode: false,
     bankDetails: {
       accountName: '',
       accountNumber: '',
       ifscCode: '',
       bankName: '',
       branch: '',
-      qrCodeUrl: ''
+      qrCodeUrl: '',
+      upiId: ''
     }
   })
 
@@ -264,6 +266,27 @@ export function PaymentSettingsManager() {
               </div>
             )}
 
+            {/* Maintenance Mode Toggle */}
+            <div className="flex items-center justify-between p-4 border-2 border-red-200 dark:border-red-800 rounded-lg bg-red-50 dark:bg-red-900/20">
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-lg bg-red-600">
+                  <AlertTriangle className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <Label className="text-base font-semibold text-gray-900 dark:text-white">Registration Maintenance Mode</Label>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    {config.maintenanceMode 
+                      ? '🔧 Enabled - Registration page blocked for regular users. Admins can still access it for testing.'
+                      : '✅ Disabled - Registration page is open to everyone'}
+                  </p>
+                </div>
+              </div>
+              <Switch
+                checked={config.maintenanceMode}
+                onCheckedChange={(checked) => setConfig(prev => ({ ...prev, maintenanceMode: checked }))}
+              />
+            </div>
+
             <div className="bg-gray-100 dark:bg-gray-800 p-4 rounded-lg">
               <p className="text-sm text-gray-700 dark:text-gray-300">
                 <strong>Note:</strong> Priority order: External Redirect (highest) → Gateway → Bank Transfer. 
@@ -352,61 +375,82 @@ export function PaymentSettingsManager() {
             </div>
 
             {/* Bank Account Details */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label>Account Name *</Label>
-                <Input
-                  value={config.bankDetails.accountName}
-                  onChange={(e) => setConfig(prev => ({
-                    ...prev,
-                    bankDetails: { ...prev.bankDetails, accountName: e.target.value }
-                  }))}
-                  placeholder="e.g., NEUROVASCON 2026"
-                />
+            <div className="space-y-4">
+              <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-200 dark:border-blue-800">
+                <p className="text-sm text-blue-800 dark:text-blue-200">
+                  <strong>💡 Tip:</strong> Bank details are optional. If you only have a QR code, you can leave the bank details empty and only the QR code will be shown to users.
+                </p>
               </div>
-              <div>
-                <Label>Account Number *</Label>
-                <Input
-                  value={config.bankDetails.accountNumber}
-                  onChange={(e) => setConfig(prev => ({
-                    ...prev,
-                    bankDetails: { ...prev.bankDetails, accountNumber: e.target.value }
-                  }))}
-                  placeholder="e.g., 137912010002201"
-                />
-              </div>
-              <div>
-                <Label>IFSC Code *</Label>
-                <Input
-                  value={config.bankDetails.ifscCode}
-                  onChange={(e) => setConfig(prev => ({
-                    ...prev,
-                    bankDetails: { ...prev.bankDetails, ifscCode: e.target.value.toUpperCase() }
-                  }))}
-                  placeholder="e.g., UBIN0813796"
-                />
-              </div>
-              <div>
-                <Label>Bank Name *</Label>
-                <Input
-                  value={config.bankDetails.bankName}
-                  onChange={(e) => setConfig(prev => ({
-                    ...prev,
-                    bankDetails: { ...prev.bankDetails, bankName: e.target.value }
-                  }))}
-                  placeholder="e.g., Union Bank of India"
-                />
-              </div>
-              <div className="md:col-span-2">
-                <Label>Branch (Optional)</Label>
-                <Input
-                  value={config.bankDetails.branch}
-                  onChange={(e) => setConfig(prev => ({
-                    ...prev,
-                    bankDetails: { ...prev.bankDetails, branch: e.target.value }
-                  }))}
-                  placeholder="e.g., Main Branch, City Name"
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label>Account Name</Label>
+                  <Input
+                    value={config.bankDetails.accountName}
+                    onChange={(e) => setConfig(prev => ({
+                      ...prev,
+                      bankDetails: { ...prev.bankDetails, accountName: e.target.value }
+                    }))}
+                    placeholder="e.g., ISSH 2026"
+                  />
+                </div>
+                <div>
+                  <Label>Account Number</Label>
+                  <Input
+                    value={config.bankDetails.accountNumber}
+                    onChange={(e) => setConfig(prev => ({
+                      ...prev,
+                      bankDetails: { ...prev.bankDetails, accountNumber: e.target.value }
+                    }))}
+                    placeholder="e.g., 137912010002201"
+                  />
+                </div>
+                <div>
+                  <Label>IFSC Code</Label>
+                  <Input
+                    value={config.bankDetails.ifscCode}
+                    onChange={(e) => setConfig(prev => ({
+                      ...prev,
+                      bankDetails: { ...prev.bankDetails, ifscCode: e.target.value.toUpperCase() }
+                    }))}
+                    placeholder="e.g., UBIN0813796"
+                  />
+                </div>
+                <div>
+                  <Label>Bank Name</Label>
+                  <Input
+                    value={config.bankDetails.bankName}
+                    onChange={(e) => setConfig(prev => ({
+                      ...prev,
+                      bankDetails: { ...prev.bankDetails, bankName: e.target.value }
+                    }))}
+                    placeholder="e.g., Union Bank of India"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <Label>Branch</Label>
+                  <Input
+                    value={config.bankDetails.branch}
+                    onChange={(e) => setConfig(prev => ({
+                      ...prev,
+                      bankDetails: { ...prev.bankDetails, branch: e.target.value }
+                    }))}
+                    placeholder="e.g., Main Branch, City Name"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <Label>UPI ID</Label>
+                  <Input
+                    value={config.bankDetails.upiId || ''}
+                    onChange={(e) => setConfig(prev => ({
+                      ...prev,
+                      bankDetails: { ...prev.bankDetails, upiId: e.target.value }
+                    }))}
+                    placeholder="e.g., issh2026@upi or 9876543210@paytm"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    UPI ID will be shown to users for easy payment via UPI apps
+                  </p>
+                </div>
               </div>
             </div>
           </CardContent>

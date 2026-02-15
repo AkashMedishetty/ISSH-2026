@@ -161,11 +161,45 @@ export function VerifiedImportDialog({ onImportComplete }: { onImportComplete?: 
   }
 
   const downloadTemplate = () => {
-    // Create a download link for the template
+    // Generate CSV template dynamically
+    const headers = [
+      'Email',
+      'Name',
+      'Amount',
+      'Registration Type',
+      'Phone',
+      'Transaction ID',
+      'Title',
+      'Institution',
+      'City',
+      'State',
+      'Country',
+      'Pincode',
+      'MCI Number',
+      'Membership Number',
+      'Accompanying Persons',
+      'Accompanying Person Names',
+      'Dietary Requirements',
+      'Special Needs',
+      'Payment Remarks'
+    ]
+    
+    // Example rows
+    const exampleRows = [
+      'john.doe@example.com,Dr. John Doe,5000,consultant,9876543210,UTR123456789012,Dr.,ABC Hospital,Hyderabad,Telangana,India,500001,MCI12345,MEM001,1,Jane Doe,vegetarian,,Verified via bank transfer',
+      'jane.smith@example.com,Dr. Jane Smith,3000,postgraduate,9876543211,UTR123456789013,Dr.,XYZ Medical College,Mumbai,Maharashtra,India,400001,MCI12346,,0,,,,'
+    ]
+    
+    const csvContent = [headers.join(','), ...exampleRows].join('\n')
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    
     const link = document.createElement('a')
-    link.href = '/templates/verified-registrations-template.csv'
+    link.href = url
     link.download = 'verified-registrations-template.csv'
     link.click()
+    
+    URL.revokeObjectURL(url)
   }
 
   const resetDialog = () => {

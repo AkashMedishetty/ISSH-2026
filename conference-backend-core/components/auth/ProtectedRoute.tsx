@@ -8,7 +8,7 @@ import { Loader2 } from "lucide-react"
 
 interface ProtectedRouteProps {
   children: ReactNode
-  requiredRole?: "user" | "admin" | "reviewer"
+  requiredRole?: "user" | "admin" | "reviewer" | "manager"
   fallbackUrl?: string
 }
 
@@ -46,6 +46,12 @@ export function ProtectedRoute({
       }
 
       if (requiredRole === "reviewer" && !["admin", "reviewer"].includes(userRole)) {
+        router.push("/dashboard")
+        return
+      }
+
+      // Manager role: only managers and admins can access manager routes
+      if (requiredRole === "manager" && !["admin", "manager"].includes(userRole)) {
         router.push("/dashboard")
         return
       }
@@ -101,6 +107,18 @@ export function ProtectedRoute({
         </div>
       )
     }
+
+    // Manager role access check
+    if (requiredRole === "manager" && !["admin", "manager"].includes(userRole)) {
+      return (
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center space-y-4">
+            <h1 className="text-2xl font-bold text-red-600">Access Denied</h1>
+            <p className="text-gray-600">You don't have manager permissions.</p>
+          </div>
+        </div>
+      )
+    }
   }
 
   // Render protected content
@@ -110,7 +128,7 @@ export function ProtectedRoute({
 // HOC version for easier usage
 export function withProtectedRoute<P extends object>(
   Component: React.ComponentType<P>,
-  requiredRole: "user" | "admin" | "reviewer" = "user"
+  requiredRole: "user" | "admin" | "reviewer" | "manager" = "user"
 ) {
   return function ProtectedComponent(props: P) {
     return (

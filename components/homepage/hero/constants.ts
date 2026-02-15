@@ -31,6 +31,18 @@ export const HERO_CONFIG = {
   cameraZ: 16.5,
 };
 
+// Hand configuration for hero section - LAPTOP (1024px–1366px)
+export const HERO_CONFIG_LAPTOP = {
+  rotationX: 0.208,
+  rotationY: -0.102,
+  rotationZ: 0.000,
+  positionX: -0.40,
+  positionY: 0.00,
+  scale: 1.50,
+  particleSize: 0.032,
+  cameraZ: 18.0,
+};
+
 // Hand configuration for hero section - MOBILE
 export const HERO_CONFIG_MOBILE = {
   rotationX: 0.208,
@@ -51,6 +63,16 @@ export const WELCOME_CONFIG = {
   positionX: -5.00,
   positionY: 0.20,
   scale: 0.90,
+};
+
+// Welcome gesture configuration - LAPTOP (1024px–1366px)
+export const WELCOME_CONFIG_LAPTOP = {
+  rotationX: -0.012,
+  rotationY: -1.122,
+  rotationZ: -0.092,
+  positionX: -2.50,
+  positionY: 1.00,
+  scale: 0.80,
 };
 
 // Welcome gesture configuration - MOBILE
@@ -77,6 +99,16 @@ export const CHARMINAR_CONFIG = {
   scale: 0.5,
 };
 
+// Charminar configuration - LAPTOP (1024px–1366px)
+export const CHARMINAR_CONFIG_LAPTOP = {
+  rotationX: 0,
+  rotationY: 0,
+  rotationZ: 0,
+  positionX: 0,
+  positionY: 1.0,
+  scale: 0.43,
+};
+
 // Charminar configuration - MOBILE
 export const CHARMINAR_CONFIG_MOBILE = {
   rotationX: 0,
@@ -89,8 +121,10 @@ export const CHARMINAR_CONFIG_MOBILE = {
 
 // Committee text scale - MOBILE (smaller to fit screen width)
 export const COMMITTEE_SCALE_MOBILE = 0.055;
+export const COMMITTEE_SCALE_LAPTOP = 0.09;
 export const COMMITTEE_SCALE_DESKTOP = 0.13;
 
 // Committee Y position for mobile (higher up on screen)
 export const COMMITTEE_Y_MOBILE = 2.8;
+export const COMMITTEE_Y_LAPTOP = 2.6;
 export const COMMITTEE_Y_DESKTOP = 2.5;

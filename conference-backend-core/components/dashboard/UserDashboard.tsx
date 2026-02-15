@@ -81,6 +81,8 @@ interface PaymentData {
   breakdown: {
     registrationType: string
     baseAmount: number
+    gst: number
+    gstPercentage: number
     workshopFees: Array<{
       name: string
       amount: number

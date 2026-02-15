@@ -3,6 +3,9 @@ import crypto from 'crypto'
 import connectDB from '@/lib/mongodb'
 import Payment from '@/lib/models/Payment'
 import User from '@/lib/models/User'
+import paymentAttempts from '@/conference-backend-core/lib/payment/attempts'
+import { logPaymentError } from '@/conference-backend-core/lib/errors/service'
+import { logPaymentAction } from '@/conference-backend-core/lib/audit/service'
 
 // Optional runtime to ensure edge/body handling defaults
 export const runtime = 'nodejs'
@@ -22,21 +25,9 @@ async function markUserPaidAndUpdateSeats(user: any) {
   user.registration.paymentDate = new Date()
   await user.save()
 
-  // Atomically increment bookedSeats for selected workshops (if any)
-  if (user.registration.workshopSelections && user.registration.workshopSelections.length > 0) {
-    const Workshop = (await import('@/lib/models/Workshop')).default
-    for (const workshopId of user.registration.workshopSelections) {
-      // Only increment if bookedSeats < maxSeats
-      await Workshop.findOneAndUpdate(
-        {
-          id: workshopId,
-          $expr: { $lt: ["$bookedSeats", "$maxSeats"] },
-        },
-        { $inc: { bookedSeats: 1 } },
-        { new: true }
-      )
-    }
-  }
+  // Note: Workshop seats are now booked at registration time, not at payment time
+  // This prevents double-counting and ensures seats are reserved immediately
+  console.log('✅ User marked as paid. Workshop seats were already booked at registration.')
 }
 
 export async function POST(request: NextRequest) {
@@ -157,12 +148,43 @@ export async function POST(request: NextRequest) {
     })
     await paymentRecord.save()
 
+    // Update payment attempt tracking
+    const existingAttempt = await paymentAttempts.findByRazorpayOrderId(razorpayOrderId)
+    if (existingAttempt) {
+      await paymentAttempts.markAttemptSuccess(
+        existingAttempt.attemptId,
+        razorpayPaymentId,
+        undefined // No signature in webhook
+      )
+      await paymentAttempts.storeWebhookData(existingAttempt.attemptId, payload)
+    }
+
+    // Log audit trail
+    await logPaymentAction(
+      { userId: user._id.toString(), email: user.email, role: 'system', name: 'Webhook' },
+      'payment.completed',
+      paymentRecord._id.toString(),
+      user.registration.registrationId,
+      { ip: 'webhook', userAgent: 'Razorpay Webhook' },
+      { amount: amountTotal, currency, method: paymentEntity?.method, source: 'webhook' }
+    )
+
     // Mark user paid and increment seats
     await markUserPaidAndUpdateSeats(user)
 
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error('Webhook error:', error)
+    
+    // Log the error
+    await logPaymentError(
+      error instanceof Error ? error.message : 'Webhook processing error',
+      {
+        stack: error instanceof Error ? error.stack : undefined,
+        device: { ip: 'webhook', userAgent: 'Razorpay Webhook' }
+      }
+    )
+    
     return NextResponse.json({ success: false, message: 'Internal server error' }, { status: 500 })
   }
 }

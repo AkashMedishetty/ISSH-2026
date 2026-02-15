@@ -8,7 +8,7 @@ import { motion } from 'framer-motion'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/conference-backend-core/components/ui/card'
 import { Button } from '@/conference-backend-core/components/ui/button'
 import { Badge } from '@/conference-backend-core/components/ui/badge'
-import { Navigation } from '@/conference-backend-core/components/Navigation'
+import { MainLayout } from '@/conference-backend-core/components/layout/MainLayout'
 import { conferenceConfig } from '@/conference-backend-core/config/conference.config'
 import { BadgeDisplay } from '@/conference-backend-core/components/user/BadgeDisplay'
 import { CertificateDisplay } from '@/conference-backend-core/components/user/CertificateDisplay'
@@ -32,9 +32,15 @@ export function CompleteDashboard() {
     if (status === 'unauthenticated') {
       router.push('/login')
     } else if (status === 'authenticated') {
+      // Redirect sponsors to their portal - they shouldn't access user dashboard
+      const userRole = (session?.user as any)?.role
+      if (userRole === 'sponsor') {
+        router.push('/sponsor/dashboard')
+        return
+      }
       fetchDashboardData()
     }
-  }, [status, router])
+  }, [status, router, session])
 
   const fetchDashboardData = async () => {
     try {
@@ -74,8 +80,7 @@ export function CompleteDashboard() {
 
   if (loading || !data) {
     return (
-      <>
-        <Navigation />
+      <MainLayout currentPage="dashboard" showSearch={false}>
         <div className="min-h-screen bg-white dark:bg-[#181818] flex items-center justify-center">
           <div className="text-center">
             <div 
@@ -85,7 +90,7 @@ export function CompleteDashboard() {
             <p className="mt-4 text-slate-600 dark:text-slate-400">Loading dashboard...</p>
           </div>
         </div>
-      </>
+      </MainLayout>
     )
   }
 
@@ -94,8 +99,7 @@ export function CompleteDashboard() {
   // Check if user has registration data
   if (!user?.registration) {
     return (
-      <>
-        <Navigation />
+      <MainLayout currentPage="dashboard" showSearch={false}>
         <div className="min-h-screen bg-white dark:bg-[#181818] flex items-center justify-center">
           <div className="text-center max-w-md mx-auto p-6">
             <AlertCircle className="w-16 h-16 text-orange-500 mx-auto mb-4" />
@@ -115,7 +119,7 @@ export function CompleteDashboard() {
             </Link>
           </div>
         </div>
-      </>
+      </MainLayout>
     )
   }
 
@@ -215,8 +219,7 @@ export function CompleteDashboard() {
   ]
 
   return (
-    <>
-      <Navigation />
+    <MainLayout currentPage="dashboard" showSearch={false}>
       <div className="min-h-screen bg-white dark:bg-[#181818]">
         
         {/* Header Section - Solid Color */}
@@ -332,7 +335,7 @@ export function CompleteDashboard() {
           </div>
 
           {/* Alert for Pending Payment */}
-          {user.registration.status === 'pending' && (
+          {(user.registration.status === 'pending' || user.registration.status === 'pending-payment') && (
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -802,6 +805,6 @@ export function CompleteDashboard() {
           </div>
         </div>
       </div>
-    </>
+    </MainLayout>
   )
 }

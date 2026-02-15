@@ -11,11 +11,51 @@ import { sendEmail } from '@/conference-backend-core/lib/email/smtp'
 import { conferenceConfig } from '@/conference-backend-core/config/conference.config'
 import crypto from 'crypto'
 import Razorpay from 'razorpay'
+import mongoose from 'mongoose'
+import paymentAttempts from '@/conference-backend-core/lib/payment/attempts'
+import { logPaymentError } from '@/conference-backend-core/lib/errors/service'
+import { logPaymentAction } from '@/conference-backend-core/lib/audit/service'
+import { calculateGST } from '@/conference-backend-core/lib/utils/gst'
 
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID!,
-  key_secret: process.env.RAZORPAY_KEY_SECRET!
-})
+// Initialize Razorpay only if credentials are available
+let razorpay: Razorpay | null = null
+try {
+  if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
+    razorpay = new Razorpay({
+      key_id: process.env.RAZORPAY_KEY_ID,
+      key_secret: process.env.RAZORPAY_KEY_SECRET
+    })
+  }
+} catch (error) {
+  console.error('Failed to initialize Razorpay:', error)
+}
+
+// Retry configuration
+const MAX_RETRIES = 3
+const RETRY_DELAY_MS = 1000
+
+// Helper function to execute with retry
+async function executeWithRetry<T>(
+  operation: () => Promise<T>,
+  maxRetries: number = MAX_RETRIES
+): Promise<T> {
+  let lastError: Error | null = null
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await operation()
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error))
+      console.error(`Attempt ${attempt}/${maxRetries} failed:`, lastError.message)
+      
+      if (attempt < maxRetries) {
+        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS * attempt))
+      }
+    }
+  }
+  
+  throw lastError
+}
 
 // Function to recalculate payment breakdown based on user data
 async function recalculatePaymentBreakdown(user: any, totalAmount: number, currency: string) {
@@ -170,6 +210,9 @@ async function recalculatePaymentBreakdown(user: any, totalAmount: number, curre
     
     const accompanyingPersonFees = accompanyingPersonCount * accompanyingPersonFee
 
+    // Calculate GST (18% on base registration amount only)
+    const gstAmount = calculateGST(baseAmount)
+
     // Calculate discounts (placeholder for future discount implementation)
     let totalDiscount = 0
     const appliedDiscounts: Array<{
@@ -184,6 +227,8 @@ async function recalculatePaymentBreakdown(user: any, totalAmount: number, curre
         total: totalAmount,
         currency: currency,
         registration: baseAmount,
+        gst: gstAmount,
+        gstPercentage: 18,
         workshops: totalWorkshopFees,
         accompanyingPersons: accompanyingPersonFees,
         discount: totalDiscount
@@ -192,6 +237,8 @@ async function recalculatePaymentBreakdown(user: any, totalAmount: number, curre
         registrationType: registrationType,
         registrationTypeLabel: registrationTypeLabel,
         baseAmount: baseAmount,
+        gst: gstAmount,
+        gstPercentage: 18,
         workshopFees: workshopFees,
         accompanyingPersonCount: accompanyingPersonCount,
         accompanyingPersonDetails: accompanyingPersonDetails,
@@ -208,6 +255,8 @@ async function recalculatePaymentBreakdown(user: any, totalAmount: number, curre
         total: totalAmount,
         currency: currency,
         registration: totalAmount,
+        gst: 0,
+        gstPercentage: 18,
         workshops: 0,
         accompanyingPersons: 0,
         discount: 0
@@ -215,6 +264,8 @@ async function recalculatePaymentBreakdown(user: any, totalAmount: number, curre
       breakdown: {
         registrationType: user.registration.type || 'regular',
         baseAmount: totalAmount,
+        gst: 0,
+        gstPercentage: 18,
         workshopFees: [],
         accompanyingPersonFees: 0,
         discountsApplied: []
@@ -251,6 +302,14 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
+    // Check if Razorpay is initialized
+    if (!razorpay) {
+      return NextResponse.json({
+        success: false,
+        message: 'Payment gateway not configured'
+      }, { status: 500 })
+    }
+
     // Fetch payment details from Razorpay
     const payment = await razorpay.payments.fetch(razorpay_payment_id)
     const order = await razorpay.orders.fetch(razorpay_order_id)
@@ -264,9 +323,87 @@ export async function POST(request: NextRequest) {
 
     let user: any = null
 
-    // Check if this is a pending registration (user doesn't exist yet)
-    if (pendingRegistration) {
-      console.log('Creating user after successful payment:', pendingRegistration.email)
+    // First, try to find user by order ID (new flow - user created with pending-payment status)
+    user = await User.findOne({ 'payment.razorpayOrderId': razorpay_order_id })
+    
+    if (user) {
+      console.log('Found existing user with pending payment:', user.email)
+      
+      // Use transaction with retry for atomic payment status update
+      await executeWithRetry(async () => {
+        const session = await mongoose.startSession()
+        session.startTransaction()
+        
+        try {
+          // Update user status atomically
+          await User.findByIdAndUpdate(
+            user._id,
+            {
+              'registration.status': 'paid',
+              'registration.paymentType': 'online',
+              'payment.status': 'verified',
+              'payment.transactionId': razorpay_payment_id,
+              'payment.paymentDate': new Date()
+            },
+            { session }
+          )
+          
+          await session.commitTransaction()
+          console.log('✅ Payment status updated atomically')
+        } catch (error) {
+          await session.abortTransaction()
+          throw error
+        } finally {
+          session.endSession()
+        }
+      })
+      
+      // Refresh user data after transaction
+      user = await User.findById(user._id)
+      
+      console.log('✅ User payment verified:', {
+        id: user._id,
+        email: user.email,
+        registrationId: user.registration.registrationId
+      })
+
+      // Send registration confirmation email asynchronously
+      ;(async () => {
+        try {
+          let workshopDetails: Array<{id: string, name: string}> = []
+          if (user.registration.workshopSelections && user.registration.workshopSelections.length > 0) {
+            const Workshop = (await import('@/lib/models/Workshop')).default
+            const workshops = await Workshop.find({ 
+              id: { $in: user.registration.workshopSelections },
+              isActive: true 
+            })
+            workshopDetails = workshops.map((w: any) => ({ id: w.id, name: w.name }))
+          }
+
+          const { conferenceConfig } = await import('@/conference-backend-core/config/conference.config')
+          const registrationCategory = conferenceConfig.registration.categories.find(
+            (cat: any) => cat.key === user.registration.type
+          )
+          const registrationTypeLabel = registrationCategory?.label || user.registration.type
+
+          await EmailService.sendRegistrationConfirmation({
+            userId: user._id.toString(),
+            email: user.email,
+            name: `${user.profile.firstName} ${user.profile.lastName}`,
+            registrationId: user.registration.registrationId,
+            registrationType: user.registration.type,
+            registrationTypeLabel: registrationTypeLabel,
+            workshopSelections: workshopDetails,
+            accompanyingPersons: user.registration.accompanyingPersons || []
+          })
+          console.log('✅ Registration confirmation email sent to:', user.email)
+        } catch (emailError) {
+          console.error('⚠️ Failed to send registration confirmation email:', emailError)
+        }
+      })()
+    } else if (pendingRegistration) {
+      // Legacy flow - pendingRegistration data passed from frontend
+      console.log('Creating user after successful payment (legacy flow):', pendingRegistration.email)
       
       try {
         // Create the user NOW after payment is verified
@@ -345,6 +482,7 @@ export async function POST(request: NextRequest) {
             const registrationTypeLabel = registrationCategory?.label || user.registration.type
 
             await EmailService.sendRegistrationConfirmation({
+              userId: user._id.toString(),
               email: user.email,
               name: `${user.profile.firstName} ${user.profile.lastName}`,
               registrationId: user.registration.registrationId,
@@ -574,9 +712,29 @@ export async function POST(request: NextRequest) {
       await paymentRecord.save()
       console.log(`✅ Payment created: registration - ${paymentRecord._id}`)
       console.log('✅ Saved breakdown:', JSON.stringify(paymentRecord.breakdown, null, 2))
+      
+      // Update payment attempt tracking
+      const existingAttempt = await paymentAttempts.findByRazorpayOrderId(razorpay_order_id)
+      if (existingAttempt) {
+        await paymentAttempts.markAttemptSuccess(
+          existingAttempt.attemptId,
+          razorpay_payment_id,
+          razorpay_signature
+        )
+      }
+
+      // Log audit trail for successful payment
+      await logPaymentAction(
+        { userId: user._id.toString(), email: user.email, role: 'user', name: `${user.profile.firstName} ${user.profile.lastName}` },
+        'payment.completed',
+        paymentRecord._id.toString(),
+        user.registration.registrationId,
+        { ip: request.headers.get('x-forwarded-for') || 'unknown', userAgent: request.headers.get('user-agent') || 'unknown' },
+        { amount, currency, method: payment.method, paymentId: razorpay_payment_id }
+      )
     }
 
-    // Update workshop seats - confirm the bookings
+    // Update workshop seats - only for workshop addons (registration workshops are booked at registration time)
     const Workshop = (await import('@/lib/models/Workshop')).default
     let workshopsBooked: string[] = []
     
@@ -590,38 +748,26 @@ export async function POST(request: NextRequest) {
       user.registration.workshopSelections = [...currentSelections, ...newWorkshops]
       console.log(`✅ Added ${newWorkshops.length} workshops to user selections`)
       
-      // Book seats for the workshops
-      for (const workshopId of paymentRecord.workshopIds) {
+      // Book seats for the NEW workshops only
+      for (const workshopId of newWorkshops) {
         const workshop = await Workshop.findOne({ id: workshopId })
         if (workshop) {
-          if (workshop.bookedSeats < workshop.maxSeats) {
+          const seatsAvailable = workshop.maxSeats === 0 || workshop.bookedSeats < workshop.maxSeats
+          if (seatsAvailable) {
             await Workshop.findByIdAndUpdate(
               workshop._id,
               { $inc: { bookedSeats: 1 } }
             )
             workshopsBooked.push(workshopId)
-            console.log(`✅ Seat booked for workshop: ${workshop.name} (${workshop.bookedSeats + 1}/${workshop.maxSeats})`)
+            console.log(`✅ Seat booked for workshop addon: ${workshop.name} (${workshop.bookedSeats + 1}/${workshop.maxSeats === 0 ? 'unlimited' : workshop.maxSeats})`)
           } else {
             console.warn(`⚠️ Workshop ${workshop.name} is full, cannot book seat`)
           }
         }
       }
-    } else if (user.registration.workshopSelections && user.registration.workshopSelections.length > 0) {
-      // For registration payment: book seats for all workshops in user's selections
-      console.log('Booking seats for registration workshops:', user.registration.workshopSelections)
-      
-      for (const workshopId of user.registration.workshopSelections) {
-        const workshop = await Workshop.findOne({ id: workshopId })
-        if (workshop && workshop.bookedSeats < workshop.maxSeats) {
-          await Workshop.findByIdAndUpdate(
-            workshop._id,
-            { $inc: { bookedSeats: 1 } }
-          )
-          workshopsBooked.push(workshopId)
-          console.log(`✅ Seat booked for workshop: ${workshop.name} (${workshop.bookedSeats + 1}/${workshop.maxSeats})`)
-        }
-      }
     }
+    // Note: For regular registration payments, seats are already booked at registration time
+    // No need to book again here to avoid double-counting
 
     // Update user registration status
     user.registration.status = 'paid'
@@ -656,6 +802,7 @@ export async function POST(request: NextRequest) {
         try {
           // Use the breakdown already stored in the payment record
           await EmailService.sendPaymentConfirmation({
+            userId: user._id.toString(),
             email: user.email,
             name: `${user.profile.firstName} ${user.profile.lastName}`,
             registrationId: user.registration.registrationId,
@@ -694,6 +841,15 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Payment verification error:', error)
+    
+    // Log the error
+    await logPaymentError(
+      error instanceof Error ? error.message : 'Payment verification failed',
+      {
+        stack: error instanceof Error ? error.stack : undefined
+      }
+    )
+    
     return NextResponse.json({
       success: false,
       message: 'Payment verification failed'

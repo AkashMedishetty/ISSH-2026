@@ -202,10 +202,10 @@ async function generateSampleData() {
         institution: 'Teaching Hospital',
         address: {
           street: '789 University Road',
-          city: 'Chennai',
-          state: 'Tamil Nadu',
+          city: 'Hyderabad',
+          state: 'Telangana',
           country: 'India',
-          pincode: '600001'
+          pincode: '500001'
         }
       },
       registration: {

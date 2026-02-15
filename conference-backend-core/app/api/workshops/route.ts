@@ -23,7 +23,8 @@ export async function GET(request: NextRequest) {
     const now = new Date()
     const workshopsWithStatus = workshops.map(workshop => ({
       ...workshop,
-      availableSeats: workshop.maxSeats - workshop.bookedSeats,
+      availableSeats: workshop.maxSeats === 0 ? 999999 : (workshop.maxSeats - workshop.bookedSeats),
+      isUnlimited: workshop.maxSeats === 0,
       registrationStatus: getRegistrationStatus(workshop, now),
       canRegister: canRegisterForWorkshop(workshop, now)
     }))
@@ -46,13 +47,14 @@ export async function GET(request: NextRequest) {
 function getRegistrationStatus(workshop: any, now: Date): string {
   if (now < new Date(workshop.registrationStart)) return 'not-started'
   if (now > new Date(workshop.registrationEnd)) return 'closed'
-  if (workshop.bookedSeats >= workshop.maxSeats) return 'full'
+  if (workshop.maxSeats > 0 && workshop.bookedSeats >= workshop.maxSeats) return 'full'
   return 'open'
 }
 
 function canRegisterForWorkshop(workshop: any, now: Date): boolean {
+  const seatsAvailable = workshop.maxSeats === 0 || workshop.bookedSeats < workshop.maxSeats
   return workshop.isActive && 
          now >= new Date(workshop.registrationStart) && 
          now <= new Date(workshop.registrationEnd) && 
-         workshop.bookedSeats < workshop.maxSeats
+         seatsAvailable
 }

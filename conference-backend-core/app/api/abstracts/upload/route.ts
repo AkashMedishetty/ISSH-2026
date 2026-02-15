@@ -1,112 +1,81 @@
+import { handleUpload, type HandleUploadBody } from '@vercel/blob/client'
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
 import connectDB from '@/lib/mongodb'
-import Abstract from '@/lib/models/Abstract'
-import Configuration from '@/lib/models/Configuration'
-import { defaultAbstractsSettings } from '@/lib/config/abstracts'
-import path from 'path'
-import fs from 'fs'
+import User from '@/lib/models/User'
 
-export const runtime = 'nodejs'
+// This route handles client-side uploads to Vercel Blob
+// Files are uploaded directly from browser to Vercel Blob (bypasses 4.5MB serverless limit)
+// Supports files up to 500MB
 
-function ensureDirSync(dir: string) {
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true })
-  }
-}
-
-export async function POST(request: NextRequest) {
-  const session = await getServerSession(authOptions)
-  if (!session?.user || !(session.user as any).id) {
-    return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 })
-  }
-
-  const userId = (session.user as any).id
-  const userRole = (session.user as any).role
-
+export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
-    const formData = await request.formData()
-    const abstractId = String(formData.get('abstractId') || '')
-    const stage = String(formData.get('stage') || 'initial') // 'initial' | 'final'
-    const file = formData.get('file') as File | null
+    const body = (await request.json()) as HandleUploadBody
 
-    if (!abstractId || !file) {
-      return NextResponse.json({ success: false, message: 'abstractId and file are required' }, { status: 400 })
-    }
+    const jsonResponse = await handleUpload({
+      body,
+      request,
+      onBeforeGenerateToken: async (pathname, clientPayload) => {
+        // Validate user before allowing upload
+        // clientPayload contains registrationId for validation
+        
+        let registrationId = ''
+        if (clientPayload) {
+          try {
+            const payload = JSON.parse(clientPayload)
+            registrationId = payload.registrationId || ''
+          } catch {
+            registrationId = clientPayload
+          }
+        }
 
-    await connectDB()
-    const cfg = await Configuration.findOne({ type: 'abstracts', key: 'settings' })
-    const settings = cfg?.value || defaultAbstractsSettings
+        if (registrationId) {
+          await connectDB()
+          const user = await User.findOne({
+            'registration.registrationId': registrationId
+          })
+          
+          if (!user) {
+            throw new Error('Invalid registration ID')
+          }
+        }
 
-    const allowed = stage === 'final' ? settings.allowedFinalFileTypes : settings.allowedInitialFileTypes
-    if (!allowed.includes(file.type)) {
-      return NextResponse.json({ success: false, message: 'Invalid file type' }, { status: 400 })
-    }
+        return {
+          // Allow Word docs and PDFs up to 10MB
+          allowedContentTypes: [
+            'application/msword', // .doc
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+            'application/pdf', // .pdf
+          ],
+          maximumSizeInBytes: 10 * 1024 * 1024, // 10MB
+          addRandomSuffix: true,
+          tokenPayload: JSON.stringify({
+            registrationId,
+            uploadedAt: new Date().toISOString()
+          }),
+        }
+      },
+      onUploadCompleted: async ({ blob, tokenPayload }) => {
+        // This callback is called when upload completes
+        // Note: This won't work on localhost - use ngrok for local testing
+        console.log('✅ Blob upload completed:', blob.url)
+        
+        if (tokenPayload) {
+          try {
+            const payload = JSON.parse(tokenPayload)
+            console.log('📋 Upload for registration:', payload.registrationId)
+          } catch {
+            // Ignore parse errors
+          }
+        }
+      },
+    })
 
-    const maxBytes = settings.maxFileSizeMB * 1024 * 1024
-    if (file.size > maxBytes) {
-      return NextResponse.json({ success: false, message: 'File too large' }, { status: 400 })
-    }
-
-    const abstract = await Abstract.findOne({ abstractId })
-    if (!abstract) {
-      return NextResponse.json({ success: false, message: 'Abstract not found' }, { status: 404 })
-    }
-
-    // Only owner or admin can upload
-    const isOwner = String(abstract.userId) === String(userId)
-    const isAdmin = userRole === 'admin'
-    if (!isOwner && !isAdmin) {
-      return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 })
-    }
-
-    // Persist file
-    const uploadsRoot = path.join(process.cwd(), 'uploads', 'abstracts', abstractId, stage)
-    ensureDirSync(uploadsRoot)
-    const arrayBuffer = await file.arrayBuffer()
-    const buffer = Buffer.from(arrayBuffer)
-    const safeName = file.name.replace(/[^a-zA-Z0-9_.-]/g, '_')
-    const storedName = `${Date.now()}_${safeName}`
-    const storagePath = path.join(uploadsRoot, storedName)
-    fs.writeFileSync(storagePath, buffer)
-
-    const fileRecord = {
-      originalName: file.name,
-      mimeType: file.type,
-      fileSizeBytes: file.size,
-      storagePath,
-      uploadedAt: new Date()
-    }
-
-    if (stage === 'final') {
-      // Enforce acceptance before final upload unless admin
-      if (abstract.status !== 'accepted' && !isAdmin) {
-        return NextResponse.json({ success: false, message: 'Final upload allowed only after acceptance' }, { status: 400 })
-      }
-      abstract.final = {
-        ...(abstract.final || {}),
-        file: fileRecord,
-        submittedAt: new Date(),
-        displayId: `${abstract.abstractId}-F`
-      }
-      abstract.status = 'final-submitted'
-    } else {
-      abstract.initial = {
-        ...(abstract.initial || {}),
-        file: fileRecord
-      }
-      if (abstract.status === 'submitted') {
-        // keep
-      }
-    }
-
-    await abstract.save()
-
-    return NextResponse.json({ success: true })
+    return NextResponse.json(jsonResponse)
   } catch (error) {
-    return NextResponse.json({ success: false, message: 'Internal server error' }, { status: 500 })
+    console.error('Upload error:', error)
+    return NextResponse.json(
+      { error: (error as Error).message },
+      { status: 400 }
+    )
   }
 }
-
-

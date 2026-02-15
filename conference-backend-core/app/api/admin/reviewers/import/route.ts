@@ -96,6 +96,7 @@ export async function POST(request: NextRequest) {
               const token = jwt.sign({ userId: user._id, email: user.email }, process.env.NEXTAUTH_SECRET!, { expiresIn: '7d' })
               const resetLink = `${process.env.APP_URL || 'http://localhost:3000'}/auth/reset-password?token=${token}`
               await EmailService.sendPasswordReset({
+                userId: user._id.toString(),
                 email: user.email,
                 name: `${user.profile.title || ''} ${user.profile.firstName} ${user.profile.lastName}`.trim(),
                 resetLink,

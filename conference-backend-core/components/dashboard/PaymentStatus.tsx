@@ -34,6 +34,8 @@ interface PaymentData {
   breakdown: {
     registrationType: string
     baseAmount: number
+    gst: number
+    gstPercentage: number
     workshopFees: Array<{
       name: string
       amount: number
@@ -57,7 +59,7 @@ interface PaymentStatusProps {
   registrationStatus: string
   paymentData: PaymentData[]
   detailed?: boolean
-  paymentType?: 'regular' | 'complementary' | 'sponsored'
+  paymentType?: 'regular' | 'pending' | 'online' | 'bank-transfer' | 'complementary' | 'complimentary' | 'sponsored'
 }
 
 export function PaymentStatus({ registrationStatus, paymentData, detailed = false, paymentType }: PaymentStatusProps) {
@@ -361,6 +363,15 @@ export function PaymentStatus({ registrationStatus, paymentData, detailed = fals
                         {formatCurrency(payment.breakdown?.baseAmount || 0, payment.amount?.currency || 'INR')}
                       </span>
                     </div>
+
+                    {payment.breakdown?.gst > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-sm">GST (18%):</span>
+                        <span className="text-sm">
+                          {formatCurrency(payment.breakdown?.gst || 0, payment.amount?.currency || 'INR')}
+                        </span>
+                      </div>
+                    )}
 
                     {payment.breakdown?.workshopFees?.length > 0 && (
                       <>

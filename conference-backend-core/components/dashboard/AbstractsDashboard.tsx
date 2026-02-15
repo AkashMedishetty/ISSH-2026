@@ -96,6 +96,7 @@ export function AbstractsDashboard() {
   const [submittingInitial, setSubmittingInitial] = useState(false)
   const [tracks, setTracks] = useState<any[]>([])
   const [isFeatureEnabled, setIsFeatureEnabled] = useState(true) // Track if abstract submission is enabled in admin
+  const [abstractsConfig, setAbstractsConfig] = useState<any>(null) // Full config including guidelines and templates
   const [stats, setStats] = useState({
     total: 0,
     submitted: 0,
@@ -120,6 +121,10 @@ export function AbstractsDashboard() {
       // Check if feature is enabled from database
       if (data.data?.featureEnabled !== undefined) {
         setIsFeatureEnabled(data.data.featureEnabled)
+      }
+      // Store full config for guidelines and templates
+      if (data.success && data.data) {
+        setAbstractsConfig(data.data)
       }
     } catch (error) {
       console.error('Error fetching config:', error)
@@ -424,18 +429,26 @@ export function AbstractsDashboard() {
           <CardTitle className="flex items-center justify-between">
             <span>Abstract Submissions</span>
             <div className="flex flex-col items-end gap-1">
-              <Button 
-                className="bg-emerald-600 hover:bg-emerald-700"
-                onClick={() => setIsSubmitModalOpen(true)}
-                disabled={!isFeatureEnabled || !isAbstractSubmissionOpenStatic()}
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Submit New Abstract
-              </Button>
-              {(!isFeatureEnabled || !isAbstractSubmissionOpenStatic()) && (
-                <p className="text-xs text-red-600">
-                  Submissions currently {!isFeatureEnabled ? 'disabled' : 'closed'}
-                </p>
+              {(!isFeatureEnabled || !isAbstractSubmissionOpenStatic()) ? (
+                <>
+                  <Button 
+                    className="bg-emerald-600 hover:bg-emerald-700"
+                    disabled
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Submit New Abstract
+                  </Button>
+                  <p className="text-xs text-red-600">
+                    Submissions currently {!isFeatureEnabled ? 'disabled' : 'closed'}
+                  </p>
+                </>
+              ) : (
+                <Link href="/abstracts">
+                  <Button className="bg-emerald-600 hover:bg-emerald-700">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Submit New Abstract
+                  </Button>
+                </Link>
               )}
             </div>
           </CardTitle>
@@ -450,18 +463,26 @@ export function AbstractsDashboard() {
               <p className="text-midnight-600 dark:text-midnight-400 mb-6">
                 Start by submitting your first abstract for review
               </p>
-              <Button 
-                className="bg-emerald-600 hover:bg-emerald-700"
-                onClick={() => setIsSubmitModalOpen(true)}
-                disabled={!isFeatureEnabled || !isAbstractSubmissionOpenStatic()}
-              >
-                <Upload className="w-4 h-4 mr-2" />
-                Submit Your First Abstract
-              </Button>
-              {(!isFeatureEnabled || !isAbstractSubmissionOpenStatic()) && (
-                <p className="text-sm text-red-600 mt-2">
-                  Abstract submission is currently {!isFeatureEnabled ? 'disabled' : 'closed'}
-                </p>
+              {(!isFeatureEnabled || !isAbstractSubmissionOpenStatic()) ? (
+                <>
+                  <Button 
+                    className="bg-emerald-600 hover:bg-emerald-700"
+                    disabled
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    Submit Your First Abstract
+                  </Button>
+                  <p className="text-sm text-red-600 mt-2">
+                    Abstract submission is currently {!isFeatureEnabled ? 'disabled' : 'closed'}
+                  </p>
+                </>
+              ) : (
+                <Link href="/abstracts">
+                  <Button className="bg-emerald-600 hover:bg-emerald-700">
+                    <Upload className="w-4 h-4 mr-2" />
+                    Submit Your First Abstract
+                  </Button>
+                </Link>
               )}
             </div>
           ) : (
@@ -841,6 +862,40 @@ export function AbstractsDashboard() {
               </ul>
             </div>
 
+            {/* Template Download - Track-specific or default */}
+            {(() => {
+              // Find track-specific template first (if track is selected)
+              const trackTemplate = submitTrack 
+                ? abstractsConfig?.fileRequirements?.trackTemplates?.find(
+                    (t: any) => t.trackKey === submitTrack
+                  )
+                : null
+              const initialTemplateUrl = trackTemplate?.initialTemplateUrl || abstractsConfig?.fileRequirements?.templateUrl
+              const initialTemplateFileName = trackTemplate?.initialTemplateFileName || abstractsConfig?.fileRequirements?.templateFileName
+              const trackLabel = trackTemplate?.trackLabel || tracks.find(t => t.key === submitTrack)?.label || 'Abstract'
+
+              if (!initialTemplateUrl) return null
+
+              return (
+                <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+                  <h4 className="font-semibold text-emerald-800 mb-2">📥 Download Template</h4>
+                  <p className="text-sm text-emerald-700 mb-3">
+                    {submitTrack && trackTemplate 
+                      ? `Use the official template for ${trackLabel} submissions.`
+                      : 'Use the official template to ensure your submission follows the correct format.'}
+                  </p>
+                  <a 
+                    href={initialTemplateUrl} 
+                    download={initialTemplateFileName || 'abstract-template'}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors text-sm"
+                  >
+                    <Download className="w-4 h-4" />
+                    Download {submitTrack && trackTemplate ? trackLabel : 'Abstract'} Template
+                  </a>
+                </div>
+              )
+            })()}
+
             {/* Action Buttons */}
             <div className="flex gap-3 pt-4">
               <Button
@@ -954,13 +1009,59 @@ export function AbstractsDashboard() {
             {/* Guidelines */}
             <div className="bg-theme-primary-50 border border-theme-primary-200 rounded-lg p-4">
               <h4 className="font-semibold text-blue-800 mb-2">📋 Submission Guidelines</h4>
-              <ul className="text-sm text-theme-primary-700 space-y-1">
-                <li>• Ensure your presentation follows the conference format guidelines</li>
-                <li>• Include all necessary references and citations</li>
-                <li>• File size should not exceed 50MB</li>
-                <li>• Supported formats: PDF, PowerPoint (.ppt, .pptx), Word (.doc, .docx)</li>
-              </ul>
+              {abstractsConfig?.guidelines?.finalSubmission?.instructions ? (
+                <div className="text-sm text-theme-primary-700 whitespace-pre-wrap">
+                  {abstractsConfig.guidelines.finalSubmission.instructions}
+                </div>
+              ) : (
+                <ul className="text-sm text-theme-primary-700 space-y-1">
+                  <li>• Ensure your presentation follows the conference format guidelines</li>
+                  <li>• Include all necessary references and citations</li>
+                  <li>• File size should not exceed 50MB</li>
+                  <li>• Supported formats: PDF, PowerPoint (.ppt, .pptx), Word (.doc, .docx)</li>
+                </ul>
+              )}
+              {abstractsConfig?.guidelines?.finalSubmission?.requirements?.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-theme-primary-200">
+                  <p className="font-medium text-theme-primary-800 mb-1">Requirements:</p>
+                  <ul className="text-sm text-theme-primary-700 space-y-1">
+                    {abstractsConfig.guidelines.finalSubmission.requirements.map((req: string, idx: number) => (
+                      <li key={idx}>• {req}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
+
+            {/* Template Download - Track-specific or default */}
+            {(() => {
+              // Find track-specific template first
+              const trackTemplate = abstractsConfig?.fileRequirements?.trackTemplates?.find(
+                (t: any) => t.trackKey === finalSubmissionAbstract?.track
+              )
+              const finalTemplateUrl = trackTemplate?.finalTemplateUrl || abstractsConfig?.fileRequirements?.finalTemplateUrl
+              const finalTemplateFileName = trackTemplate?.finalTemplateFileName || abstractsConfig?.fileRequirements?.finalTemplateFileName
+              const trackLabel = trackTemplate?.trackLabel || finalSubmissionAbstract?.track
+
+              if (!finalTemplateUrl) return null
+
+              return (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <h4 className="font-semibold text-green-800 mb-2">📥 Download Template</h4>
+                  <p className="text-sm text-green-700 mb-3">
+                    Use the official template for <strong>{trackLabel}</strong> to ensure your submission follows the correct format.
+                  </p>
+                  <a 
+                    href={finalTemplateUrl} 
+                    download={finalTemplateFileName || 'final-template'}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors text-sm"
+                  >
+                    <Download className="w-4 h-4" />
+                    Download {trackLabel} Template
+                  </a>
+                </div>
+              )
+            })()}
 
             {/* Action Buttons */}
             <div className="flex gap-3 pt-4">

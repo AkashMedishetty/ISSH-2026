@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer'
 import { conferenceConfig } from '../../config/conference.config'
+import connectDB from '../mongodb'
 
 // Create reusable transporter object using SMTP
 export async function createSMTPTransporter() {
@@ -78,13 +79,23 @@ export async function sendEmail({
   subject,
   html,
   text,
-  attachments = []
+  attachments = [],
+  // Optional tracking metadata
+  userId,
+  userName,
+  templateName,
+  category
 }: {
   to: string | string[]
   subject: string
   html?: string
   text?: string
   attachments?: any[]
+  // Optional tracking metadata
+  userId?: string
+  userName?: string
+  templateName?: string
+  category?: 'registration' | 'payment' | 'abstract' | 'system' | 'reminder' | 'custom' | 'sponsor'
 }) {
   try {
     const transporter = await createSMTPTransporter()
@@ -110,12 +121,75 @@ export async function sendEmail({
 
     const result = await transporter.sendMail(mailOptions)
     console.log('Email sent successfully:', result.messageId)
+
+    // Save to EmailHistory for tracking
+    try {
+      await connectDB()
+      const EmailHistory = (await import('../models/EmailHistory')).default
+      
+      const recipientEmail = Array.isArray(to) ? to[0] : to
+      const attachmentMeta = attachments?.map((a: any) => ({
+        filename: a.filename || 'attachment',
+        contentType: a.contentType || 'application/octet-stream',
+        size: a.content?.length || 0
+      }))
+
+      await EmailHistory.create({
+        recipient: {
+          userId: userId || undefined,
+          email: recipientEmail.toLowerCase(),
+          name: userName || recipientEmail.split('@')[0]
+        },
+        subject,
+        htmlContent: html || '',
+        plainTextContent: text || '',
+        templateName: templateName || 'direct-email',
+        templateData: {},
+        category: category || 'system',
+        attachments: attachmentMeta,
+        status: 'sent',
+        messageId: result.messageId,
+        sentAt: new Date()
+      })
+      console.log('📝 Email recorded to history')
+    } catch (historyError) {
+      console.warn('⚠️ Failed to save email to history (non-blocking):', historyError)
+      // Don't fail the email send if history save fails
+    }
+
     return {
       success: true,
       messageId: result.messageId
     }
   } catch (error) {
     console.error('Email sending error:', error)
+    
+    // Try to save failed email to history
+    try {
+      await connectDB()
+      const EmailHistory = (await import('../models/EmailHistory')).default
+      
+      const recipientEmail = Array.isArray(to) ? to[0] : to
+      await EmailHistory.create({
+        recipient: {
+          userId: userId || undefined,
+          email: recipientEmail.toLowerCase(),
+          name: userName || recipientEmail.split('@')[0]
+        },
+        subject,
+        htmlContent: html || '',
+        plainTextContent: text || '',
+        templateName: templateName || 'direct-email',
+        templateData: {},
+        category: category || 'system',
+        status: 'failed',
+        error: error instanceof Error ? error.message : 'Unknown error',
+        sentAt: new Date()
+      })
+    } catch (historyError) {
+      console.warn('⚠️ Failed to save failed email to history:', historyError)
+    }
+
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'

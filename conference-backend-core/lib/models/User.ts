@@ -1,4 +1,4 @@
-import mongoose, { Document, Schema } from 'mongoose'
+import mongoose, { Document, Schema, Types } from 'mongoose'
 import { conferenceConfig } from '@/config/conference.config'
 
 // Extract enum values from config with fallbacks
@@ -14,6 +14,22 @@ const DESIGNATION_OPTIONS = conferenceConfig.registration?.formFields?.designati
 const PAYMENT_METHODS = conferenceConfig.registration?.formFields?.paymentMethods || 
   ['bank-transfer', 'online', 'pay-now', 'cash']
 
+// Sponsor profile interface
+export interface ISponsorProfile {
+  companyName: string
+  contactPerson: string
+  category: 'platinum' | 'gold' | 'silver' | 'bronze' | 'exhibitor'
+  allocation: {
+    total: number
+    used: number
+  }
+  status: 'active' | 'inactive'
+  mustChangePassword: boolean
+  lastActivity?: Date
+  phone?: string
+  address?: string
+}
+
 export interface IUser extends Document {
   email: string
   password: string
@@ -22,7 +38,9 @@ export interface IUser extends Document {
     firstName: string
     lastName: string
     phone: string
+    age?: number
     designation: string
+    specialization?: string
     institution: string
     address: {
       street: string
@@ -34,16 +52,19 @@ export interface IUser extends Document {
     profilePicture?: string
     dietaryRequirements?: string
     specialNeeds?: string
+    mciNumber?: string
   }
   reviewer?: {
     expertise?: string[]
     maxConcurrentAssignments?: number
     notes?: string
   }
+  // Sponsor profile - only for role='sponsor'
+  sponsorProfile?: ISponsorProfile
   registration: {
     registrationId: string
     type: 'cvsi-member' | 'non-member' | 'resident' | 'international' | 'complimentary'
-    status: 'pending' | 'confirmed' | 'paid' | 'cancelled'
+    status: 'pending' | 'pending-payment' | 'confirmed' | 'paid' | 'cancelled' | 'refunded'
     membershipNumber?: string
     workshopSelections: string[]
     accompanyingPersons: Array<{
@@ -53,11 +74,16 @@ export interface IUser extends Document {
       relationship: string
     }>
     registrationDate: Date
+    confirmedDate?: Date
     paymentDate?: Date
-    paymentType?: 'regular' | 'complementary' | 'sponsored'
+    paymentType?: 'regular' | 'pending' | 'online' | 'bank-transfer' | 'complementary' | 'sponsored' | 'complimentary'
+    // Sponsor tracking
+    sponsorId?: Types.ObjectId
     sponsorName?: string
     sponsorCategory?: string
     paymentRemarks?: string
+    // Source tracking
+    source?: 'normal' | 'sponsor-managed' | 'admin-created' | 'bulk-upload'
   }
   payment?: {
     method: 'bank-transfer' | 'online' | 'pay-now' | 'cash'
@@ -65,11 +91,13 @@ export interface IUser extends Document {
     amount: number
     bankTransferUTR?: string
     transactionId?: string
+    razorpayOrderId?: string
     paymentDate?: Date
     verifiedBy?: string
     verificationDate?: Date
     remarks?: string
     invoiceGenerated?: boolean
+    screenshotUrl?: string
   }
   activeSessions: Array<{
     sessionId: string
@@ -80,8 +108,11 @@ export interface IUser extends Document {
     userAgent?: string
     ipAddress?: string
   }>
-  role: 'user' | 'admin' | 'reviewer'
+  role: 'user' | 'admin' | 'reviewer' | 'manager' | 'sponsor'
   isActive: boolean
+  // Login tracking
+  loginCount?: number
+  lastLogin?: Date
   createdAt: Date
   updatedAt: Date
 }
@@ -120,11 +151,20 @@ const UserSchema = new Schema<IUser>({
       required: true,
       trim: true
     },
+    age: {
+      type: Number,
+      min: 0,
+      max: 150
+    },
     designation: {
       type: String,
       required: true,
       enum: DESIGNATION_OPTIONS,
       trim: true
+    },
+    specialization: {
+      type: String,
+      default: ''
     },
     institution: {
       type: String,
@@ -148,6 +188,28 @@ const UserSchema = new Schema<IUser>({
     maxConcurrentAssignments: { type: Number, default: 5 },
     notes: { type: String, default: '' }
   },
+  // Sponsor profile - only populated for role='sponsor'
+  sponsorProfile: {
+    companyName: { type: String },
+    contactPerson: { type: String },
+    category: {
+      type: String,
+      enum: ['platinum', 'gold', 'silver', 'bronze', 'exhibitor']
+    },
+    allocation: {
+      total: { type: Number, default: 0 },
+      used: { type: Number, default: 0 }
+    },
+    status: {
+      type: String,
+      enum: ['active', 'inactive'],
+      default: 'active'
+    },
+    mustChangePassword: { type: Boolean, default: true },
+    lastActivity: { type: Date },
+    phone: { type: String },
+    address: { type: String }
+  },
   registration: {
     registrationId: {
       type: String,
@@ -156,13 +218,14 @@ const UserSchema = new Schema<IUser>({
     },
     type: {
       type: String,
-      required: true,
-      enum: REGISTRATION_TYPES
+      required: true
+      // Note: Registration types are now dynamic from database/config
+      // Validation happens at the API level, not schema level
     },
     status: {
       type: String,
       required: true,
-      enum: ['pending', 'confirmed', 'paid', 'cancelled'],
+      enum: ['pending', 'pending-payment', 'confirmed', 'paid', 'cancelled', 'refunded'],
       default: 'pending'
     },
     tier: { type: String },
@@ -178,47 +241,56 @@ const UserSchema = new Schema<IUser>({
       type: Date,
       default: Date.now
     },
+    confirmedDate: Date,
     paymentDate: Date,
     paymentType: {
       type: String,
-      enum: ['regular', 'complementary', 'sponsored'],
+      enum: ['regular', 'pending', 'online', 'bank-transfer', 'complementary', 'sponsored', 'complimentary'],
       default: 'regular'
+    },
+    // Sponsor tracking
+    sponsorId: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      index: true
     },
     sponsorName: String,
     sponsorCategory: {
       type: String,
       enum: ['platinum', 'gold', 'silver', 'bronze', 'exhibitor', 'other']
     },
-    paymentRemarks: String
+    paymentRemarks: String,
+    // Source tracking
+    source: {
+      type: String,
+      enum: ['normal', 'sponsor-managed', 'admin-created', 'bulk-upload'],
+      default: 'normal'
+    }
   },
   payment: {
     method: {
       type: String,
-      enum: PAYMENT_METHODS,
-      default: 'bank-transfer'
+      enum: PAYMENT_METHODS
     },
     status: {
       type: String,
-      enum: ['pending', 'verified', 'rejected', 'processing'],
-      default: 'pending'
+      enum: ['pending', 'verified', 'rejected', 'processing']
     },
     amount: {
-      type: Number,
-      required: function() { return this.payment != null; }
+      type: Number
     },
     bankTransferUTR: String,
     transactionId: String,
-    paymentDate: {
-      type: Date,
-      default: Date.now
-    },
+    razorpayOrderId: String,
+    paymentDate: Date,
     verifiedBy: String,
     verificationDate: Date,
     remarks: String,
     invoiceGenerated: {
       type: Boolean,
       default: false
-    }
+    },
+    screenshotUrl: String
   },
   activeSessions: [{
     sessionId: {
@@ -246,19 +318,30 @@ const UserSchema = new Schema<IUser>({
   }],
   role: {
     type: String,
-    enum: ['user', 'admin', 'reviewer'],
+    enum: ['user', 'admin', 'reviewer', 'manager', 'sponsor'],
     default: 'user'
   },
   isActive: {
     type: Boolean,
     default: true
+  },
+  // Login tracking
+  loginCount: {
+    type: Number,
+    default: 0
+  },
+  lastLogin: {
+    type: Date
   }
 }, {
   timestamps: true
 })
 
 // Create indexes for better performance (email and registrationId already have unique indexes)
+// Note: registration.sponsorId already has index: true on the field definition
 UserSchema.index({ 'registration.status': 1 })
+UserSchema.index({ 'registration.paymentType': 1 })
 UserSchema.index({ role: 1 })
+UserSchema.index({ 'sponsorProfile.status': 1 })
 
 export default mongoose.models.User || mongoose.model<IUser>('User', UserSchema)

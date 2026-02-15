@@ -23,10 +23,10 @@ export async function POST(
     await connectDB()
 
     const adminUser = await User.findById((session.user as any).id)
-    if (!adminUser || adminUser.role !== 'admin') {
+    if (!adminUser || !['admin', 'manager'].includes(adminUser.role)) {
       return NextResponse.json({
         success: false,
-        message: 'Admin access required'
+        message: 'Admin or Manager access required'
       }, { status: 403 })
     }
 

@@ -12,16 +12,9 @@ import { Alert, AlertDescription } from "../ui/alert"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs"
 import { 
   Calendar, FileText, Settings, Plus, Trash2, Save, AlertCircle, 
-  CheckCircle, BookOpen, List, Layout, Clock 
+  CheckCircle, BookOpen, List, Layout, Clock, Brain, Stethoscope, Award
 } from "lucide-react"
 import { useToast } from "../ui/use-toast"
-
-interface Topic {
-  id: string
-  name: string
-  description?: string
-  subtopics: Array<{ id: string; name: string }>
-}
 
 export function AbstractsSettingsManager() {
   const { toast } = useToast()
@@ -38,7 +31,24 @@ export function AbstractsSettingsManager() {
       const response = await fetch('/api/admin/abstracts/config')
       const data = await response.json()
       if (data.success) {
-        setConfig(data.data)
+        // Ensure new ISSH 2026 fields exist with defaults
+        const configData = {
+          ...data.data,
+          submittingForOptions: data.data.submittingForOptions || [
+            { key: 'neurosurgery', label: 'Neurosurgery', enabled: true },
+            { key: 'neurology', label: 'Neurology', enabled: true }
+          ],
+          submissionCategories: data.data.submissionCategories || [
+            { key: 'award-paper', label: 'Award Paper', enabled: true },
+            { key: 'free-paper', label: 'Free Paper', enabled: true },
+            { key: 'e-poster', label: 'E-Poster', enabled: true }
+          ],
+          topicsBySpecialty: data.data.topicsBySpecialty || {
+            neurosurgery: ['Skullbase', 'Vascular', 'Neuro Oncology', 'Paediatric Neurosurgery', 'Spine', 'Functional', 'General Neurosurgery', 'Miscellaneous'],
+            neurology: ['General Neurology', 'Neuroimmunology', 'Stroke', 'Neuromuscular Disorders', 'Epilepsy', 'Therapeutics in Neurology', 'Movement Disorders', 'Miscellaneous']
+          }
+        }
+        setConfig(configData)
       }
     } catch (error) {
       toast({
@@ -77,49 +87,39 @@ export function AbstractsSettingsManager() {
     }
   }
 
-  const addTopic = () => {
+  // Topic management for specialties
+  const addTopic = (specialty: 'neurosurgery' | 'neurology') => {
     setConfig({
       ...config,
-      topics: [...(config.topics || []), {
-        id: `topic-${Date.now()}`,
-        name: '',
-        description: '',
-        subtopics: []
-      }]
+      topicsBySpecialty: {
+        ...config.topicsBySpecialty,
+        [specialty]: [...(config.topicsBySpecialty?.[specialty] || []), '']
+      }
     })
   }
 
-  const removeTopic = (index: number) => {
-    const newTopics = [...config.topics]
+  const removeTopic = (specialty: 'neurosurgery' | 'neurology', index: number) => {
+    const newTopics = [...(config.topicsBySpecialty?.[specialty] || [])]
     newTopics.splice(index, 1)
-    setConfig({ ...config, topics: newTopics })
-  }
-
-  const updateTopic = (index: number, field: string, value: string) => {
-    const newTopics = [...config.topics]
-    newTopics[index] = { ...newTopics[index], [field]: value }
-    setConfig({ ...config, topics: newTopics })
-  }
-
-  const addSubtopic = (topicIndex: number) => {
-    const newTopics = [...config.topics]
-    newTopics[topicIndex].subtopics.push({
-      id: `subtopic-${Date.now()}`,
-      name: ''
+    setConfig({
+      ...config,
+      topicsBySpecialty: {
+        ...config.topicsBySpecialty,
+        [specialty]: newTopics
+      }
     })
-    setConfig({ ...config, topics: newTopics })
   }
 
-  const removeSubtopic = (topicIndex: number, subtopicIndex: number) => {
-    const newTopics = [...config.topics]
-    newTopics[topicIndex].subtopics.splice(subtopicIndex, 1)
-    setConfig({ ...config, topics: newTopics })
-  }
-
-  const updateSubtopic = (topicIndex: number, subtopicIndex: number, value: string) => {
-    const newTopics = [...config.topics]
-    newTopics[topicIndex].subtopics[subtopicIndex].name = value
-    setConfig({ ...config, topics: newTopics })
+  const updateTopic = (specialty: 'neurosurgery' | 'neurology', index: number, value: string) => {
+    const newTopics = [...(config.topicsBySpecialty?.[specialty] || [])]
+    newTopics[index] = value
+    setConfig({
+      ...config,
+      topicsBySpecialty: {
+        ...config.topicsBySpecialty,
+        [specialty]: newTopics
+      }
+    })
   }
 
   if (loading) {
@@ -134,19 +134,27 @@ export function AbstractsSettingsManager() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Settings className="h-5 w-5" />
-            Abstracts Configuration
+            ISSH 2026 Abstracts Configuration
           </CardTitle>
           <CardDescription>
-            Manage abstract submission settings, topics, and guidelines
+            Manage abstract submission settings for Neurosurgery and Neurology specialties
           </CardDescription>
         </CardHeader>
       </Card>
 
       <Tabs defaultValue="dates" className="w-full">
-        <TabsList className="grid w-full grid-cols-4 bg-slate-100 dark:bg-slate-800">
+        <TabsList className="grid w-full grid-cols-5 bg-slate-100 dark:bg-slate-800">
           <TabsTrigger value="dates" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
             <Calendar className="h-4 w-4 mr-2" />
             Dates
+          </TabsTrigger>
+          <TabsTrigger value="specialties" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
+            <Stethoscope className="h-4 w-4 mr-2" />
+            Specialties
+          </TabsTrigger>
+          <TabsTrigger value="categories" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
+            <Award className="h-4 w-4 mr-2" />
+            Categories
           </TabsTrigger>
           <TabsTrigger value="topics" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
             <List className="h-4 w-4 mr-2" />
@@ -155,10 +163,6 @@ export function AbstractsSettingsManager() {
           <TabsTrigger value="guidelines" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
             <BookOpen className="h-4 w-4 mr-2" />
             Guidelines
-          </TabsTrigger>
-          <TabsTrigger value="tracks" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
-            <Layout className="h-4 w-4 mr-2" />
-            Tracks
           </TabsTrigger>
         </TabsList>
 
@@ -223,118 +227,237 @@ export function AbstractsSettingsManager() {
                 <Clock className="h-4 w-4" />
                 <AlertDescription>
                   Current window: {config.submissionWindow?.enabled ? 'Active' : 'Inactive'} | 
-                  {' '}{new Date(config.submissionWindow?.start).toLocaleDateString()} to{' '}
-                  {new Date(config.submissionWindow?.end).toLocaleDateString()}
+                  {' '}{config.submissionWindow?.start ? new Date(config.submissionWindow.start).toLocaleDateString() : 'Not set'} to{' '}
+                  {config.submissionWindow?.end ? new Date(config.submissionWindow.end).toLocaleDateString() : 'Not set'}
+                </AlertDescription>
+              </Alert>
+
+              {/* Enable Abstracts Without Registration Toggle */}
+              <div className={`flex items-center justify-between p-4 rounded-lg border-2 ${
+                config.enableAbstractsWithoutRegistration 
+                  ? 'bg-purple-50 dark:bg-purple-900/20 border-purple-500' 
+                  : 'bg-slate-50 dark:bg-slate-800 border-slate-300 dark:border-slate-600'
+              }`}>
+                <div>
+                  <Label className="text-base font-semibold">Enable Abstracts Without Registration</Label>
+                  <p className="text-sm text-slate-600 dark:text-slate-400">
+                    {config.enableAbstractsWithoutRegistration 
+                      ? 'ENABLED - Unregistered users can submit abstracts (for sponsor-managed registrations)' 
+                      : 'DISABLED - Only registered and paid users can submit abstracts'}
+                  </p>
+                </div>
+                <Switch
+                  checked={config.enableAbstractsWithoutRegistration || false}
+                  onCheckedChange={(checked) => setConfig({
+                    ...config,
+                    enableAbstractsWithoutRegistration: checked
+                  })}
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Specialties Tab (Submitting For) */}
+        <TabsContent value="specialties">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Stethoscope className="h-5 w-5" />
+                Submitting For Options
+              </CardTitle>
+              <CardDescription>Configure which specialties are available for abstract submission</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {config.submittingForOptions?.map((option: any, index: number) => (
+                <div key={option.key} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    {option.key === 'neurosurgery' ? (
+                      <Brain className="h-5 w-5 text-blue-600" />
+                    ) : (
+                      <Stethoscope className="h-5 w-5 text-purple-600" />
+                    )}
+                    <div>
+                      <Label className="font-semibold">{option.label}</Label>
+                      <p className="text-sm text-slate-600 dark:text-slate-400">Key: {option.key}</p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={option.enabled}
+                    onCheckedChange={(checked) => {
+                      const newOptions = [...config.submittingForOptions]
+                      newOptions[index].enabled = checked
+                      setConfig({ ...config, submittingForOptions: newOptions })
+                    }}
+                  />
+                </div>
+              ))}
+              
+              <Alert className="bg-blue-50 dark:bg-blue-900/20 border-blue-200">
+                <AlertCircle className="h-4 w-4 text-blue-600" />
+                <AlertDescription className="text-blue-800 dark:text-blue-200">
+                  Users will select either Neurosurgery or Neurology when submitting their abstract. 
+                  The available topics will change based on their selection.
                 </AlertDescription>
               </Alert>
             </CardContent>
           </Card>
         </TabsContent>
 
-        {/* Topics Tab */}
-        <TabsContent value="topics">
+        {/* Categories Tab (Submission Categories) */}
+        <TabsContent value="categories">
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>Topics & Subtopics</CardTitle>
-                  <CardDescription>Define categories for abstract classification</CardDescription>
-                </div>
-                <Button onClick={addTopic} size="sm" className="bg-blue-600 hover:bg-blue-700 text-white">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Topic
-                </Button>
-              </div>
+              <CardTitle className="flex items-center gap-2">
+                <Award className="h-5 w-5" />
+                Submission Categories
+              </CardTitle>
+              <CardDescription>Configure available submission categories (Award Paper, Free Paper, Poster)</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
-              {config.topics?.map((topic: Topic, topicIndex: number) => (
-                <Card key={topic.id} className="border-2">
-                  <CardContent className="pt-6 space-y-4">
-                    <div className="flex items-start gap-4">
-                      <div className="flex-1 space-y-4">
-                        <div>
-                          <Label className="text-slate-700 dark:text-slate-300">Topic Name *</Label>
-                          <Input
-                            value={topic.name}
-                            onChange={(e) => updateTopic(topicIndex, 'name', e.target.value)}
-                            placeholder="e.g., Neurology"
-                            className="mt-1 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
-                          />
-                        </div>
-                        <div>
-                          <Label className="text-slate-700 dark:text-slate-300">Description</Label>
-                          <Input
-                            value={topic.description || ''}
-                            onChange={(e) => updateTopic(topicIndex, 'description', e.target.value)}
-                            placeholder="Brief description of this topic"
-                            className="mt-1 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
-                          />
-                        </div>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removeTopic(topicIndex)}
-                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+            <CardContent className="space-y-4">
+              {config.submissionCategories?.map((category: any, index: number) => (
+                <div key={category.key} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <div className={`p-2 rounded-full ${
+                      category.key === 'award-paper' ? 'bg-yellow-100 text-yellow-700' :
+                      category.key === 'free-paper' ? 'bg-green-100 text-green-700' :
+                      'bg-blue-100 text-blue-700'
+                    }`}>
+                      {category.key === 'award-paper' ? <Award className="h-4 w-4" /> :
+                       category.key === 'free-paper' ? <FileText className="h-4 w-4" /> :
+                       <Layout className="h-4 w-4" />}
                     </div>
-
                     <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <Label className="text-sm font-semibold">Subtopics</Label>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => addSubtopic(topicIndex)}
-                          className="border-blue-600 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20"
-                        >
-                          <Plus className="h-3 w-3 mr-1" />
-                          Add Subtopic
-                        </Button>
-                      </div>
-                      <div className="space-y-2">
-                        {topic.subtopics?.map((subtopic, subtopicIndex) => (
-                          <div key={subtopic.id} className="flex items-center gap-2">
-                            <Input
-                              value={subtopic.name}
-                              onChange={(e) => updateSubtopic(topicIndex, subtopicIndex, e.target.value)}
-                              placeholder="Subtopic name"
-                              className="flex-1 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
-                            />
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => removeSubtopic(topicIndex, subtopicIndex)}
-                              className="text-red-600"
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
+                      <Label className="font-semibold">{category.label}</Label>
+                      <p className="text-sm text-slate-600 dark:text-slate-400">Key: {category.key}</p>
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                  <Switch
+                    checked={category.enabled}
+                    onCheckedChange={(checked) => {
+                      const newCategories = [...config.submissionCategories]
+                      newCategories[index].enabled = checked
+                      setConfig({ ...config, submissionCategories: newCategories })
+                    }}
+                  />
+                </div>
               ))}
-
-              {(!config.topics || config.topics.length === 0) && (
-                <Alert>
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>No topics configured. Add topics to categorize abstracts.</AlertDescription>
-                </Alert>
-              )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Topics Tab */}
+        <TabsContent value="topics">
+          <div className="space-y-6">
+            {/* Neurosurgery Topics */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Brain className="h-5 w-5 text-blue-600" />
+                    <div>
+                      <CardTitle>Neurosurgery Topics</CardTitle>
+                      <CardDescription>Topics available when user selects Neurosurgery</CardDescription>
+                    </div>
+                  </div>
+                  <Button onClick={() => addTopic('neurosurgery')} size="sm" className="bg-blue-600 hover:bg-blue-700 text-white">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Topic
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {config.topicsBySpecialty?.neurosurgery?.map((topic: string, index: number) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                      {index + 1}
+                    </Badge>
+                    <Input
+                      value={topic}
+                      onChange={(e) => updateTopic('neurosurgery', index, e.target.value)}
+                      placeholder="Enter topic name"
+                      className="flex-1 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => removeTopic('neurosurgery', index)}
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+                {(!config.topicsBySpecialty?.neurosurgery || config.topicsBySpecialty.neurosurgery.length === 0) && (
+                  <Alert>
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>No topics configured for Neurosurgery. Add topics above.</AlertDescription>
+                  </Alert>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Neurology Topics */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Stethoscope className="h-5 w-5 text-purple-600" />
+                    <div>
+                      <CardTitle>Neurology Topics</CardTitle>
+                      <CardDescription>Topics available when user selects Neurology</CardDescription>
+                    </div>
+                  </div>
+                  <Button onClick={() => addTopic('neurology')} size="sm" className="bg-purple-600 hover:bg-purple-700 text-white">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Topic
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {config.topicsBySpecialty?.neurology?.map((topic: string, index: number) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
+                      {index + 1}
+                    </Badge>
+                    <Input
+                      value={topic}
+                      onChange={(e) => updateTopic('neurology', index, e.target.value)}
+                      placeholder="Enter topic name"
+                      className="flex-1 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => removeTopic('neurology', index)}
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+                {(!config.topicsBySpecialty?.neurology || config.topicsBySpecialty.neurology.length === 0) && (
+                  <Alert>
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>No topics configured for Neurology. Add topics above.</AlertDescription>
+                  </Alert>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
         {/* Guidelines Tab */}
         <TabsContent value="guidelines">
           <div className="space-y-6">
+            {/* General Guidelines */}
             <Card>
               <CardHeader>
-                <CardTitle>General Guidelines</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <BookOpen className="h-5 w-5 text-blue-600" />
+                  General Guidelines
+                </CardTitle>
+                <CardDescription>Main guidelines displayed at the top of the abstracts page</CardDescription>
               </CardHeader>
               <CardContent>
                 <Textarea
@@ -343,46 +466,86 @@ export function AbstractsSettingsManager() {
                     ...config,
                     guidelines: { ...config.guidelines, general: e.target.value }
                   })}
-                  rows={3}
-                  placeholder="General submission guidelines visible to all users"
-                  className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                  rows={10}
+                  placeholder="Enter general submission guidelines..."
+                  className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-mono text-sm"
                 />
+                <p className="text-xs text-slate-500 mt-2">This text is displayed in the guidelines section. Use line breaks for formatting.</p>
               </CardContent>
             </Card>
 
+            {/* Award Paper / Free Paper Guidelines */}
             <Card>
               <CardHeader>
-                <CardTitle>Free Paper Guidelines</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <Award className="h-5 w-5 text-yellow-600" />
+                  Award Paper / Free Paper Guidelines
+                </CardTitle>
+                <CardDescription>Guidelines specific to Award Paper and Free Paper submissions</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <Label>Enable Free Paper</Label>
+                <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                  <div>
+                    <Label className="font-semibold">Enable Free Paper Category</Label>
+                    <p className="text-sm text-slate-500">Allow users to submit Free Papers</p>
+                  </div>
                   <Switch
                     checked={config.guidelines?.freePaper?.enabled}
                     onCheckedChange={(checked) => setConfig({
                       ...config,
                       guidelines: { 
                         ...config.guidelines, 
-                        freePaper: { ...config.guidelines.freePaper, enabled: checked } 
+                        freePaper: { ...config.guidelines?.freePaper, enabled: checked } 
                       }
                     })}
                   />
                 </div>
+                
                 <div>
-                  <Label className="text-slate-700 dark:text-slate-300">Word Limit</Label>
+                  <Label className="text-slate-700 dark:text-slate-300">Section Title</Label>
                   <Input
-                    type="number"
-                    value={config.guidelines?.freePaper?.wordLimit || 250}
+                    value={config.guidelines?.freePaper?.title || 'Free Paper / Award Paper Guidelines'}
                     onChange={(e) => setConfig({
                       ...config,
                       guidelines: { 
                         ...config.guidelines, 
-                        freePaper: { ...config.guidelines.freePaper, wordLimit: parseInt(e.target.value) } 
+                        freePaper: { ...config.guidelines?.freePaper, title: e.target.value } 
                       }
                     })}
                     className="mt-1 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
                   />
                 </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-slate-700 dark:text-slate-300">Word Limit</Label>
+                    <Input
+                      type="number"
+                      value={config.guidelines?.freePaper?.wordLimit || 200}
+                      onChange={(e) => setConfig({
+                        ...config,
+                        guidelines: { 
+                          ...config.guidelines, 
+                          freePaper: { ...config.guidelines?.freePaper, wordLimit: parseInt(e.target.value) } 
+                        }
+                      })}
+                      className="mt-1 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-slate-700 dark:text-slate-300">Max Submissions Per User</Label>
+                    <Input
+                      type="number"
+                      value={config.maxAbstractsPerUser || 10}
+                      onChange={(e) => setConfig({
+                        ...config,
+                        maxAbstractsPerUser: parseInt(e.target.value)
+                      })}
+                      className="mt-1 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                    />
+                  </div>
+                </div>
+                
                 <div>
                   <Label className="text-slate-700 dark:text-slate-300">Requirements (one per line)</Label>
                   <Textarea
@@ -391,50 +554,76 @@ export function AbstractsSettingsManager() {
                       ...config,
                       guidelines: { 
                         ...config.guidelines, 
-                        freePaper: { ...config.guidelines.freePaper, requirements: e.target.value.split('\n') } 
+                        freePaper: { ...config.guidelines?.freePaper, requirements: e.target.value.split('\n').filter((r: string) => r.trim()) } 
                       }
                     })}
-                    rows={5}
-                    className="mt-1 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
-                    placeholder="Enter each requirement on a new line"
+                    rows={8}
+                    className="mt-1 bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-mono text-sm"
+                    placeholder="Abstract must be original and unpublished work&#10;Should not have been presented in any conference/CME earlier&#10;Maximum 200 words&#10;Upload as Word document (.doc or .docx)&#10;..."
                   />
+                  <p className="text-xs text-slate-500 mt-1">Each line becomes a bullet point in the guidelines</p>
                 </div>
               </CardContent>
             </Card>
 
+            {/* E-Poster Guidelines */}
             <Card>
               <CardHeader>
-                <CardTitle>Poster Presentation Guidelines</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <Layout className="h-5 w-5 text-purple-600" />
+                  E-Poster Guidelines
+                </CardTitle>
+                <CardDescription>Guidelines specific to E-Poster submissions</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <Label>Enable Poster</Label>
+                <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                  <div>
+                    <Label className="font-semibold">Enable E-Poster Category</Label>
+                    <p className="text-sm text-slate-500">Allow users to submit E-Posters</p>
+                  </div>
                   <Switch
                     checked={config.guidelines?.poster?.enabled}
                     onCheckedChange={(checked) => setConfig({
                       ...config,
                       guidelines: { 
                         ...config.guidelines, 
-                        poster: { ...config.guidelines.poster, enabled: checked } 
+                        poster: { ...config.guidelines?.poster, enabled: checked } 
                       }
                     })}
                   />
                 </div>
+                
                 <div>
-                  <Label className="text-slate-700 dark:text-slate-300">Word Limit</Label>
+                  <Label className="text-slate-700 dark:text-slate-300">Section Title</Label>
                   <Input
-                    type="number"
-                    value={config.guidelines?.poster?.wordLimit || 250}
+                    value={config.guidelines?.poster?.title || 'E-Poster Guidelines'}
                     onChange={(e) => setConfig({
                       ...config,
                       guidelines: { 
                         ...config.guidelines, 
-                        poster: { ...config.guidelines.poster, wordLimit: parseInt(e.target.value) } 
+                        poster: { ...config.guidelines?.poster, title: e.target.value } 
                       }
                     })}
                     className="mt-1 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
                   />
                 </div>
+                
+                <div>
+                  <Label className="text-slate-700 dark:text-slate-300">Word Limit</Label>
+                  <Input
+                    type="number"
+                    value={config.guidelines?.poster?.wordLimit || 200}
+                    onChange={(e) => setConfig({
+                      ...config,
+                      guidelines: { 
+                        ...config.guidelines, 
+                        poster: { ...config.guidelines?.poster, wordLimit: parseInt(e.target.value) } 
+                      }
+                    })}
+                    className="mt-1 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                  />
+                </div>
+                
                 <div>
                   <Label className="text-slate-700 dark:text-slate-300">Requirements (one per line)</Label>
                   <Textarea
@@ -443,45 +632,66 @@ export function AbstractsSettingsManager() {
                       ...config,
                       guidelines: { 
                         ...config.guidelines, 
-                        poster: { ...config.guidelines.poster, requirements: e.target.value.split('\n') } 
+                        poster: { ...config.guidelines?.poster, requirements: e.target.value.split('\n').filter((r: string) => r.trim()) } 
                       }
                     })}
-                    rows={5}
-                    className="mt-1 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
-                    placeholder="Enter each requirement on a new line"
+                    rows={10}
+                    className="mt-1 bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-mono text-sm"
+                    placeholder="E-poster will be displayed on standard 42&quot; (Diagonal) LCD&#10;The entire poster must be 16:9 Ratio&#10;File format should be PowerPoint (.PPT)&#10;Total size should not exceed 5-10 MB&#10;..."
                   />
+                  <p className="text-xs text-slate-500 mt-1">Each line becomes a bullet point in the guidelines</p>
                 </div>
               </CardContent>
             </Card>
-          </div>
-        </TabsContent>
 
-        {/* Tracks Tab */}
-        <TabsContent value="tracks">
-          <Card>
-            <CardHeader>
-              <CardTitle>Presentation Tracks</CardTitle>
-              <CardDescription>Configure available presentation types</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {config.tracks?.map((track: any, index: number) => (
-                <div key={track.key} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
+            {/* File Settings */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-green-600" />
+                  File Upload Settings
+                </CardTitle>
+                <CardDescription>Configure allowed file types and size limits</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <Label className="font-semibold">{track.label}</Label>
-                    <p className="text-sm text-slate-600 dark:text-slate-400">{track.key}</p>
+                    <Label className="text-slate-700 dark:text-slate-300">Max File Size (MB)</Label>
+                    <Input
+                      type="number"
+                      value={config.maxFileSizeMB || 10}
+                      onChange={(e) => setConfig({
+                        ...config,
+                        maxFileSizeMB: parseInt(e.target.value)
+                      })}
+                      className="mt-1 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                    />
                   </div>
-                  <Switch
-                    checked={track.enabled}
-                    onCheckedChange={(checked) => {
-                      const newTracks = [...config.tracks]
-                      newTracks[index].enabled = checked
-                      setConfig({ ...config, tracks: newTracks })
-                    }}
-                  />
+                  <div>
+                    <Label className="text-slate-700 dark:text-slate-300">Reviewers Per Abstract</Label>
+                    <Input
+                      type="number"
+                      value={config.reviewersPerAbstractDefault || 2}
+                      onChange={(e) => setConfig({
+                        ...config,
+                        reviewersPerAbstractDefault: parseInt(e.target.value)
+                      })}
+                      className="mt-1 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                    />
+                  </div>
                 </div>
-              ))}
-            </CardContent>
-          </Card>
+                
+                <Alert className="bg-blue-50 dark:bg-blue-900/20 border-blue-200">
+                  <AlertCircle className="h-4 w-4 text-blue-600" />
+                  <AlertDescription className="text-blue-800 dark:text-blue-200">
+                    <strong>Allowed file types:</strong><br/>
+                    • Initial submission: Word documents (.doc, .docx)<br/>
+                    • Final presentation: PowerPoint (.ppt, .pptx)
+                  </AlertDescription>
+                </Alert>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
 

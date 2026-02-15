@@ -20,6 +20,7 @@ import { AdvancedBulkEmailSystem } from './AdvancedBulkEmailSystem'
 import { StunningAnalyticsDashboard } from './StunningAnalyticsDashboard'
 import { PaymentTable } from './PaymentTable'
 import { PaymentSettingsManager } from './PaymentSettingsManager'
+import { SponsorManager } from './SponsorManager'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { Alert, AlertDescription } from '../ui/alert'
 import { Button } from '../ui/button'
@@ -126,13 +127,7 @@ export function CompleteAdminPanel() {
       case 'registrations':
         return (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-            <RegistrationTable
-              searchTerm={searchTerm}
-              statusFilter={statusFilter}
-              typeFilter="all"
-              paymentTypeFilter={paymentTypeFilter}
-              onSelectionChange={() => {}}
-            />
+            <RegistrationTable />
           </motion.div>
         )
 
@@ -165,9 +160,38 @@ export function CompleteAdminPanel() {
         )
 
       case 'abstracts-settings':
+        // Redirect to abstracts settings page
+        if (typeof window !== 'undefined') {
+          window.location.href = '/admin/settings/abstracts'
+        }
         return (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-            <AbstractsSettingsManager />
+            <Card className="bg-white dark:bg-[#1e1e1e] border-slate-200 dark:border-slate-700 shadow-lg">
+              <CardContent className="p-12">
+                <div className="text-center">
+                  <RefreshCw className="h-12 w-12 animate-spin mx-auto mb-4 text-slate-400" />
+                  <p className="text-slate-600 dark:text-slate-400">Redirecting to Abstracts Settings...</p>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )
+
+      case 'reviewer-settings':
+        // Redirect to reviewer settings page
+        if (typeof window !== 'undefined') {
+          window.location.href = '/admin/settings/reviewer'
+        }
+        return (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+            <Card className="bg-white dark:bg-[#1e1e1e] border-slate-200 dark:border-slate-700 shadow-lg">
+              <CardContent className="p-12">
+                <div className="text-center">
+                  <RefreshCw className="h-12 w-12 animate-spin mx-auto mb-4 text-slate-400" />
+                  <p className="text-slate-600 dark:text-slate-400">Redirecting to Reviewer Settings...</p>
+                </div>
+              </CardContent>
+            </Card>
           </motion.div>
         )
 
@@ -244,6 +268,13 @@ export function CompleteAdminPanel() {
         return (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
             <PaymentSettingsManager />
+          </motion.div>
+        )
+
+      case 'sponsors':
+        return (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+            <SponsorManager />
           </motion.div>
         )
 

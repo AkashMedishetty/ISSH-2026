@@ -13,7 +13,15 @@ export async function PUT(
   try {
     const session = await getServerSession(authOptions)
     
-    if (!session?.user || (session.user as any).role !== 'admin') {
+    if (!session?.user) {
+      return NextResponse.json(
+        { success: false, message: "Unauthorized" },
+        { status: 401 }
+      )
+    }
+    
+    const userRole = (session.user as any)?.role
+    if (!['admin', 'manager'].includes(userRole)) {
       return NextResponse.json(
         { success: false, message: "Unauthorized" },
         { status: 401 }
@@ -156,6 +164,7 @@ export async function PUT(
         };
         
         const emailResult = await EmailService.sendRegistrationAcceptance({
+          userId: user._id.toString(),
           email: user.email,
           name: userName,
           registrationId: user.registration?.registrationId || 'N/A',

@@ -22,7 +22,15 @@ export async function POST(request: NextRequest) {
     try {
         const session = await getServerSession(authOptions)
 
-        if (!session?.user || (session.user as any).role !== 'admin') {
+        if (!session?.user) {
+            return NextResponse.json(
+                { success: false, message: "Unauthorized" },
+                { status: 401 }
+            )
+        }
+
+        const userRole = (session.user as any)?.role
+        if (!['admin', 'manager'].includes(userRole)) {
             return NextResponse.json(
                 { success: false, message: "Unauthorized" },
                 { status: 401 }
@@ -235,6 +243,7 @@ export async function POST(request: NextRequest) {
                             imported++
 
                             successfulImports.push({
+                                userId: newUser._id.toString(),
                                 email: newUser.email,
                                 name: `${newUser.profile.firstName} ${newUser.profile.lastName}`,
                                 registrationId: newUser.registration.registrationId,
@@ -263,6 +272,7 @@ export async function POST(request: NextRequest) {
                             console.log(`💰 Amount: ₹${userInfo.amount}`)
                             
                             await EmailService.sendRegistrationAcceptance({
+                                userId: userInfo.userId,
                                 email: userInfo.email,
                                 name: userInfo.name,
                                 registrationId: userInfo.registrationId,

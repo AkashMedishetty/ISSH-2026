@@ -3,40 +3,46 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import connectDB from '@/lib/mongodb'
 import Abstract from '@/lib/models/Abstract'
-import User from '@/lib/models/User'
-import { createWriteStream, readFileSync, existsSync } from 'fs'
-import { mkdir, writeFile } from 'fs/promises'
-import path from 'path'
-import archiver from 'archiver'
-import { Readable } from 'stream'
+import Review from '@/conference-backend-core/lib/models/Review'
+
+export const runtime = 'nodejs'
+export const maxDuration = 300
 
 export async function GET(request: NextRequest) {
+  console.log('=== ABSTRACTS EXPORT START ===')
+  
   try {
     const session = await getServerSession(authOptions)
+    console.log('Session check:', !!session?.user)
+    
     if (!session?.user) {
       return NextResponse.json({ success: false, message: 'Authentication required' }, { status: 401 })
     }
     
     const userRole = (session.user as any)?.role
+    console.log('User role:', userRole)
+    
     if (userRole !== 'admin' && userRole !== 'reviewer') {
       return NextResponse.json({ success: false, message: 'Admin or reviewer access required' }, { status: 403 })
     }
 
     await connectDB()
+    console.log('DB connected')
+    
     const { searchParams } = new URL(request.url)
+    const includeFiles = searchParams.get('includeFiles') === 'true'
     const status = searchParams.get('status')
-    const track = searchParams.get('track')
+    const submittingFor = searchParams.get('submittingFor')
+    const submissionCategory = searchParams.get('submissionCategory')
+
+    console.log('Params:', { includeFiles, status, submittingFor, submissionCategory })
 
     const query: any = {}
     if (status && status !== 'all') query.status = status
-    if (track && track !== 'all') query.track = track
+    if (submittingFor && submittingFor !== 'all') query.submittingFor = submittingFor
+    if (submissionCategory && submissionCategory !== 'all') query.submissionCategory = submissionCategory
 
-    // If reviewer, only show assigned abstracts
-    if (userRole === 'reviewer') {
-      query.assignedReviewerIds = { $in: [(session.user as any).id] }
-    }
-
-    // Fetch abstracts with user details
+    // Fetch abstracts
     const abstracts = await Abstract.find(query)
       .populate({
         path: 'userId',
@@ -45,115 +51,203 @@ export async function GET(request: NextRequest) {
       .sort({ submittedAt: -1 })
       .lean()
 
-    // Create a temporary directory for the export
-    const tempDir = path.join(process.cwd(), 'temp', 'exports')
-    await mkdir(tempDir, { recursive: true })
+    console.log('Found abstracts:', abstracts.length)
 
-    // Create CSV data
-    const csvHeaders = [
-      'Abstract ID',
-      'Registration ID',
-      'Submitter Name',
-      'Email',
-      'Title',
-      'Track',
-      'Authors',
-      'Status',
-      'Word Count',
-      'Submitted At',
-      'Initial File',
-      'Final File',
-      'Abstract Content'
-    ]
+    // Fetch all reviews for these abstracts
+    const abstractIds = abstracts.map(a => a._id)
+    const reviews = await Review.find({ abstractId: { $in: abstractIds } })
+      .populate({
+        path: 'reviewerId',
+        select: 'firstName lastName email'
+      })
+      .lean()
 
-    const csvRows = abstracts.map(abstract => {
-      const user = abstract.userId as any
-      return [
-        abstract.abstractId,
-        user?.registration?.registrationId || 'N/A',
-        `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'N/A',
-        user?.email || 'N/A',
-        `"${abstract.title.replace(/"/g, '""')}"`, // Escape quotes in CSV
-        abstract.track,
-        `"${abstract.authors.join(', ').replace(/"/g, '""')}"`,
-        abstract.status,
-        abstract.wordCount || 0,
-        new Date(abstract.submittedAt).toISOString(),
-        abstract.initial?.file?.originalName || 'N/A',
-        abstract.final?.file?.originalName || 'N/A',
-        `"${(abstract.initial?.notes || '').replace(/"/g, '""').replace(/\n/g, ' ')}"` // Escape and clean content
-      ]
-    })
-
-    const csvContent = [csvHeaders.join(','), ...csvRows.map(row => row.join(','))].join('\n')
-
-    // Create ZIP archive in memory
-    const archive = archiver('zip', { zlib: { level: 9 } })
-    const chunks: Buffer[] = []
-
-    archive.on('data', (chunk) => chunks.push(chunk))
-    archive.on('error', (err) => {
-      throw err
-    })
-
-    // Add CSV file to archive
-    archive.append(csvContent, { name: 'abstracts-data.csv' })
-
-    // Add files to archive with proper naming
-    for (const abstract of abstracts) {
-      const user = abstract.userId as any
-      const regId = user?.registration?.registrationId || 'UNKNOWN'
-      
-      // Add initial file if exists
-      if (abstract.initial?.file?.storagePath && existsSync(abstract.initial.file.storagePath)) {
-        try {
-          const fileBuffer = readFileSync(abstract.initial.file.storagePath)
-          const fileExtension = path.extname(abstract.initial.file.originalName)
-          const fileName = `${regId}-${abstract.abstractId}-initial${fileExtension}`
-          archive.append(fileBuffer, { name: `initial-files/${fileName}` })
-        } catch (error) {
-          console.error(`Failed to read initial file for ${abstract.abstractId}:`, error)
-        }
+    // Create a map of abstractId to reviews
+    const reviewsMap = new Map<string, any[]>()
+    for (const review of reviews) {
+      const abstractIdStr = review.abstractId.toString()
+      if (!reviewsMap.has(abstractIdStr)) {
+        reviewsMap.set(abstractIdStr, [])
       }
-
-      // Add final file if exists
-      if (abstract.final?.file?.storagePath && existsSync(abstract.final.file.storagePath)) {
-        try {
-          const fileBuffer = readFileSync(abstract.final.file.storagePath)
-          const fileExtension = path.extname(abstract.final.file.originalName)
-          const fileName = `${regId}-${abstract.abstractId}-final${fileExtension}`
-          archive.append(fileBuffer, { name: `final-files/${fileName}` })
-        } catch (error) {
-          console.error(`Failed to read final file for ${abstract.abstractId}:`, error)
-        }
-      }
+      reviewsMap.get(abstractIdStr)!.push(review)
     }
 
-    // Finalize the archive
-    await archive.finalize()
-
-    // Convert chunks to single buffer
-    const zipBuffer = Buffer.concat(chunks)
-
-    // Return the ZIP file
-    const timestamp = new Date().toISOString().split('T')[0]
-    const filename = `abstracts-export-${timestamp}.zip`
-
-    return new Response(zipBuffer, {
-      headers: {
-        'Content-Type': 'application/zip',
-        'Content-Disposition': `attachment; filename="${filename}"`,
-        'Content-Length': zipBuffer.length.toString()
-      }
+    // Attach reviews to abstracts
+    const abstractsWithReviews = abstracts.map(abstract => {
+      const abstractReviews = reviewsMap.get(abstract._id.toString()) || []
+      return { ...abstract, reviews: abstractReviews }
     })
 
-  } catch (error) {
-    console.error('Export error:', error)
+    console.log('Reviews fetched:', reviews.length)
+
+    if (includeFiles) {
+      console.log('Creating ZIP with files...')
+      return await createZipWithFiles(abstractsWithReviews)
+    }
+
+    // Return CSV
+    console.log('Creating CSV...')
+    return createCsv(abstractsWithReviews)
+
+  } catch (error: any) {
+    console.error('EXPORT ERROR:', error.message, error.stack)
     return NextResponse.json(
-      { success: false, message: 'Export failed' },
+      { success: false, message: 'Export failed: ' + error.message },
       { status: 500 }
     )
   }
 }
 
+function createCsv(abstracts: any[]) {
+  const headers = [
+    'Abstract ID', 'Registration ID', 'Name', 'Email', 'Title',
+    'Submitting For', 'Category', 'Topic', 'Authors', 'Status',
+    'Submitted At', 'File URL',
+    // Review data columns
+    'Review Decision', 'Approved For', 'Total Score', 
+    'Originality', 'Level of Evidence', 'Scientific Impact', 
+    'Social Significance', 'Quality of Manuscript',
+    'Reviewer Name', 'Reviewer Email', 'Rejection Comment', 'Review Date'
+  ]
 
+  const rows = abstracts.map(a => {
+    const user = a.userId as any
+    const name = [user?.profile?.firstName || user?.firstName, user?.profile?.lastName || user?.lastName]
+      .filter(Boolean).join(' ') || 'N/A'
+    
+    // Get review data (use first review if multiple)
+    const review = a.reviews?.[0]
+    const reviewerName = review?.reviewerId 
+      ? `${review.reviewerId.firstName || ''} ${review.reviewerId.lastName || ''}`.trim() 
+      : 'N/A'
+    
+    return [
+      a.abstractId || '',
+      user?.registration?.registrationId || 'N/A',
+      `"${name}"`,
+      user?.email || 'N/A',
+      `"${(a.title || '').replace(/"/g, '""')}"`,
+      a.submittingFor || a.track || 'N/A',
+      a.submissionCategory || 'N/A',
+      a.submissionTopic || 'N/A',
+      `"${(a.authors || []).join(', ')}"`,
+      a.status || 'N/A',
+      a.submittedAt ? new Date(a.submittedAt).toISOString() : 'N/A',
+      a.initial?.file?.blobUrl || 'N/A',
+      // Review data
+      review?.decision || 'N/A',
+      review?.approvedFor || 'N/A',
+      review?.scores?.total || 'N/A',
+      review?.scores?.originality || 'N/A',
+      review?.scores?.levelOfEvidence || 'N/A',
+      review?.scores?.scientificImpact || 'N/A',
+      review?.scores?.socialSignificance || 'N/A',
+      review?.scores?.qualityOfManuscript || 'N/A',
+      `"${reviewerName}"`,
+      review?.reviewerId?.email || 'N/A',
+      `"${(review?.rejectionComment || '').replace(/"/g, '""')}"`,
+      review?.submittedAt ? new Date(review.submittedAt).toISOString() : 'N/A'
+    ].join(',')
+  })
+
+  const csv = [headers.join(','), ...rows].join('\n')
+  
+  return new Response(csv, {
+    headers: {
+      'Content-Type': 'text/csv; charset=utf-8',
+      'Content-Disposition': `attachment; filename="abstracts-${Date.now()}.csv"`,
+    }
+  })
+}
+
+async function createZipWithFiles(abstracts: any[]) {
+  console.log('ZIP: Importing JSZip...')
+  const JSZip = (await import('jszip')).default
+  console.log('ZIP: JSZip imported')
+  
+  const zip = new JSZip()
+  
+  // Create a simple CSV for the ZIP
+  const headers = ['Abstract ID', 'Name', 'Email', 'Title', 'Status', 'File']
+  const rows = abstracts.map(a => {
+    const user = a.userId as any
+    const name = [user?.profile?.firstName || user?.firstName, user?.profile?.lastName || user?.lastName]
+      .filter(Boolean).join(' ') || 'N/A'
+    return [
+      a.abstractId || '',
+      `"${name}"`,
+      user?.email || 'N/A',
+      `"${(a.title || '').replace(/"/g, '""')}"`,
+      a.status || 'N/A',
+      a.initial?.file?.originalName || 'N/A'
+    ].join(',')
+  })
+  
+  const csvContent = [headers.join(','), ...rows].join('\n')
+  zip.file('abstracts.csv', csvContent)
+  console.log('ZIP: Added CSV')
+
+  // Fetch and add files
+  let added = 0
+  let failed = 0
+  
+  for (const a of abstracts) {
+    const blobUrl = a.initial?.file?.blobUrl || a.initial?.file?.storagePath
+    
+    if (blobUrl && blobUrl.startsWith('https://')) {
+      try {
+        console.log(`ZIP: Fetching ${a.abstractId}...`)
+        const res = await fetch(blobUrl)
+        
+        if (res.ok) {
+          const arrayBuffer = await res.arrayBuffer()
+          const fileName = a.initial?.file?.originalName || `${a.abstractId}.pdf`
+          zip.file(`files/${a.abstractId}_${fileName}`, arrayBuffer)
+          added++
+          console.log(`ZIP: Added ${fileName} (${arrayBuffer.byteLength} bytes)`)
+        } else {
+          failed++
+          console.log(`ZIP: Fetch failed for ${a.abstractId}: ${res.status}`)
+        }
+      } catch (err: any) {
+        failed++
+        console.error(`ZIP: Error for ${a.abstractId}:`, err.message)
+      }
+    }
+    
+    // Also check final file
+    const finalUrl = a.final?.file?.blobUrl || a.final?.file?.storagePath
+    if (finalUrl && finalUrl.startsWith('https://')) {
+      try {
+        const res = await fetch(finalUrl)
+        if (res.ok) {
+          const arrayBuffer = await res.arrayBuffer()
+          const fileName = a.final?.file?.originalName || `${a.abstractId}_final.pptx`
+          zip.file(`files/${a.abstractId}_final_${fileName}`, arrayBuffer)
+          added++
+        }
+      } catch (err: any) {
+        failed++
+      }
+    }
+  }
+
+  console.log(`ZIP: Files added=${added}, failed=${failed}`)
+  console.log('ZIP: Generating buffer...')
+  
+  const buffer = await zip.generateAsync({
+    type: 'arraybuffer',
+    compression: 'DEFLATE',
+    compressionOptions: { level: 5 }
+  })
+  
+  console.log(`ZIP: Generated ${buffer.byteLength} bytes`)
+
+  return new Response(buffer, {
+    headers: {
+      'Content-Type': 'application/zip',
+      'Content-Disposition': `attachment; filename="abstracts-export-${Date.now()}.zip"`,
+      'Content-Length': buffer.byteLength.toString()
+    }
+  })
+}

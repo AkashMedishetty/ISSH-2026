@@ -10,16 +10,25 @@ export interface IReview extends Document {
   category?: string
   subcategory?: string
 
-  // Scoring
+  // New scoring system (5 criteria, each 1-10)
   scores: {
-    originality?: number
-    methodology?: number
-    relevance?: number
-    clarity?: number
-    overall?: number // Simple overall score 1-10
+    originality?: number        // Originality of the Study
+    levelOfEvidence?: number    // Level of Evidence of Study
+    scientificImpact?: number   // Scientific Impact
+    socialSignificance?: number // Social Significance
+    qualityOfManuscript?: number // Quality of Manuscript + Abstract & Study
+    total?: number              // Calculated total (out of 50)
   }
+  
+  // Decision
+  decision: 'approve' | 'reject'
+  approvedFor?: 'award-paper' | 'podium' | 'poster' // Only if approved
+  rejectionComment?: string // Only if rejected
+  
+  // Legacy fields for backward compatibility
   comments?: string
-  recommendation: 'accept' | 'reject' | 'minor-revision' | 'major-revision'
+  recommendation?: 'accept' | 'reject' | 'minor-revision' | 'major-revision'
+  
   submittedAt: Date
 }
 
@@ -33,18 +42,50 @@ const ReviewSchema = new Schema<IReview>({
   subcategory: { type: String },
 
   scores: {
-    originality: { type: Number, min: 0, max: 10 },
-    methodology: { type: Number, min: 0, max: 10 },
-    relevance: { type: Number, min: 0, max: 10 },
-    clarity: { type: Number, min: 0, max: 10 },
-    overall: { type: Number, min: 1, max: 10 }
+    originality: { type: Number, min: 1, max: 10 },
+    levelOfEvidence: { type: Number, min: 1, max: 10 },
+    scientificImpact: { type: Number, min: 1, max: 10 },
+    socialSignificance: { type: Number, min: 1, max: 10 },
+    qualityOfManuscript: { type: Number, min: 1, max: 10 },
+    total: { type: Number, min: 5, max: 50 }
   },
+  
+  decision: { 
+    type: String, 
+    enum: ['approve', 'reject'], 
+    required: true 
+  },
+  approvedFor: { 
+    type: String, 
+    enum: ['award-paper', 'podium', 'poster'] 
+  },
+  rejectionComment: { type: String },
+  
+  // Legacy fields
   comments: { type: String },
-  recommendation: { type: String, enum: ['accept', 'reject', 'minor-revision', 'major-revision'], required: true },
+  recommendation: { type: String, enum: ['accept', 'reject', 'minor-revision', 'major-revision'] },
+  
   submittedAt: { type: Date, default: Date.now }
 }, { timestamps: true })
 
 ReviewSchema.index({ reviewerId: 1, abstractId: 1 }, { unique: true })
+
+// Pre-save hook to calculate total score
+ReviewSchema.pre('save', function(next) {
+  if (this.scores) {
+    const { originality, levelOfEvidence, scientificImpact, socialSignificance, qualityOfManuscript } = this.scores
+    if (originality && levelOfEvidence && scientificImpact && socialSignificance && qualityOfManuscript) {
+      this.scores.total = originality + levelOfEvidence + scientificImpact + socialSignificance + qualityOfManuscript
+    }
+  }
+  // Map decision to recommendation for backward compatibility
+  if (this.decision === 'approve') {
+    this.recommendation = 'accept'
+  } else if (this.decision === 'reject') {
+    this.recommendation = 'reject'
+  }
+  next()
+})
 
 export default (mongoose.models.Review as mongoose.Model<IReview>) ||
   mongoose.model<IReview>('Review', ReviewSchema)

@@ -27,9 +27,32 @@ import {
   Phone,
   MapPin,
   Building,
-  X
+  X,
+  Star,
+  MessageSquare
 } from 'lucide-react'
 import { toast } from 'sonner'
+
+interface Review {
+  _id: string
+  reviewerId?: {
+    firstName?: string
+    lastName?: string
+    email?: string
+  }
+  decision: 'approve' | 'reject'
+  approvedFor?: 'award-paper' | 'podium' | 'poster'
+  rejectionComment?: string
+  scores?: {
+    originality?: number
+    levelOfEvidence?: number
+    scientificImpact?: number
+    socialSignificance?: number
+    qualityOfManuscript?: number
+    total?: number
+  }
+  submittedAt: string
+}
 
 interface AbstractDetailsModalProps {
   abstract: any
@@ -122,14 +145,29 @@ export function AbstractDetailsModal({
                 {abstract.title}
               </DialogTitle>
               <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-2">
+                {abstract.submittingFor && (
+                  <Badge variant="outline" className={`text-xs sm:text-sm ${
+                    abstract.submittingFor === 'neurosurgery' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-purple-50 text-purple-700 border-purple-200'
+                  }`}>
+                    {abstract.submittingFor === 'neurosurgery' ? 'Neurosurgery' : 'Neurology'}
+                  </Badge>
+                )}
                 <Badge variant="outline" className="text-xs sm:text-sm">
-                  {abstract.track}
+                  {abstract.submissionCategory ? 
+                    abstract.submissionCategory.split('-').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') : 
+                    abstract.track
+                  }
                 </Badge>
                 {getStatusBadge(abstract.status)}
                 <span className="text-xs sm:text-sm text-gray-500">
                   ID: {abstract.abstractId}
                 </span>
               </div>
+              {abstract.submissionTopic && (
+                <p className="text-sm text-gray-600 mt-2">
+                  <strong>Topic:</strong> {abstract.submissionTopic}
+                </p>
+              )}
             </div>
           </div>
         </DialogHeader>
@@ -239,6 +277,138 @@ export function AbstractDetailsModal({
                       <span><strong>Designation:</strong> {abstract.userId.profile.designation}</span>
                     </div>
                   )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Review Information (Admin View) */}
+          {showAdminDetails && abstract.reviews && abstract.reviews.length > 0 && (
+            <Card className="border-purple-200">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Star className="w-5 h-5 text-purple-600" />
+                  Review Details
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {abstract.reviews.map((review: Review, index: number) => (
+                  <div key={review._id || index} className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg space-y-3">
+                    {/* Reviewer Info */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <User className="w-4 h-4 text-purple-600" />
+                        <span className="font-medium">
+                          {review.reviewerId 
+                            ? `${review.reviewerId.firstName || ''} ${review.reviewerId.lastName || ''}`.trim() || 'Reviewer'
+                            : 'Anonymous Reviewer'
+                          }
+                        </span>
+                      </div>
+                      <Badge className={review.decision === 'approve' 
+                        ? 'bg-green-100 text-green-800' 
+                        : 'bg-red-100 text-red-800'
+                      }>
+                        {review.decision === 'approve' ? (
+                          <><CheckCircle className="w-3 h-3 mr-1" /> Approved</>
+                        ) : (
+                          <><XCircle className="w-3 h-3 mr-1" /> Rejected</>
+                        )}
+                      </Badge>
+                    </div>
+
+                    {/* Approved For */}
+                    {review.approvedFor && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <Award className="w-4 h-4 text-green-600" />
+                        <span><strong>Approved For:</strong> {
+                          review.approvedFor === 'award-paper' ? 'Award Paper' :
+                          review.approvedFor === 'podium' ? 'Podium Presentation' :
+                          'Poster Presentation'
+                        }</span>
+                      </div>
+                    )}
+
+                    {/* Scores */}
+                    {review.scores && (
+                      <div className="space-y-2">
+                        <p className="text-sm font-medium text-purple-800">Scores:</p>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-sm">
+                          {review.scores.originality !== undefined && (
+                            <div className="flex justify-between bg-white/50 p-2 rounded">
+                              <span>Originality:</span>
+                              <span className="font-semibold">{review.scores.originality}/10</span>
+                            </div>
+                          )}
+                          {review.scores.levelOfEvidence !== undefined && (
+                            <div className="flex justify-between bg-white/50 p-2 rounded">
+                              <span>Evidence:</span>
+                              <span className="font-semibold">{review.scores.levelOfEvidence}/10</span>
+                            </div>
+                          )}
+                          {review.scores.scientificImpact !== undefined && (
+                            <div className="flex justify-between bg-white/50 p-2 rounded">
+                              <span>Impact:</span>
+                              <span className="font-semibold">{review.scores.scientificImpact}/10</span>
+                            </div>
+                          )}
+                          {review.scores.socialSignificance !== undefined && (
+                            <div className="flex justify-between bg-white/50 p-2 rounded">
+                              <span>Significance:</span>
+                              <span className="font-semibold">{review.scores.socialSignificance}/10</span>
+                            </div>
+                          )}
+                          {review.scores.qualityOfManuscript !== undefined && (
+                            <div className="flex justify-between bg-white/50 p-2 rounded">
+                              <span>Quality:</span>
+                              <span className="font-semibold">{review.scores.qualityOfManuscript}/10</span>
+                            </div>
+                          )}
+                          {review.scores.total !== undefined && (
+                            <div className="flex justify-between bg-purple-100 p-2 rounded font-semibold">
+                              <span>Total:</span>
+                              <span>{review.scores.total}/50</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Rejection Comment */}
+                    {review.rejectionComment && (
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 text-sm">
+                          <MessageSquare className="w-4 h-4 text-red-600" />
+                          <span className="font-medium text-red-800">Rejection Comment:</span>
+                        </div>
+                        <p className="text-sm text-gray-700 bg-white/50 p-2 rounded">
+                          {review.rejectionComment}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Review Date */}
+                    <div className="flex items-center gap-2 text-xs text-gray-500">
+                      <Calendar className="w-3 h-3" />
+                      <span>Reviewed: {new Date(review.submittedAt).toLocaleString()}</span>
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Approved For Badge (if accepted) */}
+          {abstract.approvedFor && (
+            <Card className="border-green-200 bg-green-50">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 text-green-800">
+                  <Award className="w-5 h-5" />
+                  <span className="font-medium">Approved For: {
+                    abstract.approvedFor === 'award-paper' ? 'Award Paper Presentation' :
+                    abstract.approvedFor === 'podium' ? 'Podium Presentation' :
+                    'Poster Presentation'
+                  }</span>
                 </div>
               </CardContent>
             </Card>

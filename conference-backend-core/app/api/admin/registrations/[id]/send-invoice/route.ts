@@ -12,7 +12,15 @@ export async function POST(
     try {
         const session = await getServerSession(authOptions)
 
-        if (!session?.user || (session.user as any).role !== 'admin') {
+        if (!session?.user) {
+            return NextResponse.json(
+                { success: false, message: "Unauthorized" },
+                { status: 401 }
+            )
+        }
+
+        const userRole = (session.user as any)?.role
+        if (!['admin', 'manager'].includes(userRole)) {
             return NextResponse.json(
                 { success: false, message: "Unauthorized" },
                 { status: 401 }
@@ -56,6 +64,7 @@ export async function POST(
                 const registrationTypeLabel = registrationCategory?.label || user.registration.type
                 
                 await EmailService.sendPaymentConfirmation({
+                    userId: user._id.toString(),
                     email: user.email,
                     name: `${user.profile.firstName} ${user.profile.lastName}`,
                     registrationId: user.registration.registrationId,
@@ -89,6 +98,7 @@ export async function POST(
                 const registrationTypeLabel = registrationCategory?.label || payment.breakdown?.registrationTypeLabel || user.registration.type
                 
                 await EmailService.sendPaymentConfirmation({
+                    userId: user._id.toString(),
                     email: user.email,
                     name: `${user.profile.firstName} ${user.profile.lastName}`,
                     registrationId: user.registration.registrationId,

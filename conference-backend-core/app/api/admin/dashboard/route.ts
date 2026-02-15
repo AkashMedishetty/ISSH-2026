@@ -231,7 +231,7 @@ export async function GET(request: NextRequest) {
           'User',
         details: {
           title: abstract.title,
-          track: abstract.track
+          track: abstract.track || 'N/A'
         }
       })
     })
@@ -292,9 +292,16 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Return with no-cache headers to prevent stale data
     return NextResponse.json({
       success: true,
       data: dashboardStats
+    }, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }
     })
 
   } catch (error) {

@@ -5,34 +5,34 @@ import bcrypt from 'bcryptjs'
 
 export async function POST(request: NextRequest) {
   try {
-    const { registrationId, password } = await request.json()
+    const { email, password } = await request.json()
 
-    if (!registrationId || !password) {
+    if (!email || !password) {
       return NextResponse.json(
-        { success: false, message: 'Registration ID and password are required' },
+        { success: false, message: 'Email and password are required' },
         { status: 400 }
       )
     }
 
     await connectDB()
 
-    // Find user by registration ID
+    // Find user by email
     const user = await User.findOne({
-      'registration.registrationId': registrationId
+      email: email.toLowerCase().trim()
     })
 
     if (!user) {
       return NextResponse.json(
-        { success: false, message: 'Invalid registration ID' },
+        { success: false, message: 'Invalid email or password' },
         { status: 401 }
       )
     }
 
-    // Check if user has completed registration and payment
-    const validStatuses = ['completed', 'paid']
-    if (!validStatuses.includes(user.registration.status)) {
+    // Check if user has a valid registration (allow pending-payment users)
+    const validStatuses = ['completed', 'paid', 'confirmed', 'pending-payment']
+    if (!validStatuses.includes(user.registration?.status)) {
       return NextResponse.json(
-        { success: false, message: 'Registration must be completed and payment verified before submitting abstracts' },
+        { success: false, message: 'You must complete registration before submitting abstracts' },
         { status: 403 }
       )
     }
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     const isValidPassword = await bcrypt.compare(password, user.password)
     if (!isValidPassword) {
       return NextResponse.json(
-        { success: false, message: 'Invalid password' },
+        { success: false, message: 'Invalid email or password' },
         { status: 401 }
       )
     }
@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
       success: true,
       data: {
         userId: user._id,
-        registrationId: user.registration.registrationId,
+        registrationId: user.registration?.registrationId,
         name: `${user.firstName} ${user.lastName}`,
         email: user.email
       }

@@ -66,7 +66,13 @@ export function StunningDashboard() {
 
   const fetchDashboardData = async () => {
     try {
-      const response = await fetch('/api/admin/dashboard')
+      // Add timestamp to prevent browser caching
+      const response = await fetch(`/api/admin/dashboard?t=${Date.now()}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache'
+        }
+      })
       if (response.ok) {
         const result = await response.json()
         setData(result.data)
@@ -147,7 +153,7 @@ export function StunningDashboard() {
                 <span className="text-white/80 text-sm">Revenue</span>
               </div>
               <p className="text-3xl font-bold text-white">
-                {data.currency} {(data.totalRevenue / 100000).toFixed(1)}L
+                {data.currency} {data.totalRevenue > 0 ? (data.totalRevenue / 100000).toFixed(1) : '0'}L
               </p>
               <p className="text-white/70 text-xs mt-1">+{data.currency}{(data.todayStats.revenue / 1000).toFixed(0)}k today</p>
             </div>
@@ -200,8 +206,8 @@ export function StunningDashboard() {
         <StatCard
           icon={DollarSign}
           title="Total Revenue"
-          value={`${data.currency} ${(data.totalRevenue / 100000).toFixed(2)}L`}
-          change={(data.todayStats.revenue / data.totalRevenue) * 100}
+          value={`${data.currency} ${data.totalRevenue > 0 ? (data.totalRevenue / 100000).toFixed(2) : '0.00'}L`}
+          change={data.totalRevenue > 0 ? (data.todayStats.revenue / data.totalRevenue) * 100 : 0}
           color={accent}
           subtitle={`+${data.currency}${(data.todayStats.revenue / 1000).toFixed(0)}k today`}
           isAmount
@@ -210,9 +216,9 @@ export function StunningDashboard() {
           icon={CheckCircle}
           title="Confirmed"
           value={data.confirmedRegistrations}
-          change={((data.confirmedRegistrations / data.totalRegistrations) * 100)}
+          change={data.totalRegistrations > 0 ? ((data.confirmedRegistrations / data.totalRegistrations) * 100) : 0}
           color={success}
-          subtitle={`${((data.confirmedRegistrations / data.totalRegistrations) * 100).toFixed(0)}% of total`}
+          subtitle={`${data.totalRegistrations > 0 ? ((data.confirmedRegistrations / data.totalRegistrations) * 100).toFixed(0) : 0}% of total`}
           isPercentage
         />
       </div>
@@ -442,7 +448,7 @@ export function StunningDashboard() {
                     />
                   </div>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                    {stats.accepted} accepted • {((stats.accepted / stats.submitted) * 100).toFixed(0)}% acceptance rate
+                    {stats.accepted} accepted • {stats.submitted > 0 ? ((stats.accepted / stats.submitted) * 100).toFixed(0) : 0}% acceptance rate
                   </p>
                 </div>
               ))}

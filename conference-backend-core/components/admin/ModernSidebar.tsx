@@ -9,7 +9,8 @@ import { Button } from '../ui/button'
 import {
   LayoutDashboard, Users, CreditCard, FileText, GraduationCap,
   BadgeCheck, Award, Mail, DollarSign, Settings, TrendingUp,
-  Menu, X, ChevronRight, LogOut, User, BarChart3, Calendar, Building
+  Menu, X, ChevronRight, LogOut, User, BarChart3, Calendar, Building, Building2,
+  UserCheck
 } from 'lucide-react'
 
 interface NavItem {
@@ -37,8 +38,10 @@ export function ModernSidebar({ activeTab, onTabChange, isOpen, onToggle }: Mode
     { id: 'analytics', label: 'Analytics & Reports', icon: BarChart3 },
     { id: 'registrations', label: 'Registrations', icon: Users, badge: 12 },
     { id: 'payments', label: 'Payments', icon: CreditCard },
+    { id: 'sponsors', label: 'Sponsors', icon: Building2 },
     { id: 'abstracts', label: 'Abstracts', icon: FileText, badge: 5 },
     { id: 'abstracts-settings', label: 'Abstracts Settings', icon: Settings },
+    { id: 'reviewer-settings', label: 'Reviewer Settings', icon: UserCheck },
     { id: 'program', label: 'Program Schedule', icon: Calendar },
     { id: 'workshops', label: 'Workshops', icon: GraduationCap },
     { id: 'badges', label: 'Badge Designer', icon: BadgeCheck },
@@ -54,6 +57,8 @@ export function ModernSidebar({ activeTab, onTabChange, isOpen, onToggle }: Mode
     if (id === 'badges') return '#6366f1' // Indigo
     if (id === 'certificates') return accent
     if (id === 'bulk-emailer') return success
+    if (id === 'sponsors') return '#8b5cf6' // Purple
+    if (id === 'reviewer-settings') return '#10b981' // Emerald
     return primary
   }
 

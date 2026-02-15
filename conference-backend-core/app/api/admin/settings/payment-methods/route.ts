@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
     await connectDB()
 
     const body = await request.json()
-    const { gateway, bankTransfer, externalRedirect, externalRedirectUrl, bankDetails } = body
+    const { gateway, bankTransfer, externalRedirect, externalRedirectUrl, maintenanceMode, bankDetails } = body
 
     // Update or create configuration
     const paymentConfig = await Configuration.findOneAndUpdate(
@@ -75,6 +75,7 @@ export async function POST(request: NextRequest) {
           bankTransfer: bankTransfer !== false, // Default true
           externalRedirect: externalRedirect || false,
           externalRedirectUrl: externalRedirectUrl || '',
+          maintenanceMode: maintenanceMode || false,
           bankDetails: bankDetails || {}
         },
         isActive: true

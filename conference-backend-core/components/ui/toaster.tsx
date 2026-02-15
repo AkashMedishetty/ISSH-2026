@@ -1,6 +1,7 @@
 "use client"
 
-import { useToast } from "./use-toast"
+// IMPORTANT: Import from the hooks folder to share state with registration page
+import { useToast } from "@/conference-backend-core/hooks/use-toast"
 import {
   Toast,
   ToastClose,

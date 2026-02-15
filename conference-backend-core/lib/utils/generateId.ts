@@ -34,10 +34,10 @@ export async function generateRegistrationId(): Promise<string> {
   try {
     await connectDB()
     
-    // Find the highest existing registration number
+    // Find the highest existing registration number across ALL users (any role)
+    // This prevents ID collisions between regular users, sponsors, reviewers, etc.
     const lastUser = await User.findOne(
       { 
-        role: 'user',
         'registration.registrationId': { $regex: `^${prefix}-\\d{3}$` }
       },
       {},

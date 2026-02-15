@@ -56,7 +56,7 @@ interface Registration {
     }>
     registrationDate: string
     paymentDate?: string
-    paymentType?: 'regular' | 'complementary' | 'sponsored'
+    paymentType?: 'regular' | 'pending' | 'online' | 'bank-transfer' | 'complementary' | 'complimentary' | 'sponsored'
     sponsorName?: string
     sponsorCategory?: string
     paymentRemarks?: string

@@ -13,7 +13,7 @@ const attractions = [
   {
     name: 'Charminar',
     description: 'Iconic 16th-century monument and mosque, symbol of Hyderabad',
-    image: '/HYD/birlamandir.jpg',
+    image: '/HYD/charminar.jpg',
     category: 'Heritage',
   },
   {

@@ -71,6 +71,7 @@ export class EmailService {
    * Send registration confirmation email
    */
   static async sendRegistrationConfirmation(userData: {
+    userId?: string
     email: string
     name: string
     registrationId: string
@@ -127,7 +128,11 @@ export class EmailService {
             content: Buffer.from(icsContent, 'utf-8'),
             contentType: 'text/calendar; charset=utf-8; method=REQUEST'
           }
-        ]
+        ],
+        userId: userData.userId,
+        userName: userData.name,
+        templateName: 'registration-confirmation',
+        category: 'registration'
       })
     } catch (error) {
       console.error('Error sending registration confirmation:', error)
@@ -139,6 +144,7 @@ export class EmailService {
    * Send payment confirmation and invoice email
    */
   static async sendPaymentConfirmation(paymentData: {
+    userId?: string
     email: string
     name: string
     registrationId: string
@@ -274,7 +280,11 @@ export class EmailService {
             content: pdfBuffer,
             contentType: 'application/pdf'
           }
-        ] : []
+        ] : [],
+        userId: paymentData.userId,
+        userName: paymentData.name,
+        templateName: 'payment-confirmation',
+        category: 'payment'
       })
     } catch (error) {
       console.error('Error sending payment confirmation:', error)
@@ -286,6 +296,7 @@ export class EmailService {
    * Send registration acceptance email with invoice
    */
   static async sendRegistrationAcceptance(acceptanceData: {
+    userId?: string
     email: string
     name: string
     registrationId: string
@@ -453,7 +464,11 @@ export class EmailService {
         subject: `Registration Confirmed - Welcome to ${conferenceConfig.shortName}`,
         html,
         text: `Registration confirmed for ${acceptanceData.name}. Registration ID: ${acceptanceData.registrationId}`,
-        attachments
+        attachments,
+        userId: acceptanceData.userId,
+        userName: acceptanceData.name,
+        templateName: 'registration-acceptance',
+        category: 'registration'
       })
     } catch (error) {
       console.error('Error sending registration acceptance:', error)
@@ -465,6 +480,7 @@ export class EmailService {
    * Send payment rejection email
    */
   static async sendPaymentRejection(rejectionData: {
+    userId?: string
     email: string
     name: string
     registrationId: string
@@ -491,7 +507,11 @@ export class EmailService {
         to: rejectionData.email,
         subject: `Payment Verification Failed - ${conferenceConfig.shortName}`,
         html,
-        text: `Payment verification failed for registration ${rejectionData.registrationId}. Reason: ${rejectionData.reason}`
+        text: `Payment verification failed for registration ${rejectionData.registrationId}. Reason: ${rejectionData.reason}`,
+        userId: rejectionData.userId,
+        userName: rejectionData.name,
+        templateName: 'payment-rejection',
+        category: 'payment'
       })
     } catch (error) {
       console.error('Error sending payment rejection:', error)
@@ -503,14 +523,24 @@ export class EmailService {
    * Send password reset email
    */
   static async sendPasswordReset(resetData: {
+    userId?: string
     email: string
     name: string
     resetLink: string
     expiryTime: string
   }) {
     try {
-      const emailConfig = await getEmailConfig()
-      const template = emailConfig?.templates?.passwordReset
+      // Use static config by default, but allow database override for template content
+      let template = emailTemplateConfig.templates.passwordReset
+      
+      try {
+        const dbEmailConfig = await getEmailConfig()
+        if (dbEmailConfig?.templates?.passwordReset) {
+          template = { ...template, ...dbEmailConfig.templates.passwordReset }
+        }
+      } catch (error) {
+        console.log('Using static email config - database config unavailable')
+      }
       
       if (!template?.enabled) {
         console.log('Password reset email template is disabled')
@@ -523,7 +553,11 @@ export class EmailService {
         to: resetData.email,
         subject: template.subject || `Password Reset - ${conferenceConfig.shortName}`,
         html,
-        text: `Password reset request for ${resetData.name}. Reset link: ${resetData.resetLink}`
+        text: `Password reset request for ${resetData.name}. Reset link: ${resetData.resetLink}`,
+        userId: resetData.userId,
+        userName: resetData.name,
+        templateName: 'password-reset',
+        category: 'system'
       })
     } catch (error) {
       console.error('Error sending password reset email:', error)
@@ -535,14 +569,25 @@ export class EmailService {
    * Send bulk email to multiple recipients
    */
   static async sendBulkEmail(emailData: {
-    recipients: string[]
+    recipients: Array<{ email: string; userId?: string; name?: string }> | string[]
     subject: string
     content: string
     senderName?: string
   }) {
     try {
-      const emailConfig = await getEmailConfig()
-      const template = emailConfig?.templates?.bulkEmail
+      // Use static config by default, but allow database override for template content
+      let template = emailTemplateConfig.templates.bulkEmail
+      let rateLimiting = {}
+      
+      try {
+        const dbEmailConfig = await getEmailConfig()
+        if (dbEmailConfig?.templates?.bulkEmail) {
+          template = { ...template, ...dbEmailConfig.templates.bulkEmail }
+        }
+        rateLimiting = dbEmailConfig?.rateLimiting || {}
+      } catch (error) {
+        console.log('Using static email config - database config unavailable')
+      }
       
       if (!template?.enabled) {
         console.log('Bulk email template is disabled')
@@ -550,16 +595,43 @@ export class EmailService {
       }
 
       const html = getBulkEmailTemplate(emailData)
-      const rateLimiting = emailConfig?.rateLimiting || {}
       
-      return await sendBulkEmails({
-        recipients: emailData.recipients,
-        subject: emailData.subject,
-        html,
-        text: emailData.content,
-        batchSize: rateLimiting.batchSize || 10,
-        delay: rateLimiting.delayBetweenBatches || 1000
-      })
+      // Normalize recipients to array of objects
+      const normalizedRecipients = emailData.recipients.map(r => 
+        typeof r === 'string' ? { email: r } : r
+      )
+      
+      // Send emails individually to track userId
+      const results = []
+      const batchSize = (rateLimiting as any).batchSize || 10
+      const delay = (rateLimiting as any).delayBetweenBatches || 1000
+      
+      for (let i = 0; i < normalizedRecipients.length; i += batchSize) {
+        const batch = normalizedRecipients.slice(i, i + batchSize)
+        
+        const batchPromises = batch.map(recipient => 
+          sendEmail({
+            to: recipient.email,
+            subject: emailData.subject,
+            html,
+            text: emailData.content,
+            userId: recipient.userId,
+            userName: recipient.name,
+            templateName: 'bulk-email',
+            category: 'custom'
+          })
+        )
+        
+        const batchResults = await Promise.allSettled(batchPromises)
+        results.push(...batchResults)
+        
+        // Add delay between batches
+        if (i + batchSize < normalizedRecipients.length) {
+          await new Promise(resolve => setTimeout(resolve, delay))
+        }
+      }
+      
+      return { success: true, results }
     } catch (error) {
       console.error('Error sending bulk email:', error)
       return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
@@ -570,6 +642,7 @@ export class EmailService {
    * Send payment reminder email
    */
   static async sendPaymentReminder(userData: {
+    userId?: string
     email: string
     name: string
     registrationId: string
@@ -579,8 +652,17 @@ export class EmailService {
     currency?: string
   }) {
     try {
-      const emailConfig = await getEmailConfig()
-      const template = emailConfig?.templates?.paymentReminder
+      // Use static config by default, but allow database override for template content
+      let template = emailTemplateConfig.templates.paymentReminder
+      
+      try {
+        const dbEmailConfig = await getEmailConfig()
+        if (dbEmailConfig?.templates?.paymentReminder) {
+          template = { ...template, ...dbEmailConfig.templates.paymentReminder }
+        }
+      } catch (error) {
+        console.log('Using static email config - database config unavailable')
+      }
       
       if (!template?.enabled) {
         console.log('Payment reminder email template is disabled')
@@ -593,7 +675,11 @@ export class EmailService {
         to: userData.email,
         subject: template.subject || `Payment Reminder - ${conferenceConfig.shortName}`,
         html,
-        text: `Payment reminder for ${userData.name}. Registration ID: ${userData.registrationId}`
+        text: `Payment reminder for ${userData.name}. Registration ID: ${userData.registrationId}`,
+        userId: userData.userId,
+        userName: userData.name,
+        templateName: 'payment-reminder',
+        category: 'reminder'
       })
     } catch (error) {
       console.error('Error sending payment reminder:', error)
@@ -605,6 +691,7 @@ export class EmailService {
    * Send custom message email
    */
   static async sendCustomMessage(messageData: {
+    userId?: string
     email: string
     recipientName: string
     subject: string
@@ -612,8 +699,17 @@ export class EmailService {
     senderName?: string
   }) {
     try {
-      const emailConfig = await getEmailConfig()
-      const template = emailConfig?.templates?.customMessage
+      // Use static config by default, but allow database override for template content
+      let template = emailTemplateConfig.templates.customMessage
+      
+      try {
+        const dbEmailConfig = await getEmailConfig()
+        if (dbEmailConfig?.templates?.customMessage) {
+          template = { ...template, ...dbEmailConfig.templates.customMessage }
+        }
+      } catch (error) {
+        console.log('Using static email config - database config unavailable')
+      }
       
       if (!template?.enabled) {
         console.log('Custom message email template is disabled')
@@ -626,7 +722,11 @@ export class EmailService {
         to: messageData.email,
         subject: messageData.subject,
         html,
-        text: messageData.content
+        text: messageData.content,
+        userId: messageData.userId,
+        userName: messageData.recipientName,
+        templateName: 'custom-message',
+        category: 'custom'
       })
     } catch (error) {
       console.error('Error sending custom message:', error)
@@ -638,6 +738,7 @@ export class EmailService {
    * Send abstract submission confirmation email
    */
   static async sendAbstractSubmissionConfirmation(abstractData: {
+    userId?: string
     email: string
     name: string
     registrationId: string
@@ -731,7 +832,11 @@ export class EmailService {
         to: abstractData.email,
         subject: `Abstract Submission Confirmed - ${abstractData.abstractId} | ${conferenceConfig.shortName}`,
         html,
-        text: `Abstract submission confirmed. Abstract ID: ${abstractData.abstractId}. Title: ${abstractData.title}. Track: ${abstractData.track}.`
+        text: `Abstract submission confirmed. Abstract ID: ${abstractData.abstractId}. Title: ${abstractData.title}. Track: ${abstractData.track}.`,
+        userId: abstractData.userId,
+        userName: abstractData.name,
+        templateName: 'abstract-submission-confirmation',
+        category: 'abstract'
       })
     } catch (error) {
       console.error('Error sending abstract submission confirmation:', error)
@@ -743,6 +848,7 @@ export class EmailService {
    * Send abstract acceptance notification email
    */
   static async sendAbstractAcceptance(acceptanceData: {
+    userId?: string
     email: string
     name: string
     registrationId: string
@@ -845,7 +951,11 @@ export class EmailService {
         to: acceptanceData.email,
         subject: `🎉 Abstract Accepted - ${acceptanceData.abstractId} | ${conferenceConfig.shortName}`,
         html,
-        text: `Congratulations! Your abstract "${acceptanceData.title}" (ID: ${acceptanceData.abstractId}) has been accepted for ${conferenceConfig.shortName}.`
+        text: `Congratulations! Your abstract "${acceptanceData.title}" (ID: ${acceptanceData.abstractId}) has been accepted for ${conferenceConfig.shortName}.`,
+        userId: acceptanceData.userId,
+        userName: acceptanceData.name,
+        templateName: 'abstract-acceptance',
+        category: 'abstract'
       })
     } catch (error) {
       console.error('Error sending abstract acceptance email:', error)
@@ -857,6 +967,7 @@ export class EmailService {
    * Send final submission confirmation email
    */
   static async sendFinalSubmissionConfirmation(submissionData: {
+    userId?: string
     email: string
     name: string
     registrationId: string
@@ -969,7 +1080,11 @@ export class EmailService {
         to: submissionData.email,
         subject: `📤 Final Submission Received - ${submissionData.finalDisplayId} | ${conferenceConfig.shortName}`,
         html,
-        text: `Final submission received for "${submissionData.title}" (ID: ${submissionData.finalDisplayId}). Thank you for your contribution to ${conferenceConfig.shortName}.`
+        text: `Final submission received for "${submissionData.title}" (ID: ${submissionData.finalDisplayId}). Thank you for your contribution to ${conferenceConfig.shortName}.`,
+        userId: submissionData.userId,
+        userName: submissionData.name,
+        templateName: 'final-submission-confirmation',
+        category: 'abstract'
       })
     } catch (error) {
       console.error('Error sending final submission confirmation:', error)
@@ -1082,7 +1197,11 @@ export class EmailService {
         to: paymentData.email,
         subject: `Workshop Registration Confirmed - ${conferenceConfig.shortName}`,
         html,
-        text: `Your workshop addon registration has been confirmed. Registration ID: ${paymentData.registrationId}. Total Amount: ${paymentData.currency === 'USD' ? '$' : '₹'}${paymentData.amount.toLocaleString()}`
+        text: `Your workshop addon registration has been confirmed. Registration ID: ${paymentData.registrationId}. Total Amount: ${paymentData.currency === 'USD' ? '$' : '₹'}${paymentData.amount.toLocaleString()}`,
+        userId: paymentData.userId,
+        userName: paymentData.name,
+        templateName: 'workshop-addon-confirmation',
+        category: 'payment'
       }
 
       // Attach invoice PDF if generated
@@ -1105,6 +1224,7 @@ export class EmailService {
    * Send conference reminder email
    */
   static async sendConferenceReminder(userData: {
+    userId?: string
     email: string
     name: string
     registrationId: string
@@ -1164,7 +1284,11 @@ export class EmailService {
         to: userData.email,
         subject: template.subject || `Conference Reminder - ${conferenceConfig.shortName}`,
         html,
-        text: `Conference reminder for ${userData.name}. ${userData.daysUntilConference} days until ${conferenceConfig.shortName}!`
+        text: `Conference reminder for ${userData.name}. ${userData.daysUntilConference} days until ${conferenceConfig.shortName}!`,
+        userId: userData.userId,
+        userName: userData.name,
+        templateName: 'conference-reminder',
+        category: 'reminder'
       })
     } catch (error) {
       console.error('Error sending conference reminder:', error)
@@ -1394,7 +1518,11 @@ export class EmailService {
         subject: emailData.subject,
         html,
         text: `${emailData.subject} - Message from ${conferenceConfig.shortName}`,
-        attachments: attachments.length > 0 ? attachments : undefined
+        attachments: attachments.length > 0 ? attachments : undefined,
+        userId: emailData.userData.userId,
+        userName: emailData.userData.name,
+        templateName: `bulk-${emailData.template}`,
+        category: 'custom'
       })
     } catch (error) {
       console.error('Error sending bulk template email:', error)

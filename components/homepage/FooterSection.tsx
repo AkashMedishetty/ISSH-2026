@@ -23,7 +23,7 @@ export function FooterSection() {
 
   return (
     <footer className="relative flex-1" style={{ backgroundColor: config.theme.primary }}>
-      <div className="h-full px-5 py-6 md:py-8 flex flex-col">
+      <div className="h-full px-5 py-6 md:py-8 lg:px-8 xl:px-5 flex flex-col">
         {/* Mobile Layout - FULLY VERTICAL, BIGGER TEXT */}
         <div className="md:hidden flex flex-col h-full">
           {/* Logo + Name */}
@@ -85,7 +85,7 @@ export function FooterSection() {
 
         {/* Desktop Layout */}
         <div className="hidden md:flex md:flex-col md:h-full max-w-7xl mx-auto w-full">
-          <div className="grid grid-cols-4 gap-10 flex-1">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-6 xl:gap-10 flex-1">
             {/* Brand */}
             <div className="space-y-3">
               <div className="flex items-center gap-3">
@@ -129,8 +129,8 @@ export function FooterSection() {
                 <a href={`tel:${config.contact.phone}`} className="flex items-center gap-2 text-sm text-white/80 hover:text-white">
                   <Phone className="w-4 h-4" />{config.contact.phone}
                 </a>
-                <a href={`mailto:${config.contact.email}`} className="flex items-center gap-2 text-sm text-white/80 hover:text-white">
-                  <Mail className="w-4 h-4" /><span className="truncate">{config.contact.email}</span>
+                <a href={`mailto:${config.contact.email}`} className="flex items-center gap-2 text-sm text-white/80 hover:text-white min-w-0">
+                  <Mail className="w-4 h-4 flex-shrink-0" /><span className="truncate">{config.contact.email}</span>
                 </a>
               </div>
             </div>
@@ -138,11 +138,11 @@ export function FooterSection() {
             {/* Organized By */}
             <div>
               <h4 className="text-sm font-bold mb-3 uppercase tracking-wider" style={{ color: config.theme.secondary }}>Organized By</h4>
-              <div className="flex gap-3 mb-4">
-                <Image src="/logos/3.png" alt="ISSH" width={44} height={44} className="object-contain bg-white/10 rounded-lg p-1" />
-                <Image src="/logos/4.png" alt="TOSA" width={44} height={44} className="object-contain bg-white/10 rounded-lg p-1" />
-                <Image src="/logos/5.png" alt="TCOS" width={44} height={44} className="object-contain bg-white/10 rounded-lg p-1" />
-                <Image src="/logos/logo.png" alt="Partner" width={44} height={44} className="object-contain bg-white/10 rounded-lg p-1" />
+              <div className="flex flex-wrap gap-3 mb-4">
+                <Image src="/logos/3.png" alt="ISSH" width={44} height={44} className="object-contain bg-white/10 rounded-lg p-1 lg:w-9 lg:h-9 xl:w-11 xl:h-11" />
+                <Image src="/logos/4.png" alt="TOSA" width={44} height={44} className="object-contain bg-white/10 rounded-lg p-1 lg:w-9 lg:h-9 xl:w-11 xl:h-11" />
+                <Image src="/logos/5.png" alt="TCOS" width={44} height={44} className="object-contain bg-white/10 rounded-lg p-1 lg:w-9 lg:h-9 xl:w-11 xl:h-11" />
+                <Image src="/logos/logo.png" alt="Partner" width={44} height={44} className="object-contain bg-white/10 rounded-lg p-1 lg:w-9 lg:h-9 xl:w-11 xl:h-11" />
               </div>
               <div className="pt-3 border-t border-white/20">
                 <p className="text-xs text-white/60">Tech Partner</p>

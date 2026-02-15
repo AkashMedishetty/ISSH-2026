@@ -18,15 +18,41 @@ export async function GET(request: NextRequest) {
     await connectDB()
 
     const adminUser = await User.findById((session.user as any).id)
-    if (!adminUser || adminUser.role !== 'admin') {
+    if (!adminUser || !['admin', 'manager'].includes(adminUser.role)) {
       return NextResponse.json({
         success: false,
-        message: 'Admin access required'
+        message: 'Admin or Manager access required'
       }, { status: 403 })
     }
 
-    // Fetch all user registrations including payment info
-    const users = await User.find({ role: 'user' })
+    // Get filter params
+    const { searchParams } = new URL(request.url)
+    const sponsorId = searchParams.get('sponsorId')
+    const paymentType = searchParams.get('paymentType')
+    const status = searchParams.get('status')
+    const specialization = searchParams.get('specialization')
+    const registrationType = searchParams.get('registrationType') || searchParams.get('type')
+
+    // Build query
+    const query: any = { role: 'user' }
+    if (sponsorId) {
+      query['registration.sponsorId'] = sponsorId
+    }
+    if (paymentType) {
+      query['registration.paymentType'] = paymentType
+    }
+    if (status) {
+      query['registration.status'] = status
+    }
+    if (specialization && specialization !== 'all') {
+      query['profile.specialization'] = specialization
+    }
+    if (registrationType && registrationType !== 'all') {
+      query['registration.type'] = registrationType
+    }
+
+    // Fetch user registrations including payment info
+    const users = await User.find(query)
       .select('email profile registration payment createdAt')
       .lean()
 
@@ -38,6 +64,8 @@ export async function GET(request: NextRequest) {
       'Phone',
       'Institution',
       'MCI Number',
+      'Designation',
+      'Specialization',
       'Registration Type',
       'Status',
       'Tier',
@@ -49,6 +77,9 @@ export async function GET(request: NextRequest) {
       'Verified By',
       'Verification Date',
       'Payment Remarks',
+      'Payment Type',
+      'Sponsor Name',
+      'Sponsor Category',
       'Workshop Selections',
       'Accompanying Persons',
       'Accompanying Names',
@@ -65,6 +96,8 @@ export async function GET(request: NextRequest) {
       user.profile.phone || '',
       user.profile.institution || '',
       user.profile.mciNumber || '',
+      user.profile.designation || '',
+      user.profile.specialization || '',
       user.registration.type,
       user.registration.status,
       user.registration.tier || '',
@@ -76,6 +109,9 @@ export async function GET(request: NextRequest) {
       user.payment?.verifiedBy || '',
       user.payment?.verificationDate ? new Date(user.payment.verificationDate).toLocaleDateString() : '',
       user.payment?.remarks || '',
+      user.registration.paymentType || '',
+      user.registration.sponsorName || '',
+      user.registration.sponsorCategory || '',
       user.registration.workshopSelections?.join('; ') || '',
       user.registration.accompanyingPersons?.length || 0,
       (user.registration.accompanyingPersons || []).map((p: any) => p.name).join('; '),

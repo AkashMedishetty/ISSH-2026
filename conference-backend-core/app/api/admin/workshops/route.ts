@@ -86,20 +86,17 @@ export async function POST(request: NextRequest) {
       isActive
     } = body
 
-    // Validate required fields
-    if (!id || !name || !description || !instructor || !duration || 
-        price === undefined || !maxSeats || !registrationStart || 
-        !registrationEnd || !workshopDate || !workshopTime || !venue) {
+    // Validate required fields (only truly required ones)
+    if (!id || !name || !description || price === undefined || !maxSeats || !registrationStart || !registrationEnd) {
       return NextResponse.json({
         success: false,
-        message: 'Missing required fields'
+        message: 'Missing required fields: id, name, description, price, maxSeats, registrationStart, registrationEnd'
       }, { status: 400 })
     }
 
     // Validate dates
     const regStart = new Date(registrationStart)
     const regEnd = new Date(registrationEnd)
-    const wsDate = new Date(workshopDate)
 
     if (regStart >= regEnd) {
       return NextResponse.json({
@@ -108,11 +105,15 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    if (regEnd > wsDate) {
-      return NextResponse.json({
-        success: false,
-        message: 'Registration end date must be before workshop date'
-      }, { status: 400 })
+    // Only validate workshop date if provided
+    if (workshopDate) {
+      const wsDate = new Date(workshopDate)
+      if (regEnd > wsDate) {
+        return NextResponse.json({
+          success: false,
+          message: 'Registration end date must be before workshop date'
+        }, { status: 400 })
+      }
     }
 
     // Check if workshop ID already exists
@@ -128,17 +129,17 @@ export async function POST(request: NextRequest) {
       id,
       name,
       description,
-      instructor,
-      duration,
+      instructor: instructor || '',
+      duration: duration || '',
       price: parseFloat(price),
       currency: currency || 'INR',
       maxSeats: parseInt(maxSeats),
       bookedSeats: 0,
       registrationStart: regStart,
       registrationEnd: regEnd,
-      workshopDate: wsDate,
-      workshopTime,
-      venue,
+      workshopDate: workshopDate ? new Date(workshopDate) : null,
+      workshopTime: workshopTime || '',
+      venue: venue || '',
       prerequisites: prerequisites || '',
       materials: materials || '',
       isActive: isActive !== false

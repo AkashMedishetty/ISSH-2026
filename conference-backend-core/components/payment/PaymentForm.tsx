@@ -36,6 +36,7 @@ declare global {
 
 interface PaymentCalculation {
   registrationFee: number
+  gst: number
   workshopFees: number
   accompanyingPersonFees: number
   subtotal: number
@@ -45,6 +46,8 @@ interface PaymentCalculation {
   breakdown: {
     registrationType: string
     baseAmount: number
+    gst: number
+    gstPercentage: number
     workshopFees: Array<{
       name: string
       amount: number
@@ -496,6 +499,15 @@ export function PaymentForm() {
                           {formatCurrency(paymentCalculation.registrationFee, paymentCalculation.currency)}
                         </span>
                       </div>
+
+                      {(paymentCalculation.gst > 0 || paymentCalculation.breakdown?.gst > 0) && (
+                        <div className="flex justify-between">
+                          <span className="text-sm">GST (18%):</span>
+                          <span className="text-sm">
+                            {formatCurrency(paymentCalculation.gst || paymentCalculation.breakdown?.gst || 0, paymentCalculation.currency)}
+                          </span>
+                        </div>
+                      )}
 
                       {paymentCalculation.workshopFees > 0 && (
                         <div className="flex justify-between">

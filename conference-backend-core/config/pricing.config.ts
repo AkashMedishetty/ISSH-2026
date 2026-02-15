@@ -55,12 +55,12 @@ export const pricingTiers: Record<string, PricingTier> = {
     endDate: conferenceConfig.payment.tiers.earlyBird?.endDate || '2026-01-31',
     isActive: true,
     categories: {
-      'issh-member': {
-        key: 'issh-member',
-        label: 'ISSH Member',
+      'tns-member': {
+        key: 'tns-member',
+        label: 'TNS Member',
         amount: 4000,
         currency: 'INR',
-        description: 'For registered ISSH members'
+        description: 'For registered TNS members'
       },
       'consultant': {
         key: 'consultant',
@@ -108,12 +108,12 @@ export const pricingTiers: Record<string, PricingTier> = {
     endDate: conferenceConfig.payment.tiers.regular?.endDate || '2026-04-20',
     isActive: true,
     categories: {
-      'issh-member': {
-        key: 'issh-member',
-        label: 'ISSH Member',
+      'tns-member': {
+        key: 'tns-member',
+        label: 'TNS Member',
         amount: 4500,
         currency: 'INR',
-        description: 'For registered ISSH members'
+        description: 'For registered TNS members'
       },
       'consultant': {
         key: 'consultant',
@@ -161,12 +161,12 @@ export const pricingTiers: Record<string, PricingTier> = {
     endDate: conferenceConfig.payment.tiers.onsite?.endDate || '2026-04-26',
     isActive: true,
     categories: {
-      'issh-member': {
-        key: 'issh-member',
-        label: 'ISSH Member',
+      'tns-member': {
+        key: 'tns-member',
+        label: 'TNS Member',
         amount: 5500,
         currency: 'INR',
-        description: 'For registered ISSH members'
+        description: 'For registered TNS members'
       },
       'consultant': {
         key: 'consultant',
@@ -282,15 +282,15 @@ export interface DiscountCode {
 
 export const discountCodes: DiscountCode[] = [
   {
-    code: 'ISSH2026',
+    code: 'TNS2026',
     type: 'percentage',
     value: 10,
-    description: 'ISSH member special discount',
+    description: 'TNS member special discount',
     validFrom: '2025-10-01',
     validTo: '2026-04-20',
     isActive: true,
     maxUses: 200,
-    applicableCategories: ['issh-member']
+    applicableCategories: ['tns-member']
   },
   {
     code: 'EARLYBIRD2026',

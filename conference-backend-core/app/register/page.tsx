@@ -21,7 +21,7 @@ import { Navigation } from "@/conference-backend-core/components/Navigation"
 import dynamic from "next/dynamic"
 import { useToast } from "@/conference-backend-core/hooks/use-toast"
 import { getCurrentTier, getTierSummary, getTierPricing } from "@/conference-backend-core/lib/registration"
-import { signIn } from "next-auth/react"
+import { signIn, useSession } from "next-auth/react"
 import { conferenceConfig } from "@/conference-backend-core/config/conference.config"
 
 // Payment configuration interface
@@ -38,6 +38,7 @@ interface PaymentConfig {
     bankName?: string
     branch?: string
     qrCodeUrl?: string
+    upiId?: string
   } | null
 }
 
@@ -56,6 +57,7 @@ export default function RegisterPage() {
   const router = useRouter()
   const { toast } = useToast()
   const shouldReduceMotion = useReducedMotion()
+  const { data: session } = useSession()
 
   // Avoid hydration glitches on first paint (observed on some mobile browsers)
   useEffect(() => {
@@ -133,7 +135,7 @@ export default function RegisterPage() {
               label: cat.label,
               price,
               currency,
-              description: `${tierName} (Inclusive of GST)`
+              description: `${tierName}`
             }
           })
           console.log('Updated types:', updatedTypes)
@@ -164,6 +166,11 @@ export default function RegisterPage() {
             const paymentResult = await paymentResponse.json()
             if (paymentResult.success && paymentResult.data) {
               setPaymentConfig(paymentResult.data)
+              
+              // Check maintenance mode
+              if (paymentResult.data.maintenanceMode) {
+                setMaintenanceMode(true)
+              }
               
               // Check if external redirect is enabled - HIGHEST PRIORITY
               if (paymentResult.data.externalRedirect && paymentResult.data.externalRedirectUrl) {
@@ -226,6 +233,7 @@ export default function RegisterPage() {
     phone: "",
     age: "",
     designation: "",
+    specialization: "", // Neurology or Neurosurgery
     password: "",
     confirmPassword: "",
     institution: "",
@@ -255,6 +263,8 @@ export default function RegisterPage() {
     // Payment
     paymentMethod: "bank-transfer",
     bankTransferUTR: "",
+    paymentScreenshot: null as File | null,
+    paymentScreenshotUrl: "",
     agreeTerms: false,
   })
 
@@ -299,13 +309,14 @@ export default function RegisterPage() {
   })
   const [loadingPaymentConfig, setLoadingPaymentConfig] = useState(true)
   const [redirecting, setRedirecting] = useState(false)
+  const [maintenanceMode, setMaintenanceMode] = useState(false)
 
-  // Calculate price when registration type, workshops, accompanying persons, or discount code change
+  // Calculate price when registration type, workshops, accompanying persons, discount code, age, or step changes
   useEffect(() => {
-    if (formData.registrationType || formData.workshopSelection.length > 0 || formData.accompanyingPersons.length > 0) {
+    if (formData.registrationType) {
       calculatePrice()
     }
-  }, [formData.registrationType, formData.workshopSelection, formData.accompanyingPersons, formData.discountCode])
+  }, [formData.registrationType, JSON.stringify(formData.workshopSelection), JSON.stringify(formData.accompanyingPersons), formData.discountCode, formData.age, step])
 
   const calculatePrice = async () => {
     if (!formData.registrationType) return
@@ -702,10 +713,11 @@ export default function RegisterPage() {
         console.log('Step 3 form data:', {
           agreeTerms: formData.agreeTerms,
           paymentMethod: formData.paymentMethod,
-          bankTransferUTR: formData.bankTransferUTR
+          bankTransferUTR: formData.bankTransferUTR,
+          paymentScreenshot: formData.paymentScreenshot?.name
         })
 
-        // Only validate UTR if bank transfer is selected
+        // Only validate UTR and screenshot if bank transfer is selected
         if (formData.paymentMethod === 'bank-transfer') {
           if (!formData.bankTransferUTR) {
             console.log('UTR number missing')
@@ -728,6 +740,9 @@ export default function RegisterPage() {
             })
             return false
           }
+
+          // Payment screenshot is optional for bank transfer
+          // (can be made mandatory via admin configuration)
         }
 
         if (!formData.agreeTerms) {
@@ -791,6 +806,33 @@ export default function RegisterPage() {
       console.log('Starting registration API call...')
       setLoading(true)
       try {
+        // Upload payment screenshot if provided (bank transfer only)
+        let screenshotUrl = ''
+        if (formData.paymentMethod === 'bank-transfer' && formData.paymentScreenshot) {
+          console.log('Uploading payment screenshot...')
+          try {
+            const uploadFormData = new FormData()
+            uploadFormData.append('file', formData.paymentScreenshot)
+            
+            const uploadResponse = await fetch('/api/upload/payment-screenshot', {
+              method: 'POST',
+              body: uploadFormData
+            })
+            
+            const uploadResult = await uploadResponse.json()
+            if (uploadResult.success) {
+              screenshotUrl = uploadResult.data.url
+              console.log('Screenshot uploaded:', screenshotUrl)
+            } else {
+              console.warn('Screenshot upload failed:', uploadResult.message)
+              // Don't block registration if screenshot upload fails
+            }
+          } catch (uploadError) {
+            console.warn('Screenshot upload error:', uploadError)
+            // Don't block registration if screenshot upload fails
+          }
+        }
+
         console.log('Making API call to /api/auth/register...')
 
         const requestBody = {
@@ -803,6 +845,7 @@ export default function RegisterPage() {
             phone: formData.phone,
             age: parseInt(formData.age) || 0,
             designation: formData.designation,
+            specialization: formData.specialization,
             institution: formData.institution,
             mciNumber: formData.mciNumber,
             address: {
@@ -824,6 +867,7 @@ export default function RegisterPage() {
           payment: {
             method: formData.paymentMethod,
             bankTransferUTR: formData.paymentMethod === 'bank-transfer' ? formData.bankTransferUTR : undefined,
+            screenshotUrl: screenshotUrl || undefined,
             amount: priceCalculation?.total || 0,
             tier: priceCalculation?.currentTier?.name || undefined,
             status: formData.paymentMethod === 'pay-now' ? "processing" : "pending"
@@ -1051,27 +1095,27 @@ export default function RegisterPage() {
     switch (step) {
       case 1:
         return (
-          <div className="space-y-4">
-            {/* Compact Header */}
-            <div className="border-b dark:border-gray-800 pb-3 mb-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-conference-primary text-black">
+          <div className="space-y-5">
+            {/* Premium Header */}
+            <div className="border-b border-gray-100 pb-4 mb-5">
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-2xl bg-gradient-to-br from-pink-500 to-purple-500 text-white shadow-lg shadow-pink-200/50">
                   <UserPlus className="w-5 h-5" />
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">Personal Information</h2>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Step {step} of 3</p>
+                  <h2 className="text-xl font-bold text-gray-900 tracking-tight">Personal Information</h2>
+                  <p className="text-sm text-gray-400">Step {step} of 3</p>
                 </div>
               </div>
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-4">
               {/* Basic Information */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Title *</label>
+                  <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Title *</label>
                   <Select value={formData.title} onValueChange={(value) => handleInputChange("title", value)}>
-                    <SelectTrigger className="h-10">
+                    <SelectTrigger className="h-11 rounded-xl border-gray-200 bg-gray-50/50 focus:bg-white focus:border-pink-300 transition-all">
                       <SelectValue placeholder="Select title" />
                     </SelectTrigger>
                     <SelectContent>
@@ -1083,7 +1127,7 @@ export default function RegisterPage() {
                     </SelectContent>
                   </Select>
                   {touchedFields.title && !formData.title && (
-                    <p className="text-xs text-red-600 mt-1 flex items-center gap-1">
+                    <p className="text-xs text-red-500 mt-1.5 flex items-center gap-1">
                       <AlertCircle className="w-3 h-3" />
                       Title is required
                     </p>
@@ -1091,7 +1135,7 @@ export default function RegisterPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">First Name *</label>
+                  <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">First Name *</label>
                   <Input
                     value={formData.firstName}
                     onChange={(e) => {
@@ -1101,10 +1145,10 @@ export default function RegisterPage() {
                       }
                     }}
                     required
-                    className="h-10"
+                    className="h-11 rounded-xl border-gray-200 bg-gray-50/50 focus:bg-white focus:border-pink-300 transition-all"
                   />
                   {touchedFields.firstName && !formData.firstName && (
-                    <p className="text-xs text-red-600 mt-1 flex items-center gap-1">
+                    <p className="text-xs text-red-500 mt-1.5 flex items-center gap-1">
                       <AlertCircle className="w-3 h-3" />
                       First name is required
                     </p>
@@ -1112,7 +1156,7 @@ export default function RegisterPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Last Name *</label>
+                  <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Last Name *</label>
                   <Input
                     value={formData.lastName}
                     onChange={(e) => {
@@ -1122,10 +1166,10 @@ export default function RegisterPage() {
                       }
                     }}
                     required
-                    className="h-10"
+                    className="h-11 rounded-xl border-gray-200 bg-gray-50/50 focus:bg-white focus:border-pink-300 transition-all"
                   />
                   {touchedFields.lastName && !formData.lastName && (
-                    <p className="text-xs text-red-600 mt-1 flex items-center gap-1">
+                    <p className="text-xs text-red-500 mt-1.5 flex items-center gap-1">
                       <AlertCircle className="w-3 h-3" />
                       Last name is required
                     </p>
@@ -1133,17 +1177,17 @@ export default function RegisterPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Email Address *</label>
+                  <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Email Address *</label>
                   <div className="relative">
                     <Input
                       type="email"
                       value={formData.email}
                       onChange={(e) => handleInputChange("email", e.target.value)}
                       required
-                      className={`h-10 pr-10 ${
-                        isCheckingEmail ? "border-blue-300" :
-                          emailAvailable === true ? "border-green-300" :
-                            emailAvailable === false ? "border-red-300" : ""
+                      className={`h-11 rounded-xl pr-10 border-gray-200 bg-gray-50/50 focus:bg-white transition-all ${
+                        isCheckingEmail ? "border-blue-300 focus:border-blue-400" :
+                          emailAvailable === true ? "border-green-300 focus:border-green-400" :
+                            emailAvailable === false ? "border-red-300 focus:border-red-400" : "focus:border-pink-300"
                       }`}
                     />
                     <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
@@ -1153,13 +1197,13 @@ export default function RegisterPage() {
                     </div>
                   </div>
                   {emailAvailable === true && (
-                    <p className="text-xs text-green-600 mt-1 flex items-center">
+                    <p className="text-xs text-green-600 mt-1.5 flex items-center">
                       <CheckCircle className="w-3 h-3 mr-1" />
                       Email is available
                     </p>
                   )}
                   {emailAvailable === false && (
-                    <p className="text-xs text-red-600 mt-1 flex items-center">
+                    <p className="text-xs text-red-500 mt-1.5 flex items-center">
                       <AlertCircle className="w-3 h-3 mr-1" />
                       Email already registered
                     </p>
@@ -1167,7 +1211,7 @@ export default function RegisterPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Phone Number *</label>
+                  <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Phone Number *</label>
                   <Input
                     type="tel"
                     value={formData.phone}
@@ -1180,10 +1224,10 @@ export default function RegisterPage() {
                     required
                     maxLength={10}
                     placeholder="10-digit mobile"
-                    className="h-10"
+                    className="h-11 rounded-xl border-gray-200 bg-gray-50/50 focus:bg-white focus:border-pink-300 transition-all"
                   />
                   {formData.phone && formData.phone.length !== 10 && (
-                    <p className="text-xs text-orange-600 mt-1 flex items-center gap-1">
+                    <p className="text-xs text-orange-500 mt-1.5 flex items-center gap-1">
                       <AlertCircle className="w-3 h-3" />
                       Must be 10 digits
                     </p>
@@ -1191,7 +1235,7 @@ export default function RegisterPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Age *</label>
+                  <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Age *</label>
                   <Input
                     value={formData.age}
                     onChange={(e) => {
@@ -1205,12 +1249,6 @@ export default function RegisterPage() {
                     placeholder="Age"
                     className="h-10"
                   />
-                  {formData.registrationType === conferenceConfig.registration.categories[0]?.key && parseInt(formData.age) >= 70 && parseInt(formData.age) < 100 && (
-                    <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
-                      <CheckCircle className="w-3 h-3" />
-                      Free registration (70+)
-                    </p>
-                  )}
                 </div>
 
                 <div>
@@ -1411,10 +1449,10 @@ export default function RegisterPage() {
               </div>
 
               {/* Action Buttons */}
-              <div className="flex justify-end pt-4 border-t border-gray-200 mt-4">
+              <div className="flex justify-end pt-5 border-t border-gray-100 mt-5">
                 <Button
                   type="submit"
-                  className="bg-conference-primary hover:opacity-90 text-black h-10"
+                  className="bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white h-11 rounded-xl shadow-lg shadow-pink-200/50 font-medium"
                   disabled={loading}
                 >
                   {loading ? (
@@ -1733,11 +1771,11 @@ export default function RegisterPage() {
             </div> */}
             </div>
 
-            <div className="flex gap-3 justify-between pt-4 border-t border-gray-200 mt-4">
-              <Button type="button" variant="outline" onClick={() => setStep(1)} className="h-10">
+            <div className="flex gap-3 justify-between pt-5 border-t border-gray-100 mt-5">
+              <Button type="button" variant="outline" onClick={() => setStep(1)} className="h-11 rounded-xl border-gray-200 hover:bg-gray-50 font-medium">
                 Previous
               </Button>
-              <Button type="submit" className="bg-conference-primary hover:opacity-90 text-black h-10">
+              <Button type="submit" className="bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white h-11 rounded-xl shadow-lg shadow-pink-200/50 font-medium">
                 Next Step
               </Button>
             </div>
@@ -1766,11 +1804,19 @@ export default function RegisterPage() {
                 <h3 className="text-base font-semibold text-gray-900 mb-3">Registration Summary</h3>
                 <div className="space-y-2">
                   <div className="flex justify-between">
-                    <span>Registration Fee:</span>
+                    <span>{priceCalculation.breakdown?.registration?.label || 'Registration Fee'}:</span>
                     <span className="font-medium">
                       {formatCurrency(priceCalculation.registrationFee || priceCalculation.baseAmount || 0, priceCalculation.currency)}
                     </span>
                   </div>
+                  {(priceCalculation.gst > 0 || priceCalculation.breakdown?.gst > 0) && (
+                    <div className="flex justify-between">
+                      <span>GST (18%):</span>
+                      <span className="font-medium">
+                        {formatCurrency(priceCalculation.gst || priceCalculation.breakdown?.gst || 0, priceCalculation.currency)}
+                      </span>
+                    </div>
+                  )}
                   {priceCalculation.workshopFees > 0 && (
                     <div className="flex justify-between">
                       <span>Workshop Fees ({formData.workshopSelection.length} workshops):</span>
@@ -1779,12 +1825,18 @@ export default function RegisterPage() {
                       </span>
                     </div>
                   )}
-                  {priceCalculation.accompanyingPersonFees > 0 && (
+                  {(priceCalculation.accompanyingPersonFees > 0 || priceCalculation.accompanyingPersons > 0) && (
                     <div className="flex justify-between">
-                      <span>Accompanying Persons ({formData.accompanyingPersons.length} persons):</span>
+                      <span>Accompanying Persons ({priceCalculation.accompanyingPersonCount || formData.accompanyingPersons.length} persons):</span>
                       <span className="font-medium">
-                        {formatCurrency(priceCalculation.accompanyingPersonFees, priceCalculation.currency)}
+                        {formatCurrency(priceCalculation.accompanyingPersonFees || priceCalculation.accompanyingPersons || 0, priceCalculation.currency)}
                       </span>
+                    </div>
+                  )}
+                  {priceCalculation.freeChildrenCount > 0 && (
+                    <div className="flex justify-between text-green-600">
+                      <span>Children under 10 ({priceCalculation.freeChildrenCount}):</span>
+                      <span className="font-medium">FREE</span>
                     </div>
                   )}
                   {priceCalculation.discount > 0 && (
@@ -1799,7 +1851,7 @@ export default function RegisterPage() {
                     <div className="flex justify-between font-bold text-lg">
                       <span>Total Amount:</span>
                       <span className="text-conference-primary">
-                        {formatCurrency(priceCalculation.total, priceCalculation.currency)}
+                        {formatCurrency(priceCalculation.total || priceCalculation.finalAmount || 0, priceCalculation.currency)}
                       </span>
                     </div>
                   </div>
@@ -1838,21 +1890,61 @@ export default function RegisterPage() {
                       className="mx-auto w-48 h-48 border-2 border-gray-300 rounded-lg"
                     />
                     <p className="text-xs text-gray-500 mt-2">Scan with any UPI app</p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const link = document.createElement('a')
+                        link.href = paymentConfig.bankDetails?.qrCodeUrl || ''
+                        link.download = 'payment-qr-code.png'
+                        link.target = '_blank'
+                        document.body.appendChild(link)
+                        link.click()
+                        document.body.removeChild(link)
+                        toast({ title: "Download Started", description: "QR code download initiated" })
+                      }}
+                      className="mt-3 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      📥 Download QR Code
+                    </button>
                   </div>
                 )}
 
-                <div className="grid grid-cols-1 gap-4">
+                {/* UPI ID Display */}
+                {paymentConfig.bankDetails?.upiId && (
                   <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-yellow-200 dark:border-blue-700">
-                    <span className="font-medium text-gray-700 dark:text-gray-300 block mb-2">Account Name:</span>
+                    <span className="font-medium text-gray-700 dark:text-gray-300 block mb-2">UPI ID:</span>
                     <div className="flex items-center justify-between bg-gray-50 dark:bg-gray-700 p-3 rounded border">
-                      <p className="text-gray-800 dark:text-gray-200 font-medium break-all">
-                        {paymentConfig.bankDetails?.accountName || conferenceConfig.shortName}
+                      <p className="text-gray-800 dark:text-gray-200 font-mono break-all">
+                        {paymentConfig.bankDetails.upiId}
                       </p>
                       <button
                         type="button"
                         onClick={() => {
-                          const name = paymentConfig.bankDetails?.accountName || conferenceConfig.shortName
-                          navigator.clipboard.writeText(name)
+                          navigator.clipboard.writeText(paymentConfig.bankDetails!.upiId!)
+                          toast({ title: "Copied!", description: "UPI ID copied to clipboard" })
+                        }}
+                        className="ml-2 px-2 py-1 text-xs bg-yellow-100 dark:bg-blue-900 text-conference-primary dark:text-blue-300 rounded hover:bg-yellow-200 dark:hover:bg-blue-800 flex-shrink-0"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Bank Details - Only show if at least one bank detail is provided */}
+                {(paymentConfig.bankDetails?.accountName || paymentConfig.bankDetails?.accountNumber || paymentConfig.bankDetails?.ifscCode || paymentConfig.bankDetails?.bankName) && (
+                <div className="grid grid-cols-1 gap-4">
+                  {paymentConfig.bankDetails?.accountName && (
+                  <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-yellow-200 dark:border-blue-700">
+                    <span className="font-medium text-gray-700 dark:text-gray-300 block mb-2">Account Name:</span>
+                    <div className="flex items-center justify-between bg-gray-50 dark:bg-gray-700 p-3 rounded border">
+                      <p className="text-gray-800 dark:text-gray-200 font-medium break-all">
+                        {paymentConfig.bankDetails.accountName}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(paymentConfig.bankDetails!.accountName!)
                           toast({ title: "Copied!", description: "Account name copied to clipboard" })
                         }}
                         className="ml-2 px-2 py-1 text-xs bg-yellow-100 dark:bg-blue-900 text-conference-primary dark:text-blue-300 rounded hover:bg-yellow-200 dark:hover:bg-blue-800 flex-shrink-0"
@@ -1861,18 +1953,19 @@ export default function RegisterPage() {
                       </button>
                     </div>
                   </div>
+                  )}
 
+                  {paymentConfig.bankDetails?.accountNumber && (
                   <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-yellow-200 dark:border-blue-700">
                     <span className="font-medium text-gray-700 dark:text-gray-300 block mb-2">Account Number:</span>
                     <div className="flex items-center justify-between bg-gray-50 dark:bg-gray-700 p-3 rounded border">
                       <p className="text-gray-800 dark:text-gray-200 font-mono break-all">
-                        {paymentConfig.bankDetails?.accountNumber || '137912010002201'}
+                        {paymentConfig.bankDetails.accountNumber}
                       </p>
                       <button
                         type="button"
                         onClick={() => {
-                          const accNum = paymentConfig.bankDetails?.accountNumber || '137912010002201'
-                          navigator.clipboard.writeText(accNum)
+                          navigator.clipboard.writeText(paymentConfig.bankDetails!.accountNumber!)
                           toast({ title: "Copied!", description: "Account number copied to clipboard" })
                         }}
                         className="ml-2 px-2 py-1 text-xs bg-yellow-100 dark:bg-blue-900 text-conference-primary dark:text-blue-300 rounded hover:bg-yellow-200 dark:hover:bg-blue-800 flex-shrink-0"
@@ -1881,18 +1974,19 @@ export default function RegisterPage() {
                       </button>
                     </div>
                   </div>
+                  )}
 
+                  {paymentConfig.bankDetails?.ifscCode && (
                   <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-yellow-200 dark:border-blue-700">
                     <span className="font-medium text-gray-700 dark:text-gray-300 block mb-2">IFSC Code:</span>
                     <div className="flex items-center justify-between bg-gray-50 dark:bg-gray-700 p-3 rounded border">
                       <p className="text-gray-800 dark:text-gray-200 font-mono">
-                        {paymentConfig.bankDetails?.ifscCode || 'UBIN0813796'}
+                        {paymentConfig.bankDetails.ifscCode}
                       </p>
                       <button
                         type="button"
                         onClick={() => {
-                          const ifsc = paymentConfig.bankDetails?.ifscCode || 'UBIN0813796'
-                          navigator.clipboard.writeText(ifsc)
+                          navigator.clipboard.writeText(paymentConfig.bankDetails!.ifscCode!)
                           toast({ title: "Copied!", description: "IFSC code copied to clipboard" })
                         }}
                         className="ml-2 px-2 py-1 text-xs bg-yellow-100 dark:bg-blue-900 text-conference-primary dark:text-blue-300 rounded hover:bg-yellow-200 dark:hover:bg-blue-800 flex-shrink-0"
@@ -1901,18 +1995,19 @@ export default function RegisterPage() {
                       </button>
                     </div>
                   </div>
+                  )}
 
+                  {paymentConfig.bankDetails?.bankName && (
                   <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-yellow-200 dark:border-blue-700">
                     <span className="font-medium text-gray-700 dark:text-gray-300 block mb-2">Bank Name:</span>
                     <div className="flex items-center justify-between bg-gray-50 dark:bg-gray-700 p-3 rounded border">
                       <p className="text-gray-800 dark:text-gray-200 break-all">
-                        {paymentConfig.bankDetails?.bankName || 'Union Bank of India'}
+                        {paymentConfig.bankDetails.bankName}
                       </p>
                       <button
                         type="button"
                         onClick={() => {
-                          const bank = paymentConfig.bankDetails?.bankName || 'Union Bank of India'
-                          navigator.clipboard.writeText(bank)
+                          navigator.clipboard.writeText(paymentConfig.bankDetails!.bankName!)
                           toast({ title: "Copied!", description: "Bank name copied to clipboard" })
                         }}
                         className="ml-2 px-2 py-1 text-xs bg-yellow-100 dark:bg-blue-900 text-conference-primary dark:text-blue-300 rounded hover:bg-yellow-200 dark:hover:bg-blue-800 flex-shrink-0"
@@ -1921,19 +2016,18 @@ export default function RegisterPage() {
                       </button>
                     </div>
                   </div>
+                  )}
 
                   {paymentConfig.bankDetails?.branch && (
                   <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-yellow-200 dark:border-blue-700">
                     <span className="font-medium text-gray-700 dark:text-gray-300 block mb-2">Branch:</span>
                     <div className="flex items-center justify-between bg-gray-50 dark:bg-gray-700 p-3 rounded border">
-                      <p className="text-gray-800 dark:text-gray-200 break-all">{paymentConfig.bankDetails?.branch}</p>
+                      <p className="text-gray-800 dark:text-gray-200 break-all">{paymentConfig.bankDetails.branch}</p>
                       <button
                         type="button"
                         onClick={() => {
-                          if (paymentConfig.bankDetails?.branch) {
-                            navigator.clipboard.writeText(paymentConfig.bankDetails.branch)
-                            toast({ title: "Copied!", description: "Branch name copied to clipboard" })
-                          }
+                          navigator.clipboard.writeText(paymentConfig.bankDetails!.branch!)
+                          toast({ title: "Copied!", description: "Branch name copied to clipboard" })
                         }}
                         className="ml-2 px-2 py-1 text-xs bg-yellow-100 dark:bg-blue-900 text-conference-primary dark:text-blue-300 rounded hover:bg-yellow-200 dark:hover:bg-blue-800 flex-shrink-0"
                       >
@@ -1943,6 +2037,7 @@ export default function RegisterPage() {
                   </div>
                   )}
                 </div>
+                )}
                 <div className="border-t border-yellow-200 dark:border-blue-700 pt-3 mt-4">
                   <p className="text-blue-800 dark:text-blue-200 font-medium">
                     💡 Transfer Amount: ₹{priceCalculation?.finalAmount || 'TBD'}
@@ -1976,6 +2071,71 @@ export default function RegisterPage() {
             </div>
             )}
 
+            {/* Payment Screenshot Upload - Only for Bank Transfer */}
+            {formData.paymentMethod === 'bank-transfer' && (
+            <div data-screenshot-upload>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Payment Screenshot (Optional)
+              </label>
+              <div className={`border-2 border-dashed rounded-lg p-4 text-center ${formData.paymentScreenshot ? 'border-green-400 dark:border-green-600' : 'border-gray-300 dark:border-gray-600'}`}>
+                {formData.paymentScreenshot ? (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-center gap-2 text-green-600 dark:text-green-400">
+                      <CheckCircle className="h-5 w-5" />
+                      <span className="font-medium">{formData.paymentScreenshot.name}</span>
+                    </div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      {(formData.paymentScreenshot.size / 1024).toFixed(1)} KB
+                    </p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setFormData(prev => ({ ...prev, paymentScreenshot: null, paymentScreenshotUrl: "" }))}
+                      className="text-red-500 hover:text-red-600"
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/gif,image/webp"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        if (file) {
+                          // Validate file size (5MB max)
+                          if (file.size > 5 * 1024 * 1024) {
+                            toast({
+                              title: "File too large",
+                              description: "Maximum file size is 5MB",
+                              variant: "destructive"
+                            })
+                            return
+                          }
+                          setFormData(prev => ({ ...prev, paymentScreenshot: file }))
+                        }
+                      }}
+                      className="hidden"
+                      id="payment-screenshot"
+                    />
+                    <label
+                      htmlFor="payment-screenshot"
+                      className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                    >
+                      <FileText className="h-4 w-4" />
+                      <span>Upload Screenshot</span>
+                    </label>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      Upload a screenshot of your payment confirmation (JPEG, PNG, max 5MB)
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+            )}
+
             <div className="flex items-start space-x-2 mt-6">
               <Checkbox
                 id="terms"
@@ -1995,13 +2155,13 @@ export default function RegisterPage() {
             </div>
             </div>
             
-            <div className="flex gap-3 justify-between pt-4 border-t border-gray-200 mt-4">
-              <Button type="button" variant="outline" onClick={() => setStep(2)} className="h-10">
+            <div className="flex gap-3 justify-between pt-5 border-t border-gray-100 mt-5">
+              <Button type="button" variant="outline" onClick={() => setStep(2)} className="h-11 rounded-xl border-gray-200 hover:bg-gray-50 font-medium">
                 Previous
               </Button>
               <Button
                 type="submit"
-                className="bg-conference-primary hover:opacity-90 text-black h-10"
+                className="bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white h-11 rounded-xl shadow-lg shadow-pink-200/50 font-medium disabled:opacity-50"
                 disabled={!formData.agreeTerms || (formData.paymentMethod === 'bank-transfer' && !formData.bankTransferUTR) || loading}
               >
                 {loading ? (
@@ -2140,89 +2300,152 @@ export default function RegisterPage() {
   // Enhanced loading skeleton
   if (!mounted || loadingPricing) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-[#181818]">
+      <div className="min-h-screen relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #f0f4f8 0%, #e8f0f8 30%, #f5f0f8 60%, #f0f4f8 100%)' }}>
+        {/* Animated gradient orbs for loading */}
+        <div className="fixed inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-[-15%] left-[-10%] w-[600px] h-[600px] rounded-full blur-3xl animate-pulse" style={{ background: 'radial-gradient(circle, rgba(30,58,95,0.25) 0%, transparent 70%)' }} />
+          <div className="absolute top-[-10%] right-[-5%] w-[550px] h-[550px] rounded-full blur-3xl animate-pulse" style={{ background: 'radial-gradient(circle, rgba(236,72,153,0.2) 0%, transparent 70%)' }} />
+          <div className="absolute bottom-[-15%] right-[10%] w-[700px] h-[700px] rounded-full blur-3xl animate-pulse" style={{ background: 'radial-gradient(circle, rgba(30,58,95,0.2) 0%, transparent 70%)' }} />
+        </div>
+        
         <Navigation />
-        <div className="pt-24 pb-12 px-4">
+        <div className="relative pt-24 pb-12 px-4 sm:px-6">
           <div className="container mx-auto max-w-6xl">
-            {/* Header Skeleton */}
-            <div className="text-center mb-12">
-              <div className="h-10 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 dark:from-gray-700 dark:via-gray-600 dark:to-gray-700 rounded-lg w-3/4 mx-auto mb-4 animate-pulse"></div>
-              <div className="h-6 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 dark:from-gray-700 dark:via-gray-600 dark:to-gray-700 rounded w-1/2 mx-auto animate-pulse"></div>
-            </div>
-
-            {/* Content Skeleton */}
-            <div className="grid lg:grid-cols-5 gap-6">
-              {/* Left Column */}
+            <div className="grid lg:grid-cols-5 gap-6 lg:gap-10">
+              {/* Left Column Skeleton - LIQUID GLASS */}
               <div className="lg:col-span-2 space-y-6">
-                <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
-                  <div className="h-6 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 dark:from-gray-700 dark:via-gray-600 dark:to-gray-700 rounded w-2/3 mb-4 animate-pulse"></div>
-                  <div className="space-y-3">
-                    <div className="h-4 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 dark:from-gray-700 dark:via-gray-600 dark:to-gray-700 rounded animate-pulse"></div>
-                    <div className="h-4 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 dark:from-gray-700 dark:via-gray-600 dark:to-gray-700 rounded w-5/6 animate-pulse"></div>
-                    <div className="h-4 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 dark:from-gray-700 dark:via-gray-600 dark:to-gray-700 rounded w-4/6 animate-pulse"></div>
+                <div>
+                  <div className="h-12 rounded-xl w-3/4 mb-3 animate-pulse" style={{ background: 'rgba(30,58,95,0.1)' }}></div>
+                  <div className="h-6 rounded-lg w-full animate-pulse" style={{ background: 'rgba(30,58,95,0.05)' }}></div>
+                </div>
+                
+                <div className="rounded-2xl p-5" style={{ 
+                  background: 'rgba(255,255,255,0.4)', 
+                  backdropFilter: 'blur(20px)', 
+                  border: '1px solid rgba(255,255,255,0.5)',
+                  boxShadow: '0 8px 32px rgba(30,58,95,0.1)'
+                }}>
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-pink-400/30 to-pink-300/20 animate-pulse"></div>
+                      <div className="flex-1">
+                        <div className="h-3 rounded w-12 mb-2 animate-pulse" style={{ background: 'rgba(30,58,95,0.1)' }}></div>
+                        <div className="h-4 rounded w-32 animate-pulse" style={{ background: 'rgba(30,58,95,0.15)' }}></div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-400/30 to-indigo-300/20 animate-pulse"></div>
+                      <div className="flex-1">
+                        <div className="h-3 rounded w-12 mb-2 animate-pulse" style={{ background: 'rgba(30,58,95,0.1)' }}></div>
+                        <div className="h-4 rounded w-40 animate-pulse" style={{ background: 'rgba(30,58,95,0.15)' }}></div>
+                      </div>
+                    </div>
                   </div>
                 </div>
-                <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
-                  <div className="h-40 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 dark:from-gray-700 dark:via-gray-600 dark:to-gray-700 rounded animate-pulse"></div>
-                </div>
-              </div>
-
-              {/* Right Column - Form */}
-              <div className="lg:col-span-3">
-                <div className="bg-white dark:bg-gray-800 rounded-xl p-8 shadow-xl">
-                  {/* Progress Steps */}
-                  <div className="flex justify-between mb-8">
+                
+                <div className="rounded-2xl p-5" style={{ 
+                  background: 'rgba(255,255,255,0.4)', 
+                  backdropFilter: 'blur(20px)', 
+                  border: '1px solid rgba(255,255,255,0.5)',
+                  boxShadow: '0 8px 32px rgba(30,58,95,0.1)'
+                }}>
+                  <div className="h-3 rounded w-32 mb-4 animate-pulse" style={{ background: 'rgba(30,58,95,0.1)' }}></div>
+                  <div className="space-y-3">
                     {[1, 2, 3].map((i) => (
-                      <div key={i} className="flex items-center flex-1">
-                        <div className="w-10 h-10 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 dark:from-gray-700 dark:via-gray-600 dark:to-gray-700 rounded-full animate-pulse"></div>
-                        {i < 3 && <div className="flex-1 h-1 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 dark:from-gray-700 dark:via-gray-600 dark:to-gray-700 mx-2 animate-pulse"></div>}
+                      <div key={i} className="flex items-center gap-3 p-3 rounded-xl" style={{ background: 'rgba(30,58,95,0.03)' }}>
+                        <div className="w-8 h-8 rounded-full animate-pulse" style={{ background: 'rgba(30,58,95,0.1)' }}></div>
+                        <div className="h-4 rounded w-24 animate-pulse" style={{ background: 'rgba(30,58,95,0.1)' }}></div>
                       </div>
                     ))}
                   </div>
+                </div>
+              </div>
 
-                  {/* Form Fields */}
+              {/* Right Column - Form Skeleton - LIQUID GLASS */}
+              <div className="lg:col-span-3">
+                <div className="rounded-3xl p-8" style={{ 
+                  background: 'rgba(255,255,255,0.5)', 
+                  backdropFilter: 'blur(24px)', 
+                  border: '1px solid rgba(255,255,255,0.6)',
+                  boxShadow: '0 25px 50px rgba(30,58,95,0.12), inset 0 2px 2px rgba(255,255,255,0.8)'
+                }}>
                   <div className="space-y-6">
-                    <div>
-                      <div className="h-4 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 dark:from-gray-700 dark:via-gray-600 dark:to-gray-700 rounded w-24 mb-2 animate-pulse"></div>
-                      <div className="h-10 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 dark:from-gray-700 dark:via-gray-600 dark:to-gray-700 rounded animate-pulse"></div>
+                    <div className="flex items-center gap-3 pb-4 border-b" style={{ borderColor: 'rgba(30,58,95,0.1)' }}>
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-pink-400/30 to-purple-300/20 animate-pulse"></div>
+                      <div>
+                        <div className="h-6 rounded w-40 mb-2 animate-pulse" style={{ background: 'rgba(30,58,95,0.15)' }}></div>
+                        <div className="h-4 rounded w-20 animate-pulse" style={{ background: 'rgba(30,58,95,0.08)' }}></div>
+                      </div>
                     </div>
+                    
                     <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <div className="h-4 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 dark:from-gray-700 dark:via-gray-600 dark:to-gray-700 rounded w-24 mb-2 animate-pulse"></div>
-                        <div className="h-10 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 dark:from-gray-700 dark:via-gray-600 dark:to-gray-700 rounded animate-pulse"></div>
-                      </div>
-                      <div>
-                        <div className="h-4 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 dark:from-gray-700 dark:via-gray-600 dark:to-gray-700 rounded w-24 mb-2 animate-pulse"></div>
-                        <div className="h-10 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 dark:from-gray-700 dark:via-gray-600 dark:to-gray-700 rounded animate-pulse"></div>
-                      </div>
+                      {[1, 2, 3, 4].map((i) => (
+                        <div key={i}>
+                          <div className="h-3 rounded w-20 mb-2 animate-pulse" style={{ background: 'rgba(30,58,95,0.1)' }}></div>
+                          <div className="h-11 rounded-xl animate-pulse" style={{ background: 'rgba(30,58,95,0.05)' }}></div>
+                        </div>
+                      ))}
                     </div>
+                    
                     <div>
-                      <div className="h-4 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 dark:from-gray-700 dark:via-gray-600 dark:to-gray-700 rounded w-24 mb-2 animate-pulse"></div>
-                      <div className="h-10 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 dark:from-gray-700 dark:via-gray-600 dark:to-gray-700 rounded animate-pulse"></div>
+                      <div className="h-3 rounded w-24 mb-2 animate-pulse" style={{ background: 'rgba(30,58,95,0.1)' }}></div>
+                      <div className="h-11 rounded-xl animate-pulse" style={{ background: 'rgba(30,58,95,0.05)' }}></div>
                     </div>
-                    <div>
-                      <div className="h-4 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 dark:from-gray-700 dark:via-gray-600 dark:to-gray-700 rounded w-24 mb-2 animate-pulse"></div>
-                      <div className="h-10 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 dark:from-gray-700 dark:via-gray-600 dark:to-gray-700 rounded animate-pulse"></div>
-                    </div>
-                  </div>
-
-                  {/* Button */}
-                  <div className="mt-8">
-                    <div className="h-12 bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-400 rounded-lg animate-pulse"></div>
+                    
+                    <div className="h-12 bg-gradient-to-r from-pink-400/40 to-purple-400/40 rounded-xl animate-pulse"></div>
                   </div>
                 </div>
               </div>
             </div>
 
             {/* Loading Text */}
-            <div className="text-center mt-8">
-              <div className="inline-flex items-center gap-2 text-gray-600 dark:text-gray-400">
-                <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <span className="font-medium">Loading registration form...</span>
+            <div className="text-center mt-10">
+              <div className="inline-flex items-center gap-3 px-6 py-3 bg-white rounded-full border border-gray-100 shadow-lg">
+                <div className="w-5 h-5 border-2 border-pink-500 border-t-transparent rounded-full animate-spin"></div>
+                <span className="text-sm font-medium text-gray-600">Loading registration form...</span>
               </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Show maintenance mode for non-admin users
+  const isAdmin = (session?.user as any)?.role === 'admin'
+  if (maintenanceMode && !isAdmin) {
+    return (
+      <div className="min-h-screen relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #f0f4f8 0%, #e8f0f8 30%, #f5f0f8 60%, #f0f4f8 100%)' }}>
+        <div className="fixed inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-[-15%] left-[-10%] w-[600px] h-[600px] rounded-full blur-3xl" style={{ background: 'radial-gradient(circle, rgba(30,58,95,0.25) 0%, transparent 70%)' }} />
+          <div className="absolute bottom-[-15%] right-[10%] w-[700px] h-[700px] rounded-full blur-3xl" style={{ background: 'radial-gradient(circle, rgba(30,58,95,0.2) 0%, transparent 70%)' }} />
+        </div>
+        <Navigation />
+        <div className="relative min-h-screen flex items-center justify-center pt-20 px-4">
+          <div className="max-w-lg w-full">
+            <div className="rounded-3xl p-10 text-center" style={{ 
+              background: 'rgba(255,255,255,0.5)', 
+              backdropFilter: 'blur(24px)', 
+              WebkitBackdropFilter: 'blur(24px)',
+              border: '1px solid rgba(255,255,255,0.6)',
+              boxShadow: '0 25px 50px rgba(30,58,95,0.12), inset 0 2px 2px rgba(255,255,255,0.8)'
+            }}>
+              <div className="mb-8">
+                <div className="w-20 h-20 mx-auto rounded-2xl bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center shadow-lg">
+                  <svg className="w-10 h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                  </svg>
+                </div>
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-3 tracking-tight">
+                Registration Under Maintenance
+              </h2>
+              <p className="text-gray-500 mb-6 text-sm leading-relaxed">
+                We are currently updating our registration system. Please check back shortly.
+              </p>
+              <p className="text-gray-400 text-xs">
+                For urgent queries, contact us at {conferenceConfig.contact.supportEmail || conferenceConfig.contact.email}
+              </p>
             </div>
           </div>
         </div>
@@ -2235,52 +2458,69 @@ export default function RegisterPage() {
     const redirectUrl = paymentConfig.redirectUrl || paymentConfig.externalRedirectUrl || ''
     
     return (
-      <div className="min-h-screen bg-white dark:bg-[#181818]">
+      <div className="min-h-screen relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #f0f4f8 0%, #e8f0f8 30%, #f5f0f8 60%, #f0f4f8 100%)' }}>
+        {/* Animated gradient orbs */}
+        <div className="fixed inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-[-15%] left-[-10%] w-[600px] h-[600px] rounded-full blur-3xl" style={{ background: 'radial-gradient(circle, rgba(30,58,95,0.25) 0%, transparent 70%)' }} />
+          <div className="absolute top-[-10%] right-[-5%] w-[550px] h-[550px] rounded-full blur-3xl" style={{ background: 'radial-gradient(circle, rgba(236,72,153,0.2) 0%, transparent 70%)' }} />
+          <div className="absolute bottom-[-15%] right-[10%] w-[700px] h-[700px] rounded-full blur-3xl" style={{ background: 'radial-gradient(circle, rgba(30,58,95,0.2) 0%, transparent 70%)' }} />
+        </div>
+        
         <Navigation />
-        <div className="min-h-screen flex items-center justify-center pt-20">
-          <div className="text-center p-8 max-w-2xl mx-auto">
-            <div className="mb-8">
-              <svg className="w-20 h-20 mx-auto text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-              </svg>
-            </div>
-            
-            <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
-              External Registration Enabled
-            </h2>
-            <p className="text-lg text-gray-600 dark:text-gray-400 mb-8">
-              Registration is handled through an external system. Click the button below to open the registration page.
-            </p>
-            
-            {redirectUrl && (
-              <div className="space-y-4">
-                <a
-                  href={redirectUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 text-lg"
-                >
-                  <span>Open Registration Page</span>
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <div className="relative min-h-screen flex items-center justify-center pt-20 px-4">
+          <div className="max-w-lg w-full">
+            <div className="rounded-3xl p-10 text-center" style={{ 
+              background: 'rgba(255,255,255,0.5)', 
+              backdropFilter: 'blur(24px)', 
+              WebkitBackdropFilter: 'blur(24px)',
+              border: '1px solid rgba(255,255,255,0.6)',
+              boxShadow: '0 25px 50px rgba(30,58,95,0.12), inset 0 2px 2px rgba(255,255,255,0.8)'
+            }}>
+              <div className="mb-8">
+                <div className="w-20 h-20 mx-auto rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg">
+                  <svg className="w-10 h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                   </svg>
-                </a>
-                
-                <div className="mt-6 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg">
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                    <strong>Note:</strong> If the page didn't open automatically, your browser may have blocked the popup.
-                  </p>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Please click the button above or copy this link:
-                  </p>
-                  <div className="mt-2 p-3 bg-white dark:bg-gray-900 rounded border border-gray-300 dark:border-gray-700">
-                    <code className="text-sm text-blue-600 dark:text-blue-400 break-all">
-                      {redirectUrl}
-                    </code>
-                  </div>
                 </div>
               </div>
-            )}
+              
+              <h2 className="text-2xl font-bold text-gray-900 mb-3 tracking-tight">
+                External Registration
+              </h2>
+              <p className="text-gray-500 mb-8 text-sm leading-relaxed">
+                Registration is handled through an external system. Click below to open the registration page.
+              </p>
+              
+              {redirectUrl && (
+                <div className="space-y-6">
+                  <a
+                    href={redirectUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 text-base"
+                  >
+                    <span>Open Registration</span>
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                  </a>
+                  
+                  <div className="rounded-xl p-5 text-left" style={{ 
+                    background: 'rgba(30,58,95,0.03)', 
+                    border: '1px solid rgba(30,58,95,0.08)' 
+                  }}>
+                    <p className="text-xs text-gray-500 mb-3">
+                      If the page didn't open automatically, copy this link:
+                    </p>
+                    <div className="p-3 rounded-lg" style={{ background: 'rgba(255,255,255,0.7)', border: '1px solid rgba(30,58,95,0.1)' }}>
+                      <code className="text-xs text-pink-600 break-all">
+                        {redirectUrl}
+                      </code>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -2288,119 +2528,267 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-[#181818] text-gray-800 dark:text-gray-200">
+    <div 
+      className="min-h-screen text-gray-800 relative overflow-hidden"
+      style={{ 
+        background: 'linear-gradient(135deg, #e8eef5 0%, #f0f4f8 25%, #f8f0f5 50%, #f0f4f8 75%, #e8eef5 100%)',
+        minHeight: '100vh'
+      }}
+    >
+      {/* Animated gradient orbs - High contrast for glass effect */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none" style={{ zIndex: 0 }}>
+        {/* Primary dark blue orb - top left */}
+        <div 
+          style={{ 
+            position: 'absolute',
+            top: '-5%', 
+            left: '-5%', 
+            width: '50%', 
+            height: '50%', 
+            borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(30,58,95,0.4) 0%, rgba(30,58,95,0.15) 50%, transparent 70%)',
+            filter: 'blur(100px)',
+          }} 
+        />
+        {/* Pink accent orb - top right */}
+        <div 
+          style={{ 
+            position: 'absolute',
+            top: '-10%', 
+            right: '-10%', 
+            width: '45%', 
+            height: '45%', 
+            borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(236,72,153,0.35) 0%, rgba(236,72,153,0.1) 50%, transparent 70%)',
+            filter: 'blur(80px)',
+          }} 
+        />
+        {/* Dark blue orb - bottom right */}
+        <div 
+          style={{ 
+            position: 'absolute',
+            bottom: '-15%', 
+            right: '5%', 
+            width: '55%', 
+            height: '55%', 
+            borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(30,58,95,0.35) 0%, rgba(30,58,95,0.1) 50%, transparent 70%)',
+            filter: 'blur(120px)',
+          }} 
+        />
+        {/* Pink orb - bottom left */}
+        <div 
+          style={{ 
+            position: 'absolute',
+            bottom: '0%', 
+            left: '-5%', 
+            width: '40%', 
+            height: '40%', 
+            borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(236,72,153,0.25) 0%, rgba(236,72,153,0.08) 50%, transparent 70%)',
+            filter: 'blur(80px)',
+          }} 
+        />
+        {/* Center purple accent */}
+        <div 
+          style={{ 
+            position: 'absolute',
+            top: '35%', 
+            left: '25%', 
+            width: '35%', 
+            height: '35%', 
+            borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(99,102,241,0.2) 0%, rgba(99,102,241,0.05) 50%, transparent 70%)',
+            filter: 'blur(70px)',
+          }} 
+        />
+      </div>
+      
       <Navigation />
+
+      {/* Admin maintenance mode banner */}
+      {maintenanceMode && isAdmin && (
+        <div className="fixed top-0 left-0 right-0 z-50 bg-orange-500 text-white text-center py-2 text-sm font-medium">
+          🔧 Maintenance Mode Active — Only admins can see this page. Regular users see a maintenance screen.
+        </div>
+      )}
 
       {/* Loading Overlay during payment verification */}
       {loading && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl p-8 shadow-2xl max-w-md mx-4">
-            <div className="text-center">
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ backgroundColor: 'rgba(255,255,255,0.4)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}>
+          <div 
+            className="rounded-3xl p-10 max-w-md mx-4 relative overflow-hidden"
+            style={{
+              background: 'rgba(255, 255, 255, 0.25)',
+              backdropFilter: 'blur(40px) saturate(180%)',
+              WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+              border: '1px solid rgba(255, 255, 255, 0.3)',
+              boxShadow: '0 25px 50px rgba(30, 58, 95, 0.2), inset 0 1px 1px rgba(255, 255, 255, 0.6)'
+            }}
+          >
+            {/* Glass inner highlight */}
+            <div className="absolute inset-0 rounded-3xl pointer-events-none" style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.4) 0%, transparent 50%)' }} />
+            <div className="text-center relative z-10">
               <div className="relative w-20 h-20 mx-auto mb-6">
-                <div className="absolute inset-0 border-4 border-yellow-200 dark:border-yellow-900 rounded-full"></div>
-                <div className="absolute inset-0 border-4 border-yellow-500 rounded-full border-t-transparent animate-spin"></div>
+                <div className="absolute inset-0 border-4 border-pink-100 rounded-full"></div>
+                <div className="absolute inset-0 border-4 border-pink-500 rounded-full border-t-transparent animate-spin"></div>
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <svg className="w-8 h-8 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="w-8 h-8 text-pink-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
                 </div>
               </div>
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+              <h3 className="text-xl font-semibold text-gray-900 mb-2 tracking-tight">
                 Processing Payment
               </h3>
-              <p className="text-gray-600 dark:text-gray-400 mb-4">
-                Please wait while we verify your payment and create your registration...
+              <p className="text-gray-500 mb-4 text-sm">
+                Please wait while we verify your payment...
               </p>
-              <div className="flex items-center justify-center gap-1">
-                <div className="w-2 h-2 bg-yellow-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                <div className="w-2 h-2 bg-yellow-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                <div className="w-2 h-2 bg-yellow-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+              <div className="flex items-center justify-center gap-1.5">
+                <div className="w-2 h-2 bg-pink-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                <div className="w-2 h-2 bg-pink-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                <div className="w-2 h-2 bg-pink-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
               </div>
-              <p className="text-xs text-gray-500 dark:text-gray-500 mt-4">
-                This usually takes just a few seconds
-              </p>
             </div>
           </div>
         </div>
       )}
 
-      <div className="pt-16 pb-8">
-        {/* Compact Two-Column Layout */}
-        <div className="container mx-auto px-3 sm:px-4 max-w-7xl">
-          <div className="grid lg:grid-cols-5 gap-4 lg:gap-6">
+      <div className="relative pt-20 pb-12 px-4 sm:px-6">
+        <div className="container mx-auto max-w-6xl">
+          <div className="grid lg:grid-cols-5 gap-6 lg:gap-10">
             
             {/* LEFT SIDE - Conference Info (Sticky) */}
-            <div className="lg:col-span-2 lg:sticky lg:top-20 lg:self-start">
-              <div className="space-y-4">
+            <div className="lg:col-span-2 lg:sticky lg:top-24 lg:self-start">
+              <div className="space-y-6">
                 {/* Conference Title */}
                 <div>
-                  <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 dark:text-white mb-2">
+                  <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-gray-900 tracking-tight mb-3">
                     {conferenceConfig.shortName}
                   </h1>
-                  <p className="text-sm sm:text-base text-gray-600 dark:text-gray-300">
+                  <p className="text-base sm:text-lg text-gray-600 font-medium leading-relaxed">
                     {conferenceConfig.name}
                   </p>
                 </div>
 
-                {/* Date & Location */}
-                <div className="space-y-2">
-                  <div className="flex items-start gap-2">
-                    <Calendar className="w-4 h-4 text-conference-primary mt-0.5 flex-shrink-0" />
-                    <div>
-                      <p className="text-sm font-semibold text-gray-900 dark:text-white">Date</p>
-                      <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-                        {new Date(conferenceConfig.eventDate.start).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {new Date(conferenceConfig.eventDate.end).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                      </p>
+                {/* Date & Location Card - LIQUID GLASS */}
+                <div 
+                  className="rounded-3xl p-5 space-y-4 relative overflow-hidden"
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.2)',
+                    backdropFilter: 'blur(40px) saturate(180%)',
+                    WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+                    border: '1px solid rgba(255, 255, 255, 0.3)',
+                    boxShadow: '0 8px 32px rgba(30, 58, 95, 0.15), inset 0 1px 1px rgba(255, 255, 255, 0.6)'
+                  }}
+                >
+                  {/* Glass inner highlight */}
+                  <div className="absolute inset-0 rounded-3xl pointer-events-none" style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.3) 0%, transparent 50%)' }} />
+                  <div className="relative z-10 space-y-4">
+                    <div className="flex items-start gap-3">
+                      <div className="p-2.5 rounded-xl bg-gradient-to-br from-pink-500 to-pink-600 text-white shadow-md">
+                        <Calendar className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-0.5">Date</p>
+                        <p className="text-sm font-bold text-gray-900">
+                          {new Date(conferenceConfig.eventDate.start).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {new Date(conferenceConfig.eventDate.end).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                  
-                  <div className="flex items-start gap-2">
-                    <MapPin className="w-4 h-4 text-conference-primary mt-0.5 flex-shrink-0" />
-                    <div>
-                      <p className="text-sm font-semibold text-gray-900">Venue</p>
-                      <p className="text-xs sm:text-sm text-gray-600">{conferenceConfig.venue.name}</p>
-                      <p className="text-xs sm:text-sm text-gray-600">{conferenceConfig.venue.city}, {conferenceConfig.venue.state}</p>
+                    
+                    <div className="flex items-start gap-3">
+                      <div className="p-2.5 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-md">
+                        <MapPin className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-0.5">Venue</p>
+                        <p className="text-sm font-bold text-gray-900">{conferenceConfig.venue.name}</p>
+                        <p className="text-sm font-semibold text-gray-600">{conferenceConfig.venue.city}, {conferenceConfig.venue.state}</p>
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Registration Steps */}
-                <div className="bg-gray-50 rounded-lg p-3 sm:p-4">
-                  <h3 className="text-sm font-semibold text-gray-900 mb-3">Registration Steps</h3>
-                  <div className="space-y-2">
-                    {steps.map((s, i) => (
-                      <div key={i} className="flex items-center gap-2">
-                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold ${
-                          s.completed ? 'bg-green-500 text-white' : 
-                          s.current ? 'bg-conference-primary text-black' : 
-                          'bg-gray-200 text-gray-500'
+                {/* Registration Steps Card - LIQUID GLASS */}
+                <div 
+                  className="rounded-3xl p-5 relative overflow-hidden"
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.2)',
+                    backdropFilter: 'blur(40px) saturate(180%)',
+                    WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+                    border: '1px solid rgba(255, 255, 255, 0.3)',
+                    boxShadow: '0 8px 32px rgba(30, 58, 95, 0.15), inset 0 1px 1px rgba(255, 255, 255, 0.6)'
+                  }}
+                >
+                  {/* Glass inner highlight */}
+                  <div className="absolute inset-0 rounded-3xl pointer-events-none" style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.3) 0%, transparent 50%)' }} />
+                  <div className="relative z-10">
+                    <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">Registration Progress</h3>
+                    <div className="space-y-3">
+                      {steps.map((s, i) => (
+                        <div key={i} className={`flex items-center gap-3 p-3 rounded-xl transition-all duration-300 ${
+                          s.current ? 'bg-gradient-to-r from-pink-50/80 to-purple-50/80 border border-pink-200' : 
+                          s.completed ? 'bg-green-50/80' : 'bg-white/50'
                         }`}>
-                          {s.completed ? <CheckCircle className="w-4 h-4" /> : i + 1}
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${
+                            s.completed ? 'bg-gradient-to-br from-green-400 to-green-500 text-white shadow-md' : 
+                            s.current ? 'bg-gradient-to-br from-pink-500 to-purple-500 text-white shadow-md' : 
+                            'bg-gray-200 text-gray-500'
+                          }`}>
+                            {s.completed ? <CheckCircle className="w-4 h-4" /> : i + 1}
+                          </div>
+                          <span className={`text-sm font-bold ${s.current ? 'text-gray-900' : s.completed ? 'text-green-700' : 'text-gray-500'}`}>
+                            {s.label}
+                          </span>
                         </div>
-                        <span className={`text-xs sm:text-sm ${s.current ? 'font-semibold text-gray-900' : 'text-gray-600'}`}>
-                          {s.label}
-                        </span>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
                 </div>
 
                 {/* Already have account */}
-                <div className="text-xs sm:text-sm text-gray-600">
-                  Already registered? <Link href="/login" className="text-conference-primary font-semibold hover:underline">Sign in here</Link>
-                </div>
+                <p className="text-sm font-semibold text-gray-600 text-center lg:text-left">
+                  Already registered?{' '}
+                  <Link href="/login" className="text-pink-600 font-bold hover:text-pink-700 transition-colors">
+                    Sign in here
+                  </Link>
+                </p>
               </div>
             </div>
 
-            {/* RIGHT SIDE - Registration Form */}
-            <div className="lg:col-span-3">
-              <Card className="shadow-sm border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#1f1f1f]">
-                <CardContent className="p-3 sm:p-4 md:p-5">
+            {/* RIGHT SIDE - Registration Form - LIQUID GLASS CARD */}
+            <div className="lg:col-span-3" style={{ position: 'relative', zIndex: 10 }}>
+              <div 
+                className="rounded-3xl overflow-hidden relative"
+                style={{
+                  background: 'rgba(255, 255, 255, 0.25)',
+                  backdropFilter: 'blur(40px) saturate(180%)',
+                  WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+                  border: '1px solid rgba(255, 255, 255, 0.35)',
+                  boxShadow: '0 25px 50px rgba(30, 58, 95, 0.2), 0 10px 20px rgba(30, 58, 95, 0.1), inset 0 1px 2px rgba(255, 255, 255, 0.7)'
+                }}
+              >
+                {/* Glass inner highlight */}
+                <div className="absolute inset-0 rounded-3xl pointer-events-none" style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.4) 0%, transparent 40%)' }} />
+                <div className="p-6 sm:p-8 relative z-10">
                   <form onSubmit={handleSubmit}>
                     {renderStepContent()}
                   </form>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
+              
+              {/* Trust badges */}
+              <div className="mt-6 flex items-center justify-center gap-6 text-xs font-semibold text-gray-500">
+                <div className="flex items-center gap-1.5">
+                  <Shield className="w-4 h-4" />
+                  <span>Secure Payment</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <CheckCircle className="w-4 h-4" />
+                  <span>Instant Confirmation</span>
+                </div>
+              </div>
             </div>
 
           </div>

@@ -144,6 +144,7 @@ export interface ConferenceConfig {
   // Abstract Submission
   abstracts: {
     enabled: boolean
+    enableAbstractsWithoutRegistration?: boolean  // Allow unregistered users to submit abstracts
     submissionWindow?: {
       enabled: boolean
       start: string
@@ -262,7 +263,7 @@ export const conferenceConfig: ConferenceConfig = {
       ]
     }
   },
-  
+
   // Contact
   contact: {
     email: "contact@isshmidtermcme2026.com",
@@ -306,20 +307,12 @@ export const conferenceConfig: ConferenceConfig = {
         membershipField: "membershipNumber"
       },
       {
-        key: "consultant",
-        label: "Consultant / Practicing Surgeon"
+        key: "non-issh-member",
+        label: "Non ISSH Member"
       },
       {
         key: "postgraduate",
-        label: "Postgraduate / Resident"
-      },
-      {
-        key: "international",
-        label: "International Delegate"
-      },
-      {
-        key: "complimentary",
-        label: "Complimentary Registration"
+        label: "Postgraduate"
       }
     ],
     
@@ -354,27 +347,28 @@ export const conferenceConfig: ConferenceConfig = {
       earlyBird: {
         enabled: true,
         startDate: "2025-10-01",
-        endDate: "2026-01-31",
+        endDate: "2026-02-14",
         label: "Early Bird"
       },
       regular: {
         enabled: true,
-        startDate: "2026-02-01",
-        endDate: "2026-04-20",
+        startDate: "2026-02-15",
+        endDate: "2026-03-31",
         label: "Regular"
       },
       onsite: {
         enabled: true,
-        startDate: "2026-04-21",
+        startDate: "2026-04-01",
         endDate: "2026-04-26",
         label: "Late / Spot Registration"
       }
     }
   },
   
-  // Abstracts - Disabled for now
+  // Abstracts
   abstracts: {
     enabled: false,
+    enableAbstractsWithoutRegistration: false,  // New field from TNSCON2026 structure, disabled for ISSH
     submissionWindow: {
       enabled: false,
       start: "2025-10-01",

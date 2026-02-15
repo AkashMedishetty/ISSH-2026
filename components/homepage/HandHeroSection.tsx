@@ -13,18 +13,24 @@ import {
   WELCOME_MODEL_URL,
   WELCOME_PRECOMPUTED_URL,
   HERO_CONFIG,
+  HERO_CONFIG_LAPTOP,
   HERO_CONFIG_MOBILE,
   WELCOME_CONFIG,
+  WELCOME_CONFIG_LAPTOP,
   WELCOME_CONFIG_MOBILE,
   CHARMINAR_MODEL_URL,
   CHARMINAR_PRECOMPUTED_URL,
   CHARMINAR_CONFIG,
+  CHARMINAR_CONFIG_LAPTOP,
   CHARMINAR_CONFIG_MOBILE,
   COMMITTEE_SCALE_MOBILE,
+  COMMITTEE_SCALE_LAPTOP,
   COMMITTEE_SCALE_DESKTOP,
   COMMITTEE_Y_MOBILE,
+  COMMITTEE_Y_LAPTOP,
   COMMITTEE_Y_DESKTOP,
 } from './hero/constants';
+import { getDeviceType, DeviceType } from './hero/getDeviceType';
 import { loadPointData, normalizePointArrays } from './hero/pointCloudUtils';
 import { DebugControls, DebugValues } from './hero/DebugControls';
 import { Navigation } from './hero/Navigation';
@@ -70,12 +76,14 @@ export function HandHeroSection() {
   const colorTweenRef = useRef<gsap.core.Tween | null>(null);
   const [scrollProgress, setScrollProgress] = useState(0);
   const [pastExploreSection, setPastExploreSection] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
+  const [deviceType, setDeviceType] = useState<DeviceType>('desktop');
 
-  // Get config based on device
-  const heroConfig = isMobile ? HERO_CONFIG_MOBILE : HERO_CONFIG;
-  const welcomeConfig = isMobile ? WELCOME_CONFIG_MOBILE : WELCOME_CONFIG;
-  const charminarConfig = isMobile ? CHARMINAR_CONFIG_MOBILE : CHARMINAR_CONFIG;
+  // Get config based on device type (three-way: mobile / laptop / desktop)
+  const heroConfig = deviceType === 'mobile' ? HERO_CONFIG_MOBILE : deviceType === 'laptop' ? HERO_CONFIG_LAPTOP : HERO_CONFIG;
+  const welcomeConfig = deviceType === 'mobile' ? WELCOME_CONFIG_MOBILE : deviceType === 'laptop' ? WELCOME_CONFIG_LAPTOP : WELCOME_CONFIG;
+  const charminarConfig = deviceType === 'mobile' ? CHARMINAR_CONFIG_MOBILE : deviceType === 'laptop' ? CHARMINAR_CONFIG_LAPTOP : CHARMINAR_CONFIG;
+  const committeeScale = deviceType === 'mobile' ? COMMITTEE_SCALE_MOBILE : deviceType === 'laptop' ? COMMITTEE_SCALE_LAPTOP : COMMITTEE_SCALE_DESKTOP;
+  const committeeY = deviceType === 'mobile' ? COMMITTEE_Y_MOBILE : deviceType === 'laptop' ? COMMITTEE_Y_LAPTOP : COMMITTEE_Y_DESKTOP;
 
   const [debugValues, setDebugValues] = useState<DebugValues>({
     rotX: HERO_CONFIG.rotationX,
@@ -107,13 +115,20 @@ export function HandHeroSection() {
 
   useEffect(() => {
     setMounted(true);
-    setIsMobile(window.innerWidth < 768);
+    setDeviceType(getDeviceType(window.innerWidth));
+
+    const handleDeviceResize = () => {
+      setDeviceType(getDeviceType(window.innerWidth));
+    };
+    window.addEventListener('resize', handleDeviceResize);
+    return () => window.removeEventListener('resize', handleDeviceResize);
   }, []);
 
   useEffect(() => {
     if (!mounted || !canvasRef.current) return;
 
-    const mobile = window.innerWidth < 768;
+    const device = getDeviceType(window.innerWidth);
+    const mobile = device === 'mobile';
     const particleCount = mobile ? PARTICLE_COUNT_MOBILE : PARTICLE_COUNT;
 
     // Three.js setup
@@ -348,8 +363,8 @@ export function HandHeroSection() {
       const letterHeight = 9;
       const letterSpacing = 1;
       const lineSpacing = 2;
-      // Responsive scale - much smaller on mobile to fit screen width
-      const scale = mobile ? COMMITTEE_SCALE_MOBILE : COMMITTEE_SCALE_DESKTOP;
+      // Responsive scale - smaller on mobile, intermediate on laptop
+      const scale = device === 'mobile' ? COMMITTEE_SCALE_MOBILE : device === 'laptop' ? COMMITTEE_SCALE_LAPTOP : COMMITTEE_SCALE_DESKTOP;
       
       // Calculate widths for centering each line
       const calcWidth = (text: string) => {
@@ -596,11 +611,11 @@ export function HandHeroSection() {
 
     // Setup scroll triggers
     const setupScrollTriggers = () => {
-      // Get mobile-specific configs
-      const heroConf = mobile ? HERO_CONFIG_MOBILE : HERO_CONFIG;
-      const welcomeConf = mobile ? WELCOME_CONFIG_MOBILE : WELCOME_CONFIG;
-      const charminarConf = mobile ? CHARMINAR_CONFIG_MOBILE : CHARMINAR_CONFIG;
-      const committeeYPos = mobile ? COMMITTEE_Y_MOBILE : COMMITTEE_Y_DESKTOP;
+      // Get device-specific configs (three-way: mobile / laptop / desktop)
+      const heroConf = device === 'mobile' ? HERO_CONFIG_MOBILE : device === 'laptop' ? HERO_CONFIG_LAPTOP : HERO_CONFIG;
+      const welcomeConf = device === 'mobile' ? WELCOME_CONFIG_MOBILE : device === 'laptop' ? WELCOME_CONFIG_LAPTOP : WELCOME_CONFIG;
+      const charminarConf = device === 'mobile' ? CHARMINAR_CONFIG_MOBILE : device === 'laptop' ? CHARMINAR_CONFIG_LAPTOP : CHARMINAR_CONFIG;
+      const committeeYPos = device === 'mobile' ? COMMITTEE_Y_MOBILE : device === 'laptop' ? COMMITTEE_Y_LAPTOP : COMMITTEE_Y_DESKTOP;
 
       // Hero section
       ScrollTrigger.create({
@@ -842,10 +857,9 @@ export function HandHeroSection() {
       
       // Single trigger: form when explore section is visible
       // On mobile, trigger earlier (when 30% from top), on desktop when 20% from top
-      const isMobile = window.innerWidth < 768;
       ScrollTrigger.create({
         trigger: exploreSectionRef.current,
-        start: isMobile ? 'top 70%' : 'top 20%', // Trigger earlier - when section enters viewport
+        start: mobile ? 'top 70%' : 'top 20%', // Trigger earlier - when section enters viewport
         end: 'bottom top',   // Section bottom hits screen top - HIDE
         onEnter: () => {
           // Reset flags to allow re-formation

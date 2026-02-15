@@ -44,13 +44,27 @@ export class CertificateGenerator {
   private static async launchBrowser(): Promise<Browser> {
     const isVercel = process.env.VERCEL === '1'
     
+    // Default viewport for certificate generation
+    const viewport = {
+      deviceScaleFactor: 1,
+      hasTouch: false,
+      height: 800,
+      isLandscape: true,
+      isMobile: false,
+      width: 1200,
+    }
+    
     if (isVercel) {
       const chromium = require('@sparticuz/chromium')
+      
+      // Disable WebGL for better performance in serverless
+      chromium.setGraphicsMode = false
+      
       return await puppeteer.launch({
         args: chromium.args,
-        defaultViewport: chromium.defaultViewport,
+        defaultViewport: viewport,
         executablePath: await chromium.executablePath(),
-        headless: chromium.headless,
+        headless: true,
       })
     }
 
@@ -77,6 +91,7 @@ export class CertificateGenerator {
 
     return await puppeteer.launch({
       headless: true,
+      defaultViewport: viewport,
       executablePath: executablePath || undefined,
       args: [
         '--no-sandbox',

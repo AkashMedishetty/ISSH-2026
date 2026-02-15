@@ -70,6 +70,7 @@ export async function POST(request: NextRequest) {
         const registrationTypeLabel = registrationCategory?.label || user.registration.type
         
         await EmailService.sendRegistrationConfirmation({
+          userId: user._id.toString(),
           email: user.email,
           name: `${user.profile.firstName} ${user.profile.lastName}`,
           registrationId: user.registration.registrationId,

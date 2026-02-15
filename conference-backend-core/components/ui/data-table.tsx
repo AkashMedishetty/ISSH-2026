@@ -102,7 +102,7 @@ export function DataTable<T extends Record<string, any>>({
 
     // Apply filters
     Object.entries(filters).forEach(([columnKey, filterValue]) => {
-      if (filterValue) {
+      if (filterValue && filterValue !== '__all__') {
         result = result.filter(row =>
           String(row[columnKey] || "")
             .toLowerCase()
@@ -220,7 +220,7 @@ export function DataTable<T extends Record<string, any>>({
                   <SelectValue placeholder={`Filter by ${column.label}`} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All {column.label}</SelectItem>
+                  <SelectItem value="__all__">All {column.label}</SelectItem>
                   {Array.from(new Set(data.map(row => row[column.key])))
                     .filter(Boolean)
                     .map(value => (
