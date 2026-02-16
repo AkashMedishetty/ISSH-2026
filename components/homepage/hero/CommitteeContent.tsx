@@ -112,8 +112,8 @@ export function CommitteeContent() {
         </h2>
       </div>
 
-      {/* Office Bearers Row - 4 columns */}
-      <div className="grid grid-cols-4 gap-1 md:gap-2 mb-2 md:mb-3">
+      {/* Office Bearers Row - responsive grid */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-1 md:gap-2 mb-2 md:mb-3">
         <Section title="ISSH Office Bearers">
           {isshBearers.map((m) => <MemberCard key={m.name} member={m} />)}
         </Section>

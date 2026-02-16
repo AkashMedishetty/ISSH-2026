@@ -1127,7 +1127,7 @@ export function HandHeroSection() {
       {/* Content sections */}
       <div className="relative z-[10]">
         {/* SECTION 1: Hero */}
-        <section ref={heroSectionRef} className="h-screen flex items-end pb-16 md:pb-24">
+        <section ref={heroSectionRef} className="min-h-screen flex items-end pb-16 md:pb-24">
           <div 
             ref={heroContentRef}
             className="section-content w-full px-4 sm:px-6 md:px-8 lg:px-12"
@@ -1137,7 +1137,7 @@ export function HandHeroSection() {
         </section>
 
         {/* SECTION 2: Welcome */}
-        <section ref={welcomeSectionRef} className="h-screen flex items-end md:items-center pb-8 md:pb-0">
+        <section ref={welcomeSectionRef} className="min-h-screen flex items-end md:items-center py-8 md:py-0">
           <div 
             ref={welcomeContentRef}
             className="section-content section-right w-full px-4 sm:px-6 md:px-8 lg:px-12"
@@ -1147,7 +1147,7 @@ export function HandHeroSection() {
         </section>
 
         {/* SECTION 3: About / Why Attend */}
-        <section ref={aboutSectionRef} className="h-screen flex items-center">
+        <section ref={aboutSectionRef} className="min-h-screen flex items-center py-8 md:py-0">
           <div 
             ref={aboutContentRef}
             className="section-content w-full px-4 sm:px-6 md:px-8 lg:px-12"
@@ -1157,7 +1157,7 @@ export function HandHeroSection() {
         </section>
 
         {/* SECTION 4: Pricing */}
-        <section ref={pricingSectionRef} className="h-screen flex items-center">
+        <section ref={pricingSectionRef} className="min-h-screen flex items-center py-8 md:py-0">
           <div 
             ref={pricingContentRef}
             className="section-content w-full px-4 sm:px-6 md:px-8 lg:px-12"
@@ -1177,7 +1177,7 @@ export function HandHeroSection() {
         </section>
 
         {/* SECTION 6: Explore Hyderabad */}
-        <section ref={exploreSectionRef} className="h-screen flex items-center">
+        <section ref={exploreSectionRef} className="min-h-screen flex items-center py-8 md:py-0">
           <div 
             ref={exploreContentRef}
             className="section-content w-full h-full px-4 sm:px-6 md:px-8 lg:px-12 py-4"

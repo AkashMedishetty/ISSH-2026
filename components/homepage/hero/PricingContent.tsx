@@ -18,14 +18,14 @@ export function PricingContent() {
   return (
     <div className="w-full max-w-5xl mx-auto">
       {/* Header */}
-      <div className="text-center mb-6 md:mb-10">
-        <p className="text-xs sm:text-sm font-medium uppercase tracking-[0.2em] mb-2 text-[#852016]">
+      <div className="text-center mb-3 md:mb-10">
+        <p className="text-[10px] sm:text-sm font-medium uppercase tracking-[0.2em] mb-1 md:mb-2 text-[#852016]">
           Registration & Accommodation
         </p>
-        <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-[#25406b] mb-2">
+        <h2 className="text-xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-[#25406b] mb-1 md:mb-2">
           Conference Pricing
         </h2>
-        <p className="text-sm md:text-base text-[#25406b]/70">
+        <p className="text-xs md:text-base text-[#25406b]/70">
           April 25-26, 2026 • HICC Novotel, Hyderabad
         </p>
       </div>
@@ -38,18 +38,18 @@ export function PricingContent() {
         
         {/* Table Header */}
         <div className="grid grid-cols-4 bg-[#5a3d2b] text-white text-[10px] md:text-sm">
-          <div className="p-2 md:p-3 font-semibold border-r border-white/20">Category</div>
-          <div className="p-2 md:p-3 text-center border-r border-white/20">
-            <div className="font-bold">Early Bird</div>
-            <div className="text-[8px] md:text-xs opacity-80">Upto 15th Feb</div>
+          <div className="p-1.5 md:p-3 font-semibold border-r border-white/20">Category</div>
+          <div className="p-1.5 md:p-3 text-center border-r border-white/20">
+            <div className="font-bold text-[9px] md:text-sm">Early Bird</div>
+            <div className="text-[7px] md:text-xs opacity-80">Upto 15th Mar</div>
           </div>
-          <div className="p-2 md:p-3 text-center border-r border-white/20">
-            <div className="font-bold">Regular</div>
-            <div className="text-[8px] md:text-xs opacity-80">15th Feb - 31st Mar</div>
+          <div className="p-1.5 md:p-3 text-center border-r border-white/20">
+            <div className="font-bold text-[9px] md:text-sm">Regular</div>
+            <div className="text-[7px] md:text-xs opacity-80">16th Mar - 24th Apr</div>
           </div>
-          <div className="p-2 md:p-3 text-center">
-            <div className="font-bold">Spot</div>
-            <div className="text-[8px] md:text-xs opacity-80">1st April Onwards</div>
+          <div className="p-1.5 md:p-3 text-center">
+            <div className="font-bold text-[9px] md:text-sm">Spot</div>
+            <div className="text-[7px] md:text-xs opacity-80">25th-26th Apr</div>
           </div>
         </div>
 
@@ -67,17 +67,17 @@ export function PricingContent() {
                 index % 2 === 0 ? 'bg-white/60' : 'bg-white/30'
               }`}
             >
-              <div className="p-2 md:p-3 flex items-center border-r border-[#25406b]/10">
-                <span className="font-medium text-[10px] md:text-sm text-[#25406b]">{item.category}</span>
+              <div className="p-1.5 md:p-3 flex items-center border-r border-[#25406b]/10">
+                <span className="font-medium text-[9px] md:text-sm text-[#25406b]">{item.category}</span>
               </div>
-              <div className="p-2 md:p-3 flex items-center justify-center border-r border-[#25406b]/10">
-                <span className="text-sm md:text-lg font-bold text-[#852016]">{item.earlyBird}</span>
+              <div className="p-1.5 md:p-3 flex items-center justify-center border-r border-[#25406b]/10">
+                <span className="text-xs md:text-lg font-bold text-[#852016]">{item.earlyBird}</span>
               </div>
-              <div className="p-2 md:p-3 flex items-center justify-center border-r border-[#25406b]/10">
-                <span className="text-sm md:text-lg font-bold text-[#25406b]">{item.regular}</span>
+              <div className="p-1.5 md:p-3 flex items-center justify-center border-r border-[#25406b]/10">
+                <span className="text-xs md:text-lg font-bold text-[#25406b]">{item.regular}</span>
               </div>
-              <div className="p-2 md:p-3 flex items-center justify-center">
-                <span className="text-sm md:text-lg font-bold text-[#25406b]">{item.spot}</span>
+              <div className="p-1.5 md:p-3 flex items-center justify-center">
+                <span className="text-xs md:text-lg font-bold text-[#25406b]">{item.spot}</span>
               </div>
             </div>
           ))}
@@ -110,25 +110,25 @@ export function PricingContent() {
       </div>
 
       {/* Important Notes */}
-      <div className="bg-white/50 backdrop-blur-sm rounded-xl p-3 md:p-4 mb-4 md:mb-6">
-        <ul className="text-[10px] md:text-xs text-[#25406b]/80 space-y-1 md:space-y-1.5">
-          <li className="flex items-start gap-2">
+      <div className="bg-white/50 backdrop-blur-sm rounded-xl p-2 md:p-4 mb-3 md:mb-6">
+        <ul className="text-[9px] md:text-xs text-[#25406b]/80 space-y-0.5 md:space-y-1.5">
+          <li className="flex items-start gap-1.5">
             <span className="text-[#852016] mt-0.5">•</span>
             <span>Conference registration is mandatory for all attendees.</span>
           </li>
-          <li className="flex items-start gap-2">
+          <li className="flex items-start gap-1.5">
             <span className="text-[#852016] mt-0.5">•</span>
             <span>Registration fee includes entry to scientific sessions, conference lunches, and banquet.</span>
           </li>
-          <li className="flex items-start gap-2">
+          <li className="flex items-start gap-1.5 hidden sm:flex">
             <span className="text-[#852016] mt-0.5">•</span>
             <span>Accommodation fee is per day and exclusive of 18% GST.</span>
           </li>
-          <li className="flex items-start gap-2">
+          <li className="flex items-start gap-1.5">
             <span className="text-[#852016] mt-0.5">•</span>
-            <span>Early bird rates apply only for payments received before 15th February.</span>
+            <span>Early bird rates apply only for payments received before 15th March.</span>
           </li>
-          <li className="flex items-start gap-2">
+          <li className="flex items-start gap-1.5 hidden sm:flex">
             <span className="text-[#852016] mt-0.5">•</span>
             <span>GST invoice will be provided upon request.</span>
           </li>

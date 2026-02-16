@@ -91,59 +91,59 @@ export function AboutContent() {
           </h3>
         </div>
         
-        <div className="grid grid-cols-3 md:grid-cols-6 gap-px bg-[#25406b]/10">
+        <div className="grid grid-cols-3 gap-px bg-[#25406b]/10">
           {/* Row 1 */}
-          <div className="bg-white p-3 md:p-4 text-center hover:bg-[#ebc975]/10 transition-colors">
-            <div className="w-10 h-10 md:w-12 md:h-12 mx-auto mb-2 rounded-full bg-gradient-to-br from-[#25406b]/10 to-[#25406b]/5 flex items-center justify-center">
-              <Monitor className="w-5 h-5 md:w-6 md:h-6 text-[#25406b]" />
+          <div className="bg-white p-2 md:p-4 text-center hover:bg-[#ebc975]/10 transition-colors">
+            <div className="w-8 h-8 md:w-12 md:h-12 mx-auto mb-1 md:mb-2 rounded-full bg-gradient-to-br from-[#25406b]/10 to-[#25406b]/5 flex items-center justify-center">
+              <Monitor className="w-4 h-4 md:w-6 md:h-6 text-[#25406b]" />
             </div>
-            <h4 className="text-[#25406b] font-bold text-[10px] md:text-xs uppercase">Screen to Scalpel</h4>
-            <p className="text-[#852016] text-[8px] md:text-[10px]">Surgery Reimagined</p>
+            <h4 className="text-[#25406b] font-bold text-[9px] md:text-xs uppercase">Screen to Scalpel</h4>
+            <p className="text-[#852016] text-[7px] md:text-[10px] hidden sm:block">Surgery Reimagined</p>
           </div>
           
-          <div className="bg-white p-3 md:p-4 text-center hover:bg-[#ebc975]/10 transition-colors">
-            <div className="w-10 h-10 md:w-12 md:h-12 mx-auto mb-2 rounded-full bg-gradient-to-br from-[#25406b]/10 to-[#25406b]/5 flex items-center justify-center">
-              <Users className="w-5 h-5 md:w-6 md:h-6 text-[#25406b]" />
+          <div className="bg-white p-2 md:p-4 text-center hover:bg-[#ebc975]/10 transition-colors">
+            <div className="w-8 h-8 md:w-12 md:h-12 mx-auto mb-1 md:mb-2 rounded-full bg-gradient-to-br from-[#25406b]/10 to-[#25406b]/5 flex items-center justify-center">
+              <Users className="w-4 h-4 md:w-6 md:h-6 text-[#25406b]" />
             </div>
-            <h4 className="text-[#25406b] font-bold text-[10px] md:text-xs uppercase">Mentor-Mentee</h4>
-            <p className="text-[#852016] text-[8px] md:text-[10px]">Connect & Grow</p>
+            <h4 className="text-[#25406b] font-bold text-[9px] md:text-xs uppercase">Mentor-Mentee</h4>
+            <p className="text-[#852016] text-[7px] md:text-[10px] hidden sm:block">Connect & Grow</p>
           </div>
           
-          <div className="bg-white p-3 md:p-4 text-center hover:bg-[#ebc975]/10 transition-colors">
-            <div className="w-10 h-10 md:w-12 md:h-12 mx-auto mb-2 rounded-full bg-gradient-to-br from-[#ebc975]/20 to-[#ebc975]/5 flex items-center justify-center">
-              <Trophy className="w-5 h-5 md:w-6 md:h-6 text-[#852016]" />
+          <div className="bg-white p-2 md:p-4 text-center hover:bg-[#ebc975]/10 transition-colors">
+            <div className="w-8 h-8 md:w-12 md:h-12 mx-auto mb-1 md:mb-2 rounded-full bg-gradient-to-br from-[#ebc975]/20 to-[#ebc975]/5 flex items-center justify-center">
+              <Trophy className="w-4 h-4 md:w-6 md:h-6 text-[#852016]" />
             </div>
-            <h4 className="text-[#25406b] font-bold text-[10px] md:text-xs uppercase">Awards</h4>
-            <p className="text-[#852016] text-[8px] md:text-[10px]">Best Paper & Poster</p>
+            <h4 className="text-[#25406b] font-bold text-[9px] md:text-xs uppercase">Awards</h4>
+            <p className="text-[#852016] text-[7px] md:text-[10px] hidden sm:block">Best Paper & Poster</p>
           </div>
           
-          <div className="bg-white p-3 md:p-4 text-center hover:bg-[#ebc975]/10 transition-colors">
-            <div className="w-10 h-10 md:w-12 md:h-12 mx-auto mb-2 rounded-full bg-gradient-to-br from-[#852016]/10 to-[#852016]/5 flex items-center justify-center">
-              <Microscope className="w-5 h-5 md:w-6 md:h-6 text-[#852016]" />
+          <div className="bg-white p-2 md:p-4 text-center hover:bg-[#ebc975]/10 transition-colors">
+            <div className="w-8 h-8 md:w-12 md:h-12 mx-auto mb-1 md:mb-2 rounded-full bg-gradient-to-br from-[#852016]/10 to-[#852016]/5 flex items-center justify-center">
+              <Microscope className="w-4 h-4 md:w-6 md:h-6 text-[#852016]" />
             </div>
-            <h4 className="text-[#25406b] font-bold text-[10px] md:text-xs uppercase">Live Surgery</h4>
-            <p className="text-[#852016] text-[8px] md:text-[10px]">Real-time Demos</p>
+            <h4 className="text-[#25406b] font-bold text-[9px] md:text-xs uppercase">Live Surgery</h4>
+            <p className="text-[#852016] text-[7px] md:text-[10px] hidden sm:block">Real-time Demos</p>
           </div>
           
-          <div className="bg-white p-3 md:p-4 text-center hover:bg-[#ebc975]/10 transition-colors">
-            <div className="w-10 h-10 md:w-12 md:h-12 mx-auto mb-2 rounded-full bg-gradient-to-br from-[#25406b]/10 to-[#25406b]/5 flex items-center justify-center">
-              <Presentation className="w-5 h-5 md:w-6 md:h-6 text-[#25406b]" />
+          <div className="bg-white p-2 md:p-4 text-center hover:bg-[#ebc975]/10 transition-colors">
+            <div className="w-8 h-8 md:w-12 md:h-12 mx-auto mb-1 md:mb-2 rounded-full bg-gradient-to-br from-[#25406b]/10 to-[#25406b]/5 flex items-center justify-center">
+              <Presentation className="w-4 h-4 md:w-6 md:h-6 text-[#25406b]" />
             </div>
-            <h4 className="text-[#25406b] font-bold text-[10px] md:text-xs uppercase">Workshops</h4>
-            <p className="text-[#852016] text-[8px] md:text-[10px]">Hands-on Training</p>
+            <h4 className="text-[#25406b] font-bold text-[9px] md:text-xs uppercase">Workshops</h4>
+            <p className="text-[#852016] text-[7px] md:text-[10px] hidden sm:block">Hands-on Training</p>
           </div>
           
-          <div className="bg-white p-3 md:p-4 text-center hover:bg-[#ebc975]/10 transition-colors">
-            <div className="w-10 h-10 md:w-12 md:h-12 mx-auto mb-2 rounded-full bg-gradient-to-br from-[#ebc975]/20 to-[#ebc975]/5 flex items-center justify-center">
-              <Handshake className="w-5 h-5 md:w-6 md:h-6 text-[#852016]" />
+          <div className="bg-white p-2 md:p-4 text-center hover:bg-[#ebc975]/10 transition-colors">
+            <div className="w-8 h-8 md:w-12 md:h-12 mx-auto mb-1 md:mb-2 rounded-full bg-gradient-to-br from-[#ebc975]/20 to-[#ebc975]/5 flex items-center justify-center">
+              <Handshake className="w-4 h-4 md:w-6 md:h-6 text-[#852016]" />
             </div>
-            <h4 className="text-[#25406b] font-bold text-[10px] md:text-xs uppercase">Networking</h4>
-            <p className="text-[#852016] text-[8px] md:text-[10px]">Build Connections</p>
+            <h4 className="text-[#25406b] font-bold text-[9px] md:text-xs uppercase">Networking</h4>
+            <p className="text-[#852016] text-[7px] md:text-[10px] hidden sm:block">Build Connections</p>
           </div>
         </div>
         
-        {/* Second row - visible on all screens */}
-        <div className="grid grid-cols-3 gap-px bg-[#25406b]/10 border-t border-[#25406b]/10">
+        {/* Second row - hidden on very small screens to save space */}
+        <div className="hidden sm:grid grid-cols-3 gap-px bg-[#25406b]/10 border-t border-[#25406b]/10">
           <div className="bg-white p-3 md:p-4 text-center hover:bg-[#ebc975]/10 transition-colors">
             <div className="w-10 h-10 md:w-12 md:h-12 mx-auto mb-2 rounded-full bg-gradient-to-br from-[#25406b]/10 to-[#25406b]/5 flex items-center justify-center">
               <GraduationCap className="w-5 h-5 md:w-6 md:h-6 text-[#25406b]" />
