@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
@@ -282,7 +282,7 @@ export function EnhancedUserDashboard() {
     if (currency === "USD") {
       return `$${amount.toFixed(2)}`
     }
-    return `₹${amount.toLocaleString()}`
+    return `â‚¹${amount.toLocaleString()}`
   }
 
   const formatDate = (dateString: string) => {
@@ -322,7 +322,7 @@ export function EnhancedUserDashboard() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="flex flex-col items-center space-y-4">
-          <RefreshCw className="h-8 w-8 animate-spin text-theme-primary-600" />
+          <RefreshCw className="h-8 w-8 animate-spin text-[#25406b]" />
           <p className="text-muted-foreground">Loading your dashboard...</p>
         </div>
       </div>
@@ -726,10 +726,10 @@ export function EnhancedUserDashboard() {
         animate={{ opacity: 1, scale: 1 }}
         transition={{ delay: 0.1 }}
       >
-        <Card className="border-2 border-theme-primary-200 dark:border-blue-800">
+        <Card className="border-2 border-[#b0c1db] dark:border-blue-800">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Award className="h-5 w-5 text-theme-primary-600" />
+              <Award className="h-5 w-5 text-[#25406b]" />
               Registration Progress
             </CardTitle>
             <CardDescription>
@@ -756,7 +756,7 @@ export function EnhancedUserDashboard() {
                   {isRegistrationComplete ? (
                     <CheckCircle className="h-4 w-4 text-green-500" />
                   ) : (
-                    <Clock className="h-4 w-4 text-theme-primary-600" />
+                    <Clock className="h-4 w-4 text-[#25406b]" />
                   )}
                   <span className="text-sm">
                     {isRegistrationComplete ? 'Payment Complete' : 'Payment Pending'}
@@ -802,7 +802,7 @@ export function EnhancedUserDashboard() {
                 <div className="absolute inset-0 bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-blue-950 dark:to-indigo-950" />
                 <CardHeader className="relative">
                   <CardTitle className="flex items-center gap-2">
-                    <UserCheck className="h-5 w-5 text-theme-primary-500" />
+                    <UserCheck className="h-5 w-5 text-[#f0f3f8]0" />
                     Registration Status
                   </CardTitle>
                 </CardHeader>
@@ -863,7 +863,7 @@ export function EnhancedUserDashboard() {
                 <div className="absolute inset-0 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-950" />
                 <CardHeader className="relative">
                   <CardTitle className="flex items-center gap-2">
-                    <Star className="h-5 w-5 text-theme-primary-600" />
+                    <Star className="h-5 w-5 text-[#25406b]" />
                     Quick Actions
                   </CardTitle>
                 </CardHeader>
@@ -926,7 +926,7 @@ export function EnhancedUserDashboard() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Calendar className="h-5 w-5 text-theme-primary-600" />
+                  <Calendar className="h-5 w-5 text-[#25406b]" />
                   Conference Information
                 </CardTitle>
                 <CardDescription>
@@ -936,21 +936,21 @@ export function EnhancedUserDashboard() {
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="flex items-center gap-3">
-                    <Calendar className="h-8 w-8 text-theme-primary-600" />
+                    <Calendar className="h-8 w-8 text-[#25406b]" />
                     <div>
                       <p className="font-semibold">Dates</p>
                       <p className="text-sm text-muted-foreground">{conferenceConfig.eventDate?.start} - {conferenceConfig.eventDate?.end}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <MapPin className="h-8 w-8 text-theme-primary-600" />
+                    <MapPin className="h-8 w-8 text-[#25406b]" />
                     <div>
                       <p className="font-semibold">Location</p>
                       <p className="text-sm text-muted-foreground">{conferenceConfig.venue?.city}, {conferenceConfig.venue?.state}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <Users className="h-8 w-8 text-theme-primary-600" />
+                    <Users className="h-8 w-8 text-[#25406b]" />
                     <div>
                       <p className="font-semibold">Conference Theme</p>
                       <p className="text-sm text-muted-foreground">{conferenceConfig.tagline || 'Join Us'}</p>
@@ -1014,7 +1014,7 @@ export function EnhancedUserDashboard() {
                     <div className="mt-2 space-y-2">
                       {userData.registration.workshopSelections.map((workshop, index) => (
                         <div key={index} className="flex items-center gap-2 p-2 bg-muted rounded">
-                          <BookOpen className="h-4 w-4 text-theme-primary-600" />
+                          <BookOpen className="h-4 w-4 text-[#25406b]" />
                           <span>{workshop}</span>
                         </div>
                       ))}
@@ -1041,7 +1041,7 @@ export function EnhancedUserDashboard() {
                     <div className="mt-2 space-y-2">
                       {userData.registration.accompanyingPersons.map((person, index) => (
                         <div key={index} className="flex items-center gap-2 p-2 bg-muted rounded">
-                          <User className="h-4 w-4 text-theme-primary-600" />
+                          <User className="h-4 w-4 text-[#25406b]" />
                           <span>{person.name} ({person.relationship})</span>
                         </div>
                       ))}
@@ -1130,7 +1130,7 @@ export function EnhancedUserDashboard() {
                               <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Workshop Fees:</div>
                               {payment.breakdown.workshopFees.map((workshop, idx) => (
                                 <div key={idx} className="flex justify-between ml-4 text-sm">
-                                  <span>• {workshop.name}:</span>
+                                  <span>â€¢ {workshop.name}:</span>
                                   <span>{formatCurrency(workshop.amount, payment.amount.currency)}</span>
                                 </div>
                               ))}
@@ -1150,7 +1150,7 @@ export function EnhancedUserDashboard() {
                               {payment.breakdown.discountsApplied.map((discount, idx) => (
                                 <div key={idx} className="flex justify-between ml-4 text-sm text-green-600">
                                   <span>
-                                    • {discount.type} {discount.code ? `(${discount.code})` : ''} - {discount.percentage}%:
+                                    â€¢ {discount.type} {discount.code ? `(${discount.code})` : ''} - {discount.percentage}%:
                                   </span>
                                   <span>-{formatCurrency(discount.amount, payment.amount.currency)}</span>
                                 </div>
@@ -1179,7 +1179,7 @@ export function EnhancedUserDashboard() {
                           <Button
                             onClick={() => handleDownloadInvoice(payment._id, userData.registration.registrationId)}
                             disabled={isDownloading}
-                            className="bg-gradient-to-r from-theme-primary-500 to-blue-700 hover:from-theme-primary-600 hover:to-blue-800"
+                            className="bg-gradient-to-r from-[#f0f3f8]0 to-blue-700 hover:from-[#25406b] hover:to-blue-800"
                           >
                             <Download className="h-4 w-4 mr-2" />
                             {isDownloading ? 'Opening...' : 'View Invoice'}

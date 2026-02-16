@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card'
@@ -248,7 +248,7 @@ export function PricingTiersManager() {
     if (currency === 'USD') {
       return `$${amount.toLocaleString()}`
     }
-    return `₹${amount.toLocaleString()}`
+    return `â‚¹${amount.toLocaleString()}`
   }
 
   const renderCategoryEditor = (categories: { [key: string]: PricingCategory }, onUpdate: (categories: { [key: string]: PricingCategory }) => void) => {
@@ -497,8 +497,8 @@ export function PricingTiersManager() {
             
             {nextTier && (
               <div className="space-y-2">
-                <Label className="text-sm font-medium text-theme-primary-600">Next Tier</Label>
-                <div className="p-4 bg-theme-primary-50 border border-theme-primary-200 rounded-lg">
+                <Label className="text-sm font-medium text-[#25406b]">Next Tier</Label>
+                <div className="p-4 bg-[#f0f3f8] border border-[#b0c1db] rounded-lg">
                   <h3 className="font-semibold">{nextTier.tier.name}</h3>
                   <p className="text-sm text-muted-foreground">{nextTier.tier.description}</p>
                   <p className="text-sm mt-2">
@@ -756,7 +756,7 @@ function AccompanyingPersonPricing() {
           <div className="space-y-2">
             <Label htmlFor="basePrice">Base Price (Default)</Label>
             <div className="flex items-center space-x-2">
-              <span className="text-sm text-gray-500">₹</span>
+              <span className="text-sm text-gray-500">â‚¹</span>
               <Input
                 id="basePrice"
                 type="number"
@@ -784,7 +784,7 @@ function AccompanyingPersonPricing() {
               {[
                 { key: 'independence-day-2025', label: 'Independence Day Special', color: 'bg-orange-100 text-orange-800' },
                 { key: 'earlyBird', label: 'Early Bird', color: 'bg-green-100 text-green-800' },
-                { key: 'regular', label: 'Regular', color: 'bg-theme-primary-100 text-blue-800' },
+                { key: 'regular', label: 'Regular', color: 'bg-[#d8e0ed] text-blue-800' },
                 { key: 'onsite', label: 'Onsite', color: 'bg-red-100 text-red-800' }
               ].map(tier => (
                 <Card key={tier.key} className="p-4">
@@ -793,7 +793,7 @@ function AccompanyingPersonPricing() {
                       <Badge className={tier.color}>{tier.label}</Badge>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <span className="text-sm text-gray-500">₹</span>
+                      <span className="text-sm text-gray-500">â‚¹</span>
                       <Input
                         type="number"
                         value={accompanyingConfig?.tierPricing?.[tier.key] || accompanyingConfig?.basePrice || 3000}
@@ -909,7 +909,7 @@ function EditSpecialOfferForm({
             { key: 'consultant', label: 'Consultants & Practicing Clinicians' }
           ].map(category => (
             <div key={category.key} className="space-y-2">
-              <Label htmlFor={`edit-${category.key}`}>{category.label} (₹)</Label>
+              <Label htmlFor={`edit-${category.key}`}>{category.label} (â‚¹)</Label>
               <Input
                 id={`edit-${category.key}`}
                 type="number"

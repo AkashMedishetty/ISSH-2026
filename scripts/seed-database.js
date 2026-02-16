@@ -164,7 +164,7 @@ async function seedDatabase() {
         name: 'Early Bird',
         code: 'EARLYBIRD',
         startDate: new Date('2025-10-01'),
-        endDate: new Date('2026-02-14'),
+        endDate: new Date('2026-03-15'),
         discount: 0,
         active: true,
         categories: {
@@ -179,8 +179,8 @@ async function seedDatabase() {
       {
         name: 'Regular',
         code: 'REGULAR',
-        startDate: new Date('2026-02-15'),
-        endDate: new Date('2026-03-31'),
+        startDate: new Date('2026-03-16'),
+        endDate: new Date('2026-04-24'),
         discount: 0,
         active: true,
         categories: {
@@ -195,7 +195,7 @@ async function seedDatabase() {
       {
         name: 'Spot Registration',
         code: 'SPOT',
-        startDate: new Date('2026-04-01'),
+        startDate: new Date('2026-04-25'),
         endDate: new Date('2026-04-26'),
         discount: 0,
         active: true,

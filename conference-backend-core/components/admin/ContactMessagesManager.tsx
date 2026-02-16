@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
@@ -114,7 +114,7 @@ export function ContactMessagesManager() {
       case 'read':
         return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
       case 'replied':
-        return 'bg-theme-primary-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
+        return 'bg-[#d8e0ed] text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
       case 'resolved':
         return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
       default:
@@ -172,7 +172,7 @@ export function ContactMessagesManager() {
   if (loading && !data) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-theme-primary-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#25406b]"></div>
       </div>
     )
   }

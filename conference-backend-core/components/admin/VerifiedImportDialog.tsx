@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState } from 'react'
 import { Upload, FileCheck, Download, Eye, CheckCircle, XCircle } from 'lucide-react'
@@ -125,7 +125,7 @@ export function VerifiedImportDialog({ onImportComplete }: { onImportComplete?: 
         })
 
         if (data.testMode) {
-          toast.success('🧪 Test Completed!', {
+          toast.success('ðŸ§ª Test Completed!', {
             description: `Would import ${data.wouldImport} registrations and send ${data.wouldSendEmails} emails. No actual changes made.`,
           })
         } else {
@@ -371,28 +371,28 @@ export function VerifiedImportDialog({ onImportComplete }: { onImportComplete?: 
 
           {/* Import Results */}
           {importResults && (
-            <Alert className={importResults.errors && importResults.errors.length > 0 ? 'border-yellow-500' : (importResults.testMode ? 'border-theme-primary-500' : 'border-green-500')}>
+            <Alert className={importResults.errors && importResults.errors.length > 0 ? 'border-yellow-500' : (importResults.testMode ? 'border-[#f0f3f8]0' : 'border-green-500')}>
               <AlertDescription>
                 <div className="space-y-2">
                   <p className="font-semibold">
-                    {importResults.testMode ? '🧪 Test Results:' : 'Import Results:'}
+                    {importResults.testMode ? 'ðŸ§ª Test Results:' : 'Import Results:'}
                   </p>
                   <ul className="list-disc list-inside space-y-1 text-sm">
-                    <li className={importResults.testMode ? "text-theme-primary-600" : "text-green-600"}>
-                      {importResults.testMode ? '🧪' : '✓'} {importResults.imported} registrations {importResults.testMode ? 'would be imported' : 'imported'}
+                    <li className={importResults.testMode ? "text-[#25406b]" : "text-green-600"}>
+                      {importResults.testMode ? 'ðŸ§ª' : 'âœ“'} {importResults.imported} registrations {importResults.testMode ? 'would be imported' : 'imported'}
                     </li>
-                    <li className={importResults.testMode ? "text-theme-primary-600" : "text-green-600"}>
-                      {importResults.testMode ? '🧪' : '✓'} {importResults.emailsSent} acceptance emails {importResults.testMode ? 'would be sent' : 'sent'}
+                    <li className={importResults.testMode ? "text-[#25406b]" : "text-green-600"}>
+                      {importResults.testMode ? 'ðŸ§ª' : 'âœ“'} {importResults.emailsSent} acceptance emails {importResults.testMode ? 'would be sent' : 'sent'}
                     </li>
                     {importResults.emailErrors > 0 && (
-                      <li className="text-yellow-600">⚠ {importResults.emailErrors} email failures</li>
+                      <li className="text-yellow-600">âš  {importResults.emailErrors} email failures</li>
                     )}
                   </ul>
 
                   {importResults.testMode && (
-                    <div className="mt-3 p-3 bg-theme-primary-50 rounded border border-theme-primary-200">
-                      <p className="font-semibold text-blue-800 mb-2">🧪 Test Mode - No Changes Made</p>
-                      <p className="text-sm text-theme-primary-700">This was a dry run. No users were created, no emails were sent, and no database changes were made.</p>
+                    <div className="mt-3 p-3 bg-[#f0f3f8] rounded border border-[#b0c1db]">
+                      <p className="font-semibold text-blue-800 mb-2">ðŸ§ª Test Mode - No Changes Made</p>
+                      <p className="text-sm text-[#1d3357]">This was a dry run. No users were created, no emails were sent, and no database changes were made.</p>
                     </div>
                   )}
                   
@@ -432,12 +432,12 @@ export function VerifiedImportDialog({ onImportComplete }: { onImportComplete?: 
             >
               {isImporting ? (
                 <>
-                  <span className="animate-spin mr-2">⏳</span>
+                  <span className="animate-spin mr-2">â³</span>
                   Testing...
                 </>
               ) : (
                 <>
-                  🧪 Test Import
+                  ðŸ§ª Test Import
                   {showPreview && validRows > 0 && ` (${validRows} rows)`}
                 </>
               )}
@@ -449,7 +449,7 @@ export function VerifiedImportDialog({ onImportComplete }: { onImportComplete?: 
             >
               {isImporting ? (
                 <>
-                  <span className="animate-spin mr-2">⏳</span>
+                  <span className="animate-spin mr-2">â³</span>
                   Importing...
                 </>
               ) : (

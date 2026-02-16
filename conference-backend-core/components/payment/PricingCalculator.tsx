@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
@@ -165,7 +165,7 @@ export function PricingCalculator() {
     if (currency === "USD") {
       return `$${amount.toFixed(2)}`
     }
-    return `₹${amount.toLocaleString()}`
+    return `â‚¹${amount.toLocaleString()}`
   }
 
   if (!pricingData) {
@@ -195,7 +195,7 @@ export function PricingCalculator() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Calculator className="h-5 w-5 text-theme-primary-500" />
+            <Calculator className="h-5 w-5 text-[#f0f3f8]0" />
             Pricing Calculator
           </CardTitle>
           <CardDescription>
@@ -405,10 +405,10 @@ export function PricingCalculator() {
 
               {/* Registration Info */}
               <div className="text-xs text-gray-500 space-y-1">
-                <p>• Registration fees include access to all conference sessions</p>
-                <p>• Workshop fees are additional and optional</p>
-                <p>• Accompanying person fees include meals and social events</p>
-                <p>• All prices are inclusive of applicable taxes</p>
+                <p>â€¢ Registration fees include access to all conference sessions</p>
+                <p>â€¢ Workshop fees are additional and optional</p>
+                <p>â€¢ Accompanying person fees include meals and social events</p>
+                <p>â€¢ All prices are inclusive of applicable taxes</p>
               </div>
             </div>
           </div>

@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState } from "react"
 import { motion } from "framer-motion"
@@ -100,7 +100,7 @@ export function PaymentStatus({ registrationStatus, paymentData, detailed = fals
     if (currency === "USD") {
       return `$${amount.toFixed(2)}`
     }
-    return `₹${amount.toLocaleString()}`
+    return `â‚¹${amount.toLocaleString()}`
   }
 
   const handleDownloadInvoice = async (paymentId: string) => {
@@ -145,7 +145,7 @@ export function PaymentStatus({ registrationStatus, paymentData, detailed = fals
             </Badge>
           </div>
           <Link href="/dashboard/payment">
-            <Button size="sm" className="w-full bg-gradient-to-r from-theme-primary-600 to-blue-700 hover:from-blue-700 hover:to-blue-800">
+            <Button size="sm" className="w-full bg-gradient-to-r from-[#25406b] to-blue-700 hover:from-blue-700 hover:to-blue-800">
               Complete Payment
             </Button>
           </Link>
@@ -165,7 +165,7 @@ export function PaymentStatus({ registrationStatus, paymentData, detailed = fals
           </div>
           <div className="flex items-center justify-between">
             <span className="text-sm text-gray-600">Amount:</span>
-            <span className="font-medium">₹0</span>
+            <span className="font-medium">â‚¹0</span>
           </div>
         </div>
       )
@@ -243,7 +243,7 @@ export function PaymentStatus({ registrationStatus, paymentData, detailed = fals
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-600">Amount:</span>
-              <span className="text-lg font-semibold">₹0</span>
+              <span className="text-lg font-semibold">â‚¹0</span>
             </div>
           </CardContent>
         </Card>
@@ -254,7 +254,7 @@ export function PaymentStatus({ registrationStatus, paymentData, detailed = fals
           <AlertDescription className="flex items-center justify-between">
             <span>Payment is required to complete your registration.</span>
             <Link href="/dashboard/payment">
-              <Button size="sm" className="bg-gradient-to-r from-theme-primary-600 to-blue-700 hover:from-blue-700 hover:to-blue-800">
+              <Button size="sm" className="bg-gradient-to-r from-[#25406b] to-blue-700 hover:from-blue-700 hover:to-blue-800">
                 Pay Now
               </Button>
             </Link>
@@ -275,7 +275,7 @@ export function PaymentStatus({ registrationStatus, paymentData, detailed = fals
             </p>
             {registrationStatus === "pending" && (
               <Link href="/dashboard/payment">
-                <Button className="bg-gradient-to-r from-theme-primary-600 to-blue-700 hover:from-blue-700 hover:to-blue-800">
+                <Button className="bg-gradient-to-r from-[#25406b] to-blue-700 hover:from-blue-700 hover:to-blue-800">
                   Make Payment
                 </Button>
               </Link>
@@ -378,7 +378,7 @@ export function PaymentStatus({ registrationStatus, paymentData, detailed = fals
                         <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Workshops:</div>
                         {payment.breakdown?.workshopFees?.map((workshop, idx) => (
                           <div key={idx} className="flex justify-between ml-4">
-                            <span className="text-sm text-gray-600">• {workshop.name}:</span>
+                            <span className="text-sm text-gray-600">â€¢ {workshop.name}:</span>
                             <span className="text-sm">
                               {formatCurrency(workshop.amount, payment.amount?.currency || 'INR')}
                             </span>
@@ -402,7 +402,7 @@ export function PaymentStatus({ registrationStatus, paymentData, detailed = fals
                         {payment.breakdown?.discountsApplied?.map((discount, idx) => (
                           <div key={idx} className="flex justify-between ml-4">
                             <span className="text-sm text-green-600">
-                              • {discount.type} {discount.code ? `(${discount.code})` : ''} - {discount.percentage}%:
+                              â€¢ {discount.type} {discount.code ? `(${discount.code})` : ''} - {discount.percentage}%:
                             </span>
                             <span className="text-sm text-green-600">
                               -{formatCurrency(discount.amount, payment.amount?.currency || 'INR')}

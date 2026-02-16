@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Enhanced notification system with animations
  */
 
@@ -56,14 +56,14 @@ export function Notification({
     success: "bg-emerald-50 border-emerald-200 text-emerald-800",
     error: "bg-red-50 border-red-200 text-red-800",
     warning: "bg-amber-50 border-amber-200 text-amber-800",
-    info: "bg-theme-primary-50 border-theme-primary-200 text-blue-800",
+    info: "bg-[#f0f3f8] border-[#b0c1db] text-blue-800",
   }
 
   const iconColors = {
     success: "text-emerald-600",
     error: "text-red-600",
     warning: "text-amber-600",
-    info: "text-theme-primary-600",
+    info: "text-[#25406b]",
   }
 
   const Icon = icons[type]

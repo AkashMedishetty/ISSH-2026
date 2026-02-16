@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import React, { useState, useEffect } from "react"
 import Link from "next/link"
@@ -747,7 +747,7 @@ export function ComprehensiveAdminPanel() {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="flex flex-col items-center space-y-4">
-          <RefreshCw className="h-8 w-8 animate-spin text-theme-primary-500" />
+          <RefreshCw className="h-8 w-8 animate-spin text-[#f0f3f8]0" />
           <p className="text-muted-foreground">Loading admin panel...</p>
         </div>
       </div>
@@ -790,7 +790,7 @@ export function ComprehensiveAdminPanel() {
         <div className="container mx-auto px-6 py-4">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             <div className="space-y-1">
-              <h1 className="text-2xl lg:text-3xl font-bold bg-gradient-to-r from-theme-primary-600 via-indigo-600 to-theme-accent-600 bg-clip-text text-transparent">
+              <h1 className="text-2xl lg:text-3xl font-bold bg-gradient-to-r from-[#25406b] via-indigo-600 to-theme-accent-600 bg-clip-text text-transparent">
                 {conferenceConfig.shortName} Admin
               </h1>
               <p className="text-slate-600 dark:text-slate-400 text-sm lg:text-base">
@@ -805,15 +805,15 @@ export function ComprehensiveAdminPanel() {
                 onClick={fetchDashboardData} 
                 variant="glass" 
                 size="sm"
-                className="bg-white/60 dark:bg-slate-800/60 hover:bg-white/80 dark:hover:bg-slate-700/80 border-theme-primary-200/50 dark:border-slate-700/50"
+                className="bg-white/60 dark:bg-slate-800/60 hover:bg-white/80 dark:hover:bg-slate-700/80 border-[#b0c1db]/50 dark:border-slate-700/50"
               >
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Refresh
               </Button>
               
-              <div className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-theme-primary-500/10 to-indigo-500/10 dark:from-theme-primary-500/20 dark:to-indigo-500/20 rounded-full border border-theme-primary-200/30 dark:border-theme-primary-800/30">
-                <Activity className="h-4 w-4 text-theme-primary-600 dark:text-theme-primary-400" />
-                <span className="text-sm font-medium text-theme-primary-700 dark:text-theme-primary-300">Live</span>
+              <div className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-[#f0f3f8]0/10 to-indigo-500/10 dark:from-[#f0f3f8]0/20 dark:to-indigo-500/20 rounded-full border border-[#b0c1db]/30 dark:border-[#152843]/30">
+                <Activity className="h-4 w-4 text-[#25406b] dark:text-[#3d5f8e]" />
+                <span className="text-sm font-medium text-[#1d3357] dark:text-[#6889b3]">Live</span>
               </div>
             </div>
           </div>
@@ -833,7 +833,7 @@ export function ComprehensiveAdminPanel() {
             <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-14 gap-1 bg-transparent p-0 h-auto overflow-x-auto">
               <TabsTrigger 
                 value="dashboard" 
-                className="flex flex-col items-center gap-2 p-3 rounded-xl data-[state=active]:bg-gradient-to-br data-[state=active]:from-theme-primary-500 data-[state=active]:to-theme-primary-600 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-theme-primary-50 transition-all duration-200"
+                className="flex flex-col items-center gap-2 p-3 rounded-xl data-[state=active]:bg-gradient-to-br data-[state=active]:from-[#f0f3f8]0 data-[state=active]:to-[#25406b] data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-[#f0f3f8] transition-all duration-200"
               >
                 <BarChart3 className="h-5 w-5" />
                 <span className="text-xs font-medium">Dashboard</span>
@@ -841,7 +841,7 @@ export function ComprehensiveAdminPanel() {
               
               <TabsTrigger 
                 value="registrations" 
-                className="flex flex-col items-center gap-2 p-3 rounded-xl data-[state=active]:bg-gradient-to-br data-[state=active]:from-theme-primary-500 data-[state=active]:to-theme-primary-600 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-theme-primary-50 transition-all duration-200"
+                className="flex flex-col items-center gap-2 p-3 rounded-xl data-[state=active]:bg-gradient-to-br data-[state=active]:from-[#f0f3f8]0 data-[state=active]:to-[#25406b] data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-[#f0f3f8] transition-all duration-200"
                 onClick={(e) => {
                   e.preventDefault()
                   handleRegistrationsTabClick()
@@ -853,7 +853,7 @@ export function ComprehensiveAdminPanel() {
               
               <TabsTrigger 
                 value="payments" 
-                className="flex flex-col items-center gap-2 p-3 rounded-xl data-[state=active]:bg-gradient-to-br data-[state=active]:from-theme-primary-500 data-[state=active]:to-theme-primary-600 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-theme-primary-50 transition-all duration-200"
+                className="flex flex-col items-center gap-2 p-3 rounded-xl data-[state=active]:bg-gradient-to-br data-[state=active]:from-[#f0f3f8]0 data-[state=active]:to-[#25406b] data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-[#f0f3f8] transition-all duration-200"
               >
                 <CreditCard className="h-5 w-5" />
                 <span className="text-xs font-medium">Payments</span>
@@ -861,7 +861,7 @@ export function ComprehensiveAdminPanel() {
               
               <TabsTrigger 
                 value="pricing" 
-                className="flex flex-col items-center gap-2 p-3 rounded-xl data-[state=active]:bg-gradient-to-br data-[state=active]:from-theme-primary-500 data-[state=active]:to-theme-primary-600 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-theme-primary-50 transition-all duration-200"
+                className="flex flex-col items-center gap-2 p-3 rounded-xl data-[state=active]:bg-gradient-to-br data-[state=active]:from-[#f0f3f8]0 data-[state=active]:to-[#25406b] data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-[#f0f3f8] transition-all duration-200"
               >
                 <DollarSign className="h-5 w-5" />
                 <span className="text-xs font-medium">Pricing</span>
@@ -869,7 +869,7 @@ export function ComprehensiveAdminPanel() {
               
               <TabsTrigger 
                 value="workshops" 
-                className="flex flex-col items-center gap-2 p-3 rounded-xl data-[state=active]:bg-gradient-to-br data-[state=active]:from-theme-primary-500 data-[state=active]:to-theme-primary-600 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-theme-primary-50 transition-all duration-200"
+                className="flex flex-col items-center gap-2 p-3 rounded-xl data-[state=active]:bg-gradient-to-br data-[state=active]:from-[#f0f3f8]0 data-[state=active]:to-[#25406b] data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-[#f0f3f8] transition-all duration-200"
               >
                 <Calendar className="h-5 w-5" />
                 <span className="text-xs font-medium">Workshops</span>
@@ -877,7 +877,7 @@ export function ComprehensiveAdminPanel() {
               
               <TabsTrigger 
                 value="abstracts" 
-                className="flex flex-col items-center gap-2 p-3 rounded-xl data-[state=active]:bg-gradient-to-br data-[state=active]:from-theme-primary-500 data-[state=active]:to-theme-primary-600 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-theme-primary-50 transition-all duration-200"
+                className="flex flex-col items-center gap-2 p-3 rounded-xl data-[state=active]:bg-gradient-to-br data-[state=active]:from-[#f0f3f8]0 data-[state=active]:to-[#25406b] data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-[#f0f3f8] transition-all duration-200"
               >
                 <FileText className="h-5 w-5" />
                 <span className="text-xs font-medium">Abstracts</span>
@@ -885,7 +885,7 @@ export function ComprehensiveAdminPanel() {
               
               <TabsTrigger 
                 value="configuration" 
-                className="flex flex-col items-center gap-2 p-3 rounded-xl data-[state=active]:bg-gradient-to-br data-[state=active]:from-theme-primary-500 data-[state=active]:to-theme-primary-600 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-theme-primary-50 transition-all duration-200"
+                className="flex flex-col items-center gap-2 p-3 rounded-xl data-[state=active]:bg-gradient-to-br data-[state=active]:from-[#f0f3f8]0 data-[state=active]:to-[#25406b] data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-[#f0f3f8] transition-all duration-200"
               >
                 <Settings className="h-5 w-5" />
                 <span className="text-xs font-medium">Config</span>
@@ -893,7 +893,7 @@ export function ComprehensiveAdminPanel() {
               
               <TabsTrigger 
                 value="emails" 
-                className="flex flex-col items-center gap-2 p-3 rounded-xl data-[state=active]:bg-gradient-to-br data-[state=active]:from-theme-primary-500 data-[state=active]:to-theme-primary-600 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-theme-primary-50 transition-all duration-200"
+                className="flex flex-col items-center gap-2 p-3 rounded-xl data-[state=active]:bg-gradient-to-br data-[state=active]:from-[#f0f3f8]0 data-[state=active]:to-[#25406b] data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-[#f0f3f8] transition-all duration-200"
               >
                 <Mail className="h-5 w-5" />
                 <span className="text-xs font-medium">Emails</span>
@@ -901,7 +901,7 @@ export function ComprehensiveAdminPanel() {
               
               <TabsTrigger 
                 value="notifications" 
-                className="flex flex-col items-center gap-2 p-3 rounded-xl data-[state=active]:bg-gradient-to-br data-[state=active]:from-theme-primary-500 data-[state=active]:to-theme-primary-600 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-theme-primary-50 transition-all duration-200"
+                className="flex flex-col items-center gap-2 p-3 rounded-xl data-[state=active]:bg-gradient-to-br data-[state=active]:from-[#f0f3f8]0 data-[state=active]:to-[#25406b] data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-[#f0f3f8] transition-all duration-200"
               >
                 <Bell className="h-5 w-5" />
                 <span className="text-xs font-medium">Alerts</span>
@@ -909,7 +909,7 @@ export function ComprehensiveAdminPanel() {
               
               <TabsTrigger 
                 value="messages" 
-                className="flex flex-col items-center gap-2 p-3 rounded-xl data-[state=active]:bg-gradient-to-br data-[state=active]:from-theme-primary-500 data-[state=active]:to-theme-primary-600 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-theme-primary-50 transition-all duration-200"
+                className="flex flex-col items-center gap-2 p-3 rounded-xl data-[state=active]:bg-gradient-to-br data-[state=active]:from-[#f0f3f8]0 data-[state=active]:to-[#25406b] data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-[#f0f3f8] transition-all duration-200"
               >
                 <MessageCircle className="h-5 w-5" />
                 <span className="text-xs font-medium">Messages</span>
@@ -917,7 +917,7 @@ export function ComprehensiveAdminPanel() {
               
               <TabsTrigger 
                 value="reports" 
-                className="flex flex-col items-center gap-2 p-3 rounded-xl data-[state=active]:bg-gradient-to-br data-[state=active]:from-theme-primary-500 data-[state=active]:to-theme-primary-600 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-theme-primary-50 dark:hover:bg-slate-800 transition-all duration-200"
+                className="flex flex-col items-center gap-2 p-3 rounded-xl data-[state=active]:bg-gradient-to-br data-[state=active]:from-[#f0f3f8]0 data-[state=active]:to-[#25406b] data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-[#f0f3f8] dark:hover:bg-slate-800 transition-all duration-200"
               >
                 <TrendingUp className="h-5 w-5" />
                 <span className="text-xs font-medium">Reports</span>
@@ -979,20 +979,20 @@ export function ComprehensiveAdminPanel() {
                 transition={{ delay: 0.2 }}
                 className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-6"
               >
-                <Card className="group relative overflow-hidden bg-gradient-to-br from-blue-50 to-indigo-50 border-theme-primary-200/50 hover:shadow-xl hover:shadow-blue-500/10 transition-all duration-300">
-                  <div className="absolute inset-0 bg-gradient-to-br from-theme-primary-500/5 to-indigo-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                <Card className="group relative overflow-hidden bg-gradient-to-br from-blue-50 to-indigo-50 border-[#b0c1db]/50 hover:shadow-xl hover:shadow-blue-500/10 transition-all duration-300">
+                  <div className="absolute inset-0 bg-gradient-to-br from-[#f0f3f8]0/5 to-indigo-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                   <CardContent className="p-6 relative">
                     <div className="flex items-center justify-between">
                       <div className="space-y-2">
-                        <p className="text-sm font-medium text-theme-primary-600">Total Registrations</p>
+                        <p className="text-sm font-medium text-[#25406b]">Total Registrations</p>
                         <p className="text-3xl font-bold text-slate-900">{dashboardStats.totalRegistrations}</p>
                         <div className="flex items-center gap-2">
-                          <div className="h-2 w-2 bg-theme-primary-500 rounded-full animate-pulse" />
+                          <div className="h-2 w-2 bg-[#f0f3f8]0 rounded-full animate-pulse" />
                           <span className="text-xs text-slate-600">Active</span>
                         </div>
                       </div>
-                      <div className="p-3 bg-theme-primary-500/10 rounded-2xl group-hover:bg-theme-primary-500/20 transition-colors duration-300">
-                        <Users className="h-8 w-8 text-theme-primary-600" />
+                      <div className="p-3 bg-[#f0f3f8]0/10 rounded-2xl group-hover:bg-[#f0f3f8]0/20 transition-colors duration-300">
+                        <Users className="h-8 w-8 text-[#25406b]" />
                       </div>
                     </div>
                   </CardContent>
@@ -1042,7 +1042,7 @@ export function ComprehensiveAdminPanel() {
                     <div className="flex items-center justify-between">
                       <div className="space-y-2">
                         <p className="text-sm font-medium text-violet-600">Total Revenue</p>
-                        <p className="text-3xl font-bold text-slate-900">₹{dashboardStats.totalRevenue.toLocaleString()}</p>
+                        <p className="text-3xl font-bold text-slate-900">â‚¹{dashboardStats.totalRevenue.toLocaleString()}</p>
                         <div className="flex items-center gap-2">
                           <TrendingUp className="h-3 w-3 text-violet-500" />
                           <span className="text-xs text-slate-600">Growing</span>
@@ -1089,7 +1089,7 @@ export function ComprehensiveAdminPanel() {
                       <div className="flex items-center justify-between">
                         <div>
                           <CardTitle className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                            <BarChart3 className="h-5 w-5 text-theme-primary-600" />
+                            <BarChart3 className="h-5 w-5 text-[#25406b]" />
                             Registration Analytics
                           </CardTitle>
                           <CardDescription className="text-slate-600">
@@ -1104,8 +1104,8 @@ export function ComprehensiveAdminPanel() {
                     <CardContent className="space-y-4">
                       {dashboardStats.registrationsByCategory && Object.entries(dashboardStats.registrationsByCategory).map(([category, count], index) => {
                         const percentage = dashboardStats.totalRegistrations > 0 ? (count / dashboardStats.totalRegistrations * 100) : 0
-                        const colors = ['bg-theme-primary-500', 'bg-emerald-500', 'bg-amber-500', 'bg-violet-500', 'bg-rose-500']
-                        const bgColors = ['bg-theme-primary-50', 'bg-emerald-50', 'bg-amber-50', 'bg-violet-50', 'bg-rose-50']
+                        const colors = ['bg-[#f0f3f8]0', 'bg-emerald-500', 'bg-amber-500', 'bg-violet-500', 'bg-rose-500']
+                        const bgColors = ['bg-[#f0f3f8]', 'bg-emerald-50', 'bg-amber-50', 'bg-violet-50', 'bg-rose-50']
                         
                         return (
                           <motion.div
@@ -1168,7 +1168,7 @@ export function ComprehensiveAdminPanel() {
                     <CardContent className="space-y-3">
                       <Button 
                         onClick={handleExportRegistrations} 
-                        className="w-full justify-start bg-gradient-to-r from-theme-primary-500 to-theme-primary-600 hover:from-theme-primary-600 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-200"
+                        className="w-full justify-start bg-gradient-to-r from-[#f0f3f8]0 to-[#25406b] hover:from-[#25406b] hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-200"
                       >
                         <Download className="h-4 w-4 mr-2" />
                         Export Registrations
@@ -1229,10 +1229,10 @@ export function ComprehensiveAdminPanel() {
                       
                       <div className="flex items-center justify-between p-3 bg-white/60 rounded-lg border border-slate-200/50">
                         <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 bg-theme-primary-500 rounded-full animate-pulse" />
+                          <div className="w-2 h-2 bg-[#f0f3f8]0 rounded-full animate-pulse" />
                           <span className="text-sm font-medium text-slate-700">Payment Gateway</span>
                         </div>
-                        <Badge variant="secondary" className="bg-theme-primary-100 text-theme-primary-700">Active</Badge>
+                        <Badge variant="secondary" className="bg-[#d8e0ed] text-[#1d3357]">Active</Badge>
                       </div>
                       
                       <div className="flex items-center justify-between p-3 bg-white/60 rounded-lg border border-slate-200/50">
@@ -1281,7 +1281,7 @@ export function ComprehensiveAdminPanel() {
                     <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                       <div>
                         <CardTitle className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                          <CreditCard className="h-6 w-6 text-theme-primary-600" />
+                          <CreditCard className="h-6 w-6 text-[#25406b]" />
                           Payment Management
                         </CardTitle>
                         <CardDescription className="text-slate-600 mt-1">
@@ -1338,7 +1338,7 @@ export function ComprehensiveAdminPanel() {
                                 </div>
                               </TableCell>
                               <TableCell>
-                                <Badge variant="outline" className="capitalize bg-theme-primary-50 text-theme-primary-700 border-theme-primary-200">
+                                <Badge variant="outline" className="capitalize bg-[#f0f3f8] text-[#1d3357] border-[#b0c1db]">
                                   {payment.userDetails?.registrationType?.replace('-', ' ') || 'N/A'}
                                 </Badge>
                               </TableCell>
@@ -1370,7 +1370,7 @@ export function ComprehensiveAdminPanel() {
                                     <DropdownMenuLabel className="text-slate-700">Actions</DropdownMenuLabel>
                                     <DropdownMenuSeparator />
                                     <DropdownMenuItem className="hover:bg-slate-50">
-                                      <FileText className="mr-2 h-4 w-4 text-theme-primary-600" />
+                                      <FileText className="mr-2 h-4 w-4 text-[#25406b]" />
                                       View Invoice
                                     </DropdownMenuItem>
                                     <DropdownMenuItem className="hover:bg-slate-50">
@@ -1442,7 +1442,7 @@ export function ComprehensiveAdminPanel() {
                 <Card className="bg-white/60 backdrop-blur-xl border-slate-200/50 shadow-lg">
                   <CardHeader className="pb-6">
                     <CardTitle className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                      <FileText className="h-6 w-6 text-theme-primary-600" />
+                      <FileText className="h-6 w-6 text-[#25406b]" />
                       Abstract Management
                     </CardTitle>
                     <CardDescription className="text-slate-600 mt-1">
@@ -1495,7 +1495,7 @@ export function ComprehensiveAdminPanel() {
                 <Card className="bg-white/60 backdrop-blur-xl border-slate-200/50 shadow-lg">
                   <CardHeader className="pb-6">
                     <CardTitle className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                      <Mail className="h-6 w-6 text-theme-primary-600" />
+                      <Mail className="h-6 w-6 text-[#25406b]" />
                       Email Management
                     </CardTitle>
                     <CardDescription className="text-slate-600 mt-1">

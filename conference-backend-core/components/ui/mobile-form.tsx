@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Mobile-optimized form components
  */
 
@@ -53,7 +53,7 @@ export const MobileInput = forwardRef<HTMLInputElement, MobileInputProps>(
               "touch-manipulation",
               "select-text",
               "focus:ring-2 focus:ring-blue-500/20",
-              "focus:border-theme-primary-500",
+              "focus:border-[#f0f3f8]0",
               "transition-all duration-200",
             ],
             // Error state
@@ -138,7 +138,7 @@ export const MobileTextarea = forwardRef<HTMLTextAreaElement, MobileTextareaProp
               "touch-manipulation",
               "select-text",
               "focus:ring-2 focus:ring-blue-500/20",
-              "focus:border-theme-primary-500",
+              "focus:border-[#f0f3f8]0",
               "transition-all duration-200",
               "resize-none", // Disable resize on mobile
             ],
@@ -224,7 +224,7 @@ export const MobileSelect = forwardRef<HTMLSelectElement, MobileSelectProps>(
             isTouchDevice && touchOptimized && [
               "touch-manipulation",
               "focus:ring-2 focus:ring-blue-500/20",
-              "focus:border-theme-primary-500",
+              "focus:border-[#f0f3f8]0",
               "transition-all duration-200",
             ],
             // Error state

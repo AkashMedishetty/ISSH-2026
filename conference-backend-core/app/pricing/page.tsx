@@ -18,27 +18,33 @@ export default function PricingPage() {
   const pricingData = [
     {
       tier: "Early Bird",
-      period: "till Jan 31st",
-      deadline: "01/10/2025–31/01/2026",
+      period: "Upto 15th March",
+      deadline: "01/10/2025–15/03/2026",
+      isshMember: 5000,
+      nonIsshMember: 6000,
       postgraduate: 2500,
-      consultant: 5000,
+      accompanying: 3000,
       current: currentTier === "Early Bird"
     },
     {
       tier: "Regular",
-      period: "till April 20th", 
-      deadline: "01/02/2026–20/04/2026",
-      postgraduate: 2500,
-      consultant: 5000,
+      period: "15th Mar – 24th Apr",
+      deadline: "16/03/2026–24/04/2026",
+      isshMember: 6000,
+      nonIsshMember: 7000,
+      postgraduate: 3000,
+      accompanying: 3500,
       current: currentTier === "Regular"
     },
     {
       tier: "Spot Registration",
-      period: "April 21-26",
-      deadline: "21/04/2026–26/04/2026",
-      postgraduate: 2500,
-      consultant: 5000,
-      current: currentTier === "Late / Spot"
+      period: "At the Conference",
+      deadline: "25/04/2026–26/04/2026",
+      isshMember: 7000,
+      nonIsshMember: 8000,
+      postgraduate: 3500,
+      accompanying: 4000,
+      current: currentTier === "Spot Registration"
     }
   ]
 
@@ -105,13 +111,19 @@ export default function PricingPage() {
             <div className="min-w-full bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden">
               {/* Table Header */}
               <div className="bg-gradient-to-r from-[#25406b] to-[#25406b] text-white">
-                <div className="grid grid-cols-3 gap-4 p-6">
+                <div className="grid grid-cols-5 gap-4 p-6">
                   <div className="font-bold text-lg">Category</div>
                   <div className="text-center font-bold text-lg">
-                    Postgraduate / Resident
+                    ISSH Member
                   </div>
                   <div className="text-center font-bold text-lg">
-                    Consultant / Practicing Surgeon
+                    Non ISSH Member
+                  </div>
+                  <div className="text-center font-bold text-lg">
+                    Postgraduate
+                  </div>
+                  <div className="text-center font-bold text-lg">
+                    Accompanying Person/Spouse
                   </div>
                 </div>
               </div>
@@ -121,7 +133,7 @@ export default function PricingPage() {
                 {pricingData.map((tier, index) => (
                   <div
                     key={index}
-                    className={`grid grid-cols-3 gap-4 p-6 transition-colors ${
+                    className={`grid grid-cols-5 gap-4 p-6 transition-colors ${
                       tier.current 
                         ? 'bg-gradient-to-r from-[#f5f0e6] to-[#ebc975]/20 border-l-4 border-[#25406b]' 
                         : 'hover:bg-gray-50'
@@ -139,11 +151,19 @@ export default function PricingPage() {
                     </div>
                     
                     <div className="text-center">
-                      <div className="text-2xl font-bold text-gray-900">₹{tier.postgraduate.toLocaleString()}</div>
+                      <div className="text-2xl font-bold text-gray-900">₹{tier.isshMember.toLocaleString()}</div>
                     </div>
                     
                     <div className="text-center">
-                      <div className="text-2xl font-bold text-gray-900">₹{tier.consultant.toLocaleString()}</div>
+                      <div className="text-2xl font-bold text-gray-900">₹{tier.nonIsshMember.toLocaleString()}</div>
+                    </div>
+
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-gray-900">₹{tier.postgraduate.toLocaleString()}</div>
+                    </div>
+
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-gray-900">₹{tier.accompanying.toLocaleString()}</div>
                     </div>
                   </div>
                 ))}
@@ -180,12 +200,20 @@ export default function PricingPage() {
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="text-center p-3 bg-white/60 rounded-lg">
+                      <div className="text-xs text-gray-600 mb-1">ISSH Member</div>
+                      <div className="text-lg font-bold text-gray-900">₹{tier.isshMember.toLocaleString()}</div>
+                    </div>
+                    <div className="text-center p-3 bg-white/60 rounded-lg">
+                      <div className="text-xs text-gray-600 mb-1">Non ISSH Member</div>
+                      <div className="text-lg font-bold text-gray-900">₹{tier.nonIsshMember.toLocaleString()}</div>
+                    </div>
+                    <div className="text-center p-3 bg-white/60 rounded-lg">
                       <div className="text-xs text-gray-600 mb-1">Postgraduate</div>
                       <div className="text-lg font-bold text-gray-900">₹{tier.postgraduate.toLocaleString()}</div>
                     </div>
                     <div className="text-center p-3 bg-white/60 rounded-lg">
-                      <div className="text-xs text-gray-600 mb-1">Consultant</div>
-                      <div className="text-lg font-bold text-gray-900">₹{tier.consultant.toLocaleString()}</div>
+                      <div className="text-xs text-gray-600 mb-1">Accompanying Person</div>
+                      <div className="text-lg font-bold text-gray-900">₹{tier.accompanying.toLocaleString()}</div>
                     </div>
                   </div>
                 </CardContent>

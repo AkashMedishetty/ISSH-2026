@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import React, { useState, useEffect } from "react"
 import { motion } from "framer-motion"
@@ -332,8 +332,8 @@ export function ConfigManager() {
     >
       <div className="bg-white/60 backdrop-blur-xl rounded-2xl border border-slate-200/50 shadow-lg p-6">
         <div className="flex items-center gap-3 mb-6">
-          <div className="p-2 bg-theme-primary-500/10 rounded-xl">
-            <Settings className="h-6 w-6 text-theme-primary-600" />
+          <div className="p-2 bg-[#f0f3f8]0/10 rounded-xl">
+            <Settings className="h-6 w-6 text-[#25406b]" />
           </div>
           <div>
             <h2 className="text-xl font-bold text-slate-900">System Configuration</h2>
@@ -379,7 +379,7 @@ export function ConfigManager() {
                       <Card key={type} className="bg-white/60 backdrop-blur-sm border-slate-200/50 hover:shadow-lg transition-all duration-200">
                         <CardHeader className="pb-4">
                           <CardTitle className="capitalize text-slate-900 flex items-center gap-2">
-                            <div className="w-3 h-3 bg-theme-primary-500 rounded-full" />
+                            <div className="w-3 h-3 bg-[#f0f3f8]0 rounded-full" />
                             {config.label}
                           </CardTitle>
                         </CardHeader>
@@ -411,7 +411,7 @@ export function ConfigManager() {
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent className="bg-white/95 backdrop-blur-xl border-slate-200/50">
-                                <SelectItem value="INR">INR (₹)</SelectItem>
+                                <SelectItem value="INR">INR (â‚¹)</SelectItem>
                                 <SelectItem value="USD">USD ($)</SelectItem>
                               </SelectContent>
                             </Select>
@@ -517,7 +517,7 @@ export function ConfigManager() {
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent className="bg-white/95 backdrop-blur-xl border-slate-200/50">
-                            <SelectItem value="INR">INR (₹)</SelectItem>
+                            <SelectItem value="INR">INR (â‚¹)</SelectItem>
                             <SelectItem value="USD">USD ($)</SelectItem>
                           </SelectContent>
                         </Select>
@@ -609,7 +609,7 @@ export function ConfigManager() {
                   <Button
                     onClick={() => saveConfiguration('pricing', pricingConfig)}
                     disabled={isSaving}
-                    className="bg-gradient-to-r from-theme-primary-500 to-theme-primary-600 hover:from-theme-primary-600 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-200"
+                    className="bg-gradient-to-r from-[#f0f3f8]0 to-[#25406b] hover:from-[#25406b] hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-200"
                   >
                     {isSaving ? (
                       <>
@@ -772,7 +772,7 @@ export function ConfigManager() {
                   <Button
                     onClick={() => saveConfiguration('discounts', discountConfig)}
                     disabled={isSaving}
-                    className="bg-gradient-to-r from-theme-primary-500 to-blue-700 hover:from-theme-primary-600 hover:to-blue-800"
+                    className="bg-gradient-to-r from-[#f0f3f8]0 to-blue-700 hover:from-[#25406b] hover:to-blue-800"
                   >
                     {isSaving ? (
                       <>
@@ -906,7 +906,7 @@ export function ConfigManager() {
                   <Button
                     onClick={() => saveConfiguration('email', emailConfig)}
                     disabled={isSaving}
-                    className="bg-gradient-to-r from-theme-primary-500 to-blue-700 hover:from-theme-primary-600 hover:to-blue-800"
+                    className="bg-gradient-to-r from-[#f0f3f8]0 to-blue-700 hover:from-[#25406b] hover:to-blue-800"
                   >
                     {isSaving ? (
                       <>

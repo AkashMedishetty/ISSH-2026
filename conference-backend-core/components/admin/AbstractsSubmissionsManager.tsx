@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
@@ -824,7 +824,7 @@ ISSH 2026 Organizing Committee`
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
-      'submitted': { color: 'bg-theme-primary-100 text-blue-800', icon: Clock, label: 'Submitted' },
+      'submitted': { color: 'bg-[#d8e0ed] text-blue-800', icon: Clock, label: 'Submitted' },
       'under-review': { color: 'bg-yellow-100 text-yellow-800', icon: Eye, label: 'Under Review' },
       'accepted': { color: 'bg-green-100 text-green-800', icon: CheckCircle, label: 'Accepted' },
       'rejected': { color: 'bg-red-100 text-red-800', icon: XCircle, label: 'Rejected' },
@@ -872,10 +872,10 @@ ISSH 2026 Organizing Committee`
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-theme-primary-600">Submitted</p>
+                <p className="text-sm font-medium text-[#25406b]">Submitted</p>
                 <p className="text-2xl font-bold text-blue-900">{stats.submitted}</p>
               </div>
-              <Clock className="w-8 h-8 text-theme-primary-600" />
+              <Clock className="w-8 h-8 text-[#25406b]" />
             </div>
           </CardContent>
         </Card>
@@ -1223,7 +1223,7 @@ ISSH 2026 Organizing Committee`
                       <div className="space-y-2">
                         {abstract.initial.file && (
                           <div className="flex items-center gap-2 text-sm">
-                            <Download className="w-4 h-4 text-theme-primary-600" />
+                            <Download className="w-4 h-4 text-[#25406b]" />
                             <span className="text-gray-600">
                               <strong>Initial File:</strong> {abstract.initial.file.originalName}
                             </span>
@@ -1441,7 +1441,7 @@ ISSH 2026 Organizing Committee`
                   <div className="mt-1 text-green-600">
                     {foundUser.firstName} {foundUser.lastName} ({foundUser.email})
                     {foundUser.registration?.registrationId && (
-                      <span className="ml-2">• Reg ID: {foundUser.registration.registrationId}</span>
+                      <span className="ml-2">â€¢ Reg ID: {foundUser.registration.registrationId}</span>
                     )}
                   </div>
                 </div>

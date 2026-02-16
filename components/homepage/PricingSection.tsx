@@ -12,28 +12,27 @@ if (typeof window !== 'undefined') {
 const pricingCategories = [
   {
     title: 'ISSH Member',
-    earlyBird: { date: 'Till 31st March 2026', price: 'TBD' },
-    regular: { date: 'After 1st April 2026', price: 'TBD' },
+    earlyBird: '₹5,000',
+    regular: '₹6,000',
+    spot: '₹7,000',
   },
   {
-    title: 'Delegate (Non-ISSH Member)',
-    earlyBird: { date: 'Till 31st March 2026', price: 'TBD' },
-    regular: { date: 'After 1st April 2026', price: 'TBD' },
+    title: 'Non ISSH Member',
+    earlyBird: '₹6,000',
+    regular: '₹7,000',
+    spot: '₹8,000',
   },
   {
-    title: 'Spouse / Accompanying Person',
-    earlyBird: { date: 'Till 31st March 2026', price: 'TBD' },
-    regular: { date: 'After 1st April 2026', price: 'TBD' },
+    title: 'Postgraduate',
+    earlyBird: '₹2,500',
+    regular: '₹3,000',
+    spot: '₹3,500',
   },
   {
-    title: 'PG Trainee',
-    earlyBird: { date: 'Till 31st March 2026', price: 'TBD' },
-    regular: { date: 'After 1st April 2026', price: 'TBD' },
-  },
-  {
-    title: 'Individual Workshops',
-    earlyBird: { date: 'Till 31st March 2026', price: 'TBD' },
-    regular: { date: 'After 1st April 2026', price: 'TBD' },
+    title: 'Accompanying Person/Spouse',
+    earlyBird: '₹3,000',
+    regular: '₹3,500',
+    spot: '₹4,000',
   },
 ];
 
@@ -122,17 +121,21 @@ export function PricingSection() {
         {/* Pricing Table */}
         <div className="pricing-table bg-white/60 backdrop-blur-xl rounded-3xl shadow-2xl overflow-hidden border border-white/50">
           {/* Table Header */}
-          <div className="grid grid-cols-3 bg-[#852016] text-white">
+          <div className="grid grid-cols-4 bg-[#852016] text-white">
             <div className="p-4 md:p-6 font-semibold text-sm md:text-base border-r border-white/20">
               Category
             </div>
             <div className="p-4 md:p-6 text-center border-r border-white/20">
               <div className="font-bold text-sm md:text-lg">Early Bird</div>
-              <div className="text-xs md:text-sm opacity-80">Till 31st March 2026</div>
+              <div className="text-xs md:text-sm opacity-80">Upto 15th March</div>
+            </div>
+            <div className="p-4 md:p-6 text-center border-r border-white/20">
+              <div className="font-bold text-sm md:text-lg">Regular</div>
+              <div className="text-xs md:text-sm opacity-80">15th Mar – 24th Apr</div>
             </div>
             <div className="p-4 md:p-6 text-center">
-              <div className="font-bold text-sm md:text-lg">Regular & Spot</div>
-              <div className="text-xs md:text-sm opacity-80">After 1st April 2026</div>
+              <div className="font-bold text-sm md:text-lg">Spot</div>
+              <div className="text-xs md:text-sm opacity-80">At the Conference</div>
             </div>
           </div>
 
@@ -141,7 +144,7 @@ export function PricingSection() {
             {pricingCategories.map((category, index) => (
               <div
                 key={category.title}
-                className={`pricing-row grid grid-cols-3 transition-all duration-300 ${
+                className={`pricing-row grid grid-cols-4 transition-all duration-300 ${
                   hoveredRow === index ? 'bg-[#ebc975]/20' : index % 2 === 0 ? 'bg-white/40' : 'bg-white/20'
                 }`}
                 onMouseEnter={() => setHoveredRow(index)}
@@ -154,12 +157,17 @@ export function PricingSection() {
                 </div>
                 <div className="p-4 md:p-6 flex items-center justify-center border-r border-[#25406b]/10">
                   <span className="text-lg md:text-2xl font-bold text-[#852016]">
-                    {category.earlyBird.price}
+                    {category.earlyBird}
+                  </span>
+                </div>
+                <div className="p-4 md:p-6 flex items-center justify-center border-r border-[#25406b]/10">
+                  <span className="text-lg md:text-2xl font-bold text-[#25406b]">
+                    {category.regular}
                   </span>
                 </div>
                 <div className="p-4 md:p-6 flex items-center justify-center">
                   <span className="text-lg md:text-2xl font-bold text-[#25406b]">
-                    {category.regular.price}
+                    {category.spot}
                   </span>
                 </div>
               </div>
@@ -170,7 +178,7 @@ export function PricingSection() {
         {/* Note */}
         <div className="mt-6 md:mt-8 text-center">
           <p className="text-sm md:text-base text-[#25406b]/60 mb-6">
-            * All prices include 18% GST. Prices will be announced soon.
+            * All prices are exclusive of 18% GST.
           </p>
           
           {/* CTA Button */}

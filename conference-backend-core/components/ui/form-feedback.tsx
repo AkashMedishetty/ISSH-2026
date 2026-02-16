@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Enhanced form feedback components with animations
  */
 
@@ -35,14 +35,14 @@ export function FormFeedback({
     success: "bg-emerald-50 border-emerald-200 text-emerald-800",
     error: "bg-red-50 border-red-200 text-red-800",
     warning: "bg-amber-50 border-amber-200 text-amber-800",
-    info: "bg-theme-primary-50 border-theme-primary-200 text-blue-800",
+    info: "bg-[#f0f3f8] border-[#b0c1db] text-blue-800",
   }
 
   const iconColors = {
     success: "text-emerald-600",
     error: "text-red-600",
     warning: "text-amber-600",
-    info: "text-theme-primary-600",
+    info: "text-[#25406b]",
   }
 
   const Icon = icons[type]
@@ -134,14 +134,14 @@ export function LoadingFeedback({
           animate="animate"
           exit="exit"
           className={cn(
-            "flex items-center gap-3 p-4 rounded-xl bg-theme-primary-50 border border-theme-primary-200 text-blue-800",
+            "flex items-center gap-3 p-4 rounded-xl bg-[#f0f3f8] border border-[#b0c1db] text-blue-800",
             className
           )}
         >
           <motion.div
             animate={{ rotate: 360 }}
             transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-            className="h-5 w-5 border-2 border-theme-primary-600 border-t-transparent rounded-full"
+            className="h-5 w-5 border-2 border-[#25406b] border-t-transparent rounded-full"
           />
           <p className="text-sm font-medium">{message}</p>
         </motion.div>
@@ -170,22 +170,22 @@ export function ProgressFeedback({
           animate="animate"
           exit="exit"
           className={cn(
-            "p-4 rounded-xl bg-theme-primary-50 border border-theme-primary-200",
+            "p-4 rounded-xl bg-[#f0f3f8] border border-[#b0c1db]",
             className
           )}
         >
           {message && (
             <p className="text-sm font-medium text-blue-800 mb-3">{message}</p>
           )}
-          <div className="w-full bg-theme-primary-200 rounded-full h-2">
+          <div className="w-full bg-[#b0c1db] rounded-full h-2">
             <motion.div
-              className="bg-gradient-to-r from-theme-primary-500 to-theme-primary-600 h-2 rounded-full"
+              className="bg-gradient-to-r from-[#f0f3f8]0 to-[#25406b] h-2 rounded-full"
               initial={{ width: 0 }}
               animate={{ width: `${progress}%` }}
               transition={{ duration: 0.5, ease: "easeOut" }}
             />
           </div>
-          <p className="text-xs text-theme-primary-600 mt-2 text-right">
+          <p className="text-xs text-[#25406b] mt-2 text-right">
             {Math.round(progress)}%
           </p>
         </motion.div>

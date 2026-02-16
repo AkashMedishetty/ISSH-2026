@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
@@ -212,7 +212,7 @@ export function PaymentTable({
     if (currency === "USD") {
       return `$${amount.toFixed(2)}`
     }
-    return `₹${amount.toLocaleString()}`
+    return `â‚¹${amount.toLocaleString()}`
   }
 
   const getStatusColor = (status: string) => {
@@ -337,7 +337,7 @@ export function PaymentTable({
                 <div className="text-xs text-gray-600">Pending</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-theme-primary-600">
+                <div className="text-2xl font-bold text-[#25406b]">
                   {formatCurrency(getTotalRevenue(), filteredPayments[0]?.amount.currency || 'INR')}
                 </div>
                 <div className="text-xs text-gray-600">Total Revenue</div>
@@ -582,7 +582,7 @@ export function PaymentTable({
                       <div className="font-medium text-gray-700 dark:text-gray-300 mt-3">Workshop Fees:</div>
                       {selectedPayment.breakdown.workshopFees.map((workshop, index) => (
                         <div key={index} className="flex justify-between ml-4">
-                          <span>• {workshop.name}:</span>
+                          <span>â€¢ {workshop.name}:</span>
                           <span>{formatCurrency(workshop.amount, selectedPayment.amount.currency)}</span>
                         </div>
                       ))}
@@ -602,7 +602,7 @@ export function PaymentTable({
                       {selectedPayment.breakdown.discountsApplied.map((discount, index) => (
                         <div key={index} className="flex justify-between ml-4 text-green-600">
                           <span>
-                            • {discount.type} {discount.code ? `(${discount.code})` : ''} - {discount.percentage}%:
+                            â€¢ {discount.type} {discount.code ? `(${discount.code})` : ''} - {discount.percentage}%:
                           </span>
                           <span>-{formatCurrency(discount.amount, selectedPayment.amount.currency)}</span>
                         </div>

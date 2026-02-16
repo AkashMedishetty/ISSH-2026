@@ -19,17 +19,20 @@ const config: Config = {
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
         primary: {
-          DEFAULT: "#f97316",
+          DEFAULT: "#25406b",
           foreground: "#ffffff",
         },
         secondary: {
-          DEFAULT: "#ffb246",
-          foreground: "#0e192b",
+          DEFAULT: "#ebc975",
+          foreground: "#25406b",
         },
         accent: {
-          DEFAULT: "#2196F3",
+          DEFAULT: "#852016",
           foreground: "#ffffff",
         },
+        'conference-primary': "#25406b",
+        'conference-secondary': "#ebc975",
+        'conference-accent': "#852016",
         muted: {
           DEFAULT: "var(--muted)",
           foreground: "var(--muted-foreground)",

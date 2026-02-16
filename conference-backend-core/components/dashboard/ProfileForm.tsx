@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
@@ -341,7 +341,7 @@ export function ProfileForm() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <User className="h-5 w-5 text-theme-primary-600" />
+              <User className="h-5 w-5 text-[#25406b]" />
               Profile Picture
             </CardTitle>
             <CardDescription>
@@ -397,7 +397,7 @@ export function ProfileForm() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <User className="h-5 w-5 text-theme-primary-600" />
+              <User className="h-5 w-5 text-[#25406b]" />
               Personal Information
             </CardTitle>
             <CardDescription>
@@ -487,7 +487,7 @@ export function ProfileForm() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Building className="h-5 w-5 text-theme-primary-600" />
+              <Building className="h-5 w-5 text-[#25406b]" />
               Professional Information
             </CardTitle>
             <CardDescription>
@@ -528,7 +528,7 @@ export function ProfileForm() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <MapPin className="h-5 w-5 text-theme-primary-600" />
+              <MapPin className="h-5 w-5 text-[#25406b]" />
               Address Information
             </CardTitle>
             <CardDescription>
@@ -637,7 +637,7 @@ export function ProfileForm() {
             <Button
               type="submit"
               disabled={isSaving}
-              className="bg-gradient-to-r from-theme-primary-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
+              className="bg-gradient-to-r from-[#25406b] to-blue-700 hover:from-blue-700 hover:to-blue-800"
             >
               {isSaving ? (
                 <>

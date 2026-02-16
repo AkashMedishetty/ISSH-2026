@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Card, CardContent, CardHeader, CardTitle } from '@/conference-backend-core/components/ui/card'
@@ -163,7 +163,7 @@ export function AbstractsDashboard() {
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
-      'submitted': { color: 'bg-theme-primary-100 text-blue-800', icon: Clock, label: 'Submitted' },
+      'submitted': { color: 'bg-[#d8e0ed] text-blue-800', icon: Clock, label: 'Submitted' },
       'under-review': { color: 'bg-yellow-100 text-yellow-800', icon: Eye, label: 'Under Review' },
       'accepted': { color: 'bg-green-100 text-green-800', icon: CheckCircle, label: 'Accepted' },
       'rejected': { color: 'bg-red-100 text-red-800', icon: XCircle, label: 'Rejected' },
@@ -557,7 +557,7 @@ export function AbstractsDashboard() {
                       <div className="mt-4 space-y-2">
                         {abstract.initial.file && (
                           <div className="flex items-center gap-2 text-sm">
-                            <Download className="w-4 h-4 text-theme-primary-600" />
+                            <Download className="w-4 h-4 text-[#25406b]" />
                             <span className="text-midnight-600 dark:text-midnight-400">
                               <strong>Initial File:</strong> {abstract.initial.file.originalName}
                             </span>
@@ -679,15 +679,15 @@ export function AbstractsDashboard() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <AlertCircle className="w-5 h-5 text-theme-primary-600" />
+            <AlertCircle className="w-5 h-5 text-[#25406b]" />
             Submission Workflow
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
             <div className="text-center">
-              <div className="w-12 h-12 bg-theme-primary-100 rounded-full flex items-center justify-center mx-auto mb-2">
-                <Upload className="w-6 h-6 text-theme-primary-600" />
+              <div className="w-12 h-12 bg-[#d8e0ed] rounded-full flex items-center justify-center mx-auto mb-2">
+                <Upload className="w-6 h-6 text-[#25406b]" />
               </div>
               <h4 className="font-semibold text-midnight-800 dark:text-midnight-100">1. Submit Initial</h4>
               <p className="text-sm text-midnight-600 dark:text-midnight-400">Upload your abstract document</p>
@@ -853,12 +853,12 @@ export function AbstractsDashboard() {
 
             {/* Guidelines */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <h4 className="font-semibold text-blue-800 mb-2">📋 Submission Guidelines</h4>
+              <h4 className="font-semibold text-blue-800 mb-2">ðŸ“‹ Submission Guidelines</h4>
               <ul className="text-sm text-blue-700 space-y-1">
-                <li>• Abstract title should be concise and descriptive</li>
-                <li>• Select the most appropriate track for your research</li>
-                <li>• File upload is optional at this stage</li>
-                <li>• Ensure your file format is PDF or Word</li>
+                <li>â€¢ Abstract title should be concise and descriptive</li>
+                <li>â€¢ Select the most appropriate track for your research</li>
+                <li>â€¢ File upload is optional at this stage</li>
+                <li>â€¢ Ensure your file format is PDF or Word</li>
               </ul>
             </div>
 
@@ -878,7 +878,7 @@ export function AbstractsDashboard() {
 
               return (
                 <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
-                  <h4 className="font-semibold text-emerald-800 mb-2">📥 Download Template</h4>
+                  <h4 className="font-semibold text-emerald-800 mb-2">ðŸ“¥ Download Template</h4>
                   <p className="text-sm text-emerald-700 mb-3">
                     {submitTrack && trackTemplate 
                       ? `Use the official template for ${trackLabel} submissions.`
@@ -1007,26 +1007,26 @@ export function AbstractsDashboard() {
             </div>
 
             {/* Guidelines */}
-            <div className="bg-theme-primary-50 border border-theme-primary-200 rounded-lg p-4">
-              <h4 className="font-semibold text-blue-800 mb-2">📋 Submission Guidelines</h4>
+            <div className="bg-[#f0f3f8] border border-[#b0c1db] rounded-lg p-4">
+              <h4 className="font-semibold text-blue-800 mb-2">ðŸ“‹ Submission Guidelines</h4>
               {abstractsConfig?.guidelines?.finalSubmission?.instructions ? (
-                <div className="text-sm text-theme-primary-700 whitespace-pre-wrap">
+                <div className="text-sm text-[#1d3357] whitespace-pre-wrap">
                   {abstractsConfig.guidelines.finalSubmission.instructions}
                 </div>
               ) : (
-                <ul className="text-sm text-theme-primary-700 space-y-1">
-                  <li>• Ensure your presentation follows the conference format guidelines</li>
-                  <li>• Include all necessary references and citations</li>
-                  <li>• File size should not exceed 50MB</li>
-                  <li>• Supported formats: PDF, PowerPoint (.ppt, .pptx), Word (.doc, .docx)</li>
+                <ul className="text-sm text-[#1d3357] space-y-1">
+                  <li>â€¢ Ensure your presentation follows the conference format guidelines</li>
+                  <li>â€¢ Include all necessary references and citations</li>
+                  <li>â€¢ File size should not exceed 50MB</li>
+                  <li>â€¢ Supported formats: PDF, PowerPoint (.ppt, .pptx), Word (.doc, .docx)</li>
                 </ul>
               )}
               {abstractsConfig?.guidelines?.finalSubmission?.requirements?.length > 0 && (
-                <div className="mt-3 pt-3 border-t border-theme-primary-200">
-                  <p className="font-medium text-theme-primary-800 mb-1">Requirements:</p>
-                  <ul className="text-sm text-theme-primary-700 space-y-1">
+                <div className="mt-3 pt-3 border-t border-[#b0c1db]">
+                  <p className="font-medium text-[#152843] mb-1">Requirements:</p>
+                  <ul className="text-sm text-[#1d3357] space-y-1">
                     {abstractsConfig.guidelines.finalSubmission.requirements.map((req: string, idx: number) => (
-                      <li key={idx}>• {req}</li>
+                      <li key={idx}>â€¢ {req}</li>
                     ))}
                   </ul>
                 </div>
@@ -1047,7 +1047,7 @@ export function AbstractsDashboard() {
 
               return (
                 <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                  <h4 className="font-semibold text-green-800 mb-2">📥 Download Template</h4>
+                  <h4 className="font-semibold text-green-800 mb-2">ðŸ“¥ Download Template</h4>
                   <p className="text-sm text-green-700 mb-3">
                     Use the official template for <strong>{trackLabel}</strong> to ensure your submission follows the correct format.
                   </p>

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Mobile navigation enhancements
  */
 
@@ -255,7 +255,7 @@ export function PullToRefresh({
               <motion.div
                 animate={{ rotate: isRefreshing ? 360 : 0 }}
                 transition={{ duration: 1, repeat: isRefreshing ? Infinity : 0 }}
-                className="w-6 h-6 border-2 border-theme-primary-500 border-t-transparent rounded-full"
+                className="w-6 h-6 border-2 border-[#f0f3f8]0 border-t-transparent rounded-full"
               />
             </div>
           </motion.div>

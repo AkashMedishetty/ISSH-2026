@@ -210,8 +210,9 @@ async function recalculatePaymentBreakdown(user: any, totalAmount: number, curre
     
     const accompanyingPersonFees = accompanyingPersonCount * accompanyingPersonFee
 
-    // Calculate GST (18% on base registration amount only)
-    const gstAmount = calculateGST(baseAmount)
+    // Calculate GST (18% on all fees: registration + workshops + accompanying persons)
+    const preGstTotal = baseAmount + totalWorkshopFees + accompanyingPersonFees
+    const gstAmount = calculateGST(preGstTotal)
 
     // Calculate discounts (placeholder for future discount implementation)
     let totalDiscount = 0

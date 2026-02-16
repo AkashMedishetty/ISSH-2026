@@ -1,24 +1,24 @@
-export type RegistrationTier = "Early Bird" | "Regular" | "Late / Spot"
+export type RegistrationTier = "Early Bird" | "Regular" | "Spot Registration"
 
 export interface RegistrationWindows {
 	earlyBirdEnd: Date
 	regularStart: Date
 	regularEnd: Date
-	lateStart: Date
+	spotStart: Date
 }
 
-// Centralized registration windows sourced from provided pricing table
+// ISSH 2026 registration windows
 export const registrationWindows: RegistrationWindows = {
-	earlyBirdEnd: new Date("2025-11-30T23:59:59"),
-	regularStart: new Date("2025-12-01T00:00:00"),
-	regularEnd: new Date("2026-01-25T23:59:59"),
-	lateStart: new Date("2026-01-26T00:00:00"),
+	earlyBirdEnd: new Date("2026-03-15T23:59:59"),
+	regularStart: new Date("2026-03-16T00:00:00"),
+	regularEnd: new Date("2026-04-24T23:59:59"),
+	spotStart: new Date("2026-04-25T00:00:00"),
 }
 
 export function getCurrentTier(date: Date = new Date()): RegistrationTier {
 	if (date <= registrationWindows.earlyBirdEnd) return "Early Bird"
 	if (date <= registrationWindows.regularEnd) return "Regular"
-	return "Late / Spot"
+	return "Spot Registration"
 }
 
 export function getTierByDate(date: Date): RegistrationTier {
@@ -26,17 +26,17 @@ export function getTierByDate(date: Date): RegistrationTier {
 }
 
 export const registrationLabels = {
-	earlyBird: "Early Bird till 30/11/2025",
-	regular: "Regular 01/12/2025–25/01/2026",
-	late: "Late/Spot from 26/01/2026",
+	earlyBird: "Early Bird upto 15/03/2026",
+	regular: "Regular 16/03/2026–24/04/2026",
+	spot: "Spot at the Conference",
 }
 
 export function getTierSummary(now: Date = new Date()): string {
-	return `${registrationLabels.earlyBird} · ${registrationLabels.regular} · ${registrationLabels.late}`
+	return `${registrationLabels.earlyBird} · ${registrationLabels.regular} · ${registrationLabels.spot}`
 }
 
-// Pricing per tier - configured via admin panel
-export type RegistrationCategory = "resident" | "delegate"
+// Pricing per tier - fallback values (primary source is database)
+export type RegistrationCategory = "issh-member" | "non-issh-member" | "postgraduate"
 
 export interface TierPricing {
 	[category: string]: { amount: number; currency: "INR"; label?: string }
@@ -44,19 +44,22 @@ export interface TierPricing {
 
 const PRICING_BY_TIER: Record<RegistrationTier, TierPricing> = {
 	"Early Bird": {
-		"resident": { amount: 4000, currency: "INR", label: "Resident (Postgraduate)" },
-		"delegate": { amount: 5500, currency: "INR", label: "Delegate" },
-		"accompanying": { amount: 3500, currency: "INR", label: "Accompanying Person" },
+		"issh-member":     { amount: 5000, currency: "INR", label: "ISSH Member" },
+		"non-issh-member": { amount: 6000, currency: "INR", label: "Non ISSH Member" },
+		"postgraduate":    { amount: 2500, currency: "INR", label: "Postgraduate" },
+		"accompanying":    { amount: 3000, currency: "INR", label: "Accompanying Person/Spouse" },
 	},
 	"Regular": {
-		"resident": { amount: 5000, currency: "INR", label: "Resident (Postgraduate)" },
-		"delegate": { amount: 6500, currency: "INR", label: "Delegate" },
-		"accompanying": { amount: 4500, currency: "INR", label: "Accompanying Person" },
+		"issh-member":     { amount: 6000, currency: "INR", label: "ISSH Member" },
+		"non-issh-member": { amount: 7000, currency: "INR", label: "Non ISSH Member" },
+		"postgraduate":    { amount: 3000, currency: "INR", label: "Postgraduate" },
+		"accompanying":    { amount: 3500, currency: "INR", label: "Accompanying Person/Spouse" },
 	},
-	"Late / Spot": {
-		"resident": { amount: 6000, currency: "INR", label: "Resident (Postgraduate)" },
-		"delegate": { amount: 8000, currency: "INR", label: "Delegate" },
-		"accompanying": { amount: 5000, currency: "INR", label: "Accompanying Person" },
+	"Spot Registration": {
+		"issh-member":     { amount: 7000, currency: "INR", label: "ISSH Member" },
+		"non-issh-member": { amount: 8000, currency: "INR", label: "Non ISSH Member" },
+		"postgraduate":    { amount: 3500, currency: "INR", label: "Postgraduate" },
+		"accompanying":    { amount: 4000, currency: "INR", label: "Accompanying Person/Spouse" },
 	},
 }
 

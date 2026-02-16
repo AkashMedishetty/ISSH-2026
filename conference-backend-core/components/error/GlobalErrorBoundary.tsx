@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import React, { Component, ErrorInfo, ReactNode } from "react"
 import { Button } from "../ui/button"
@@ -146,7 +146,7 @@ class GlobalErrorBoundary extends Component<Props, State> {
               <div className="flex flex-col sm:flex-row gap-3">
                 <Button
                   onClick={this.handleRetry}
-                  className="flex-1 bg-gradient-to-r from-theme-primary-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
+                  className="flex-1 bg-gradient-to-r from-[#25406b] to-blue-700 hover:from-blue-700 hover:to-blue-800"
                 >
                   <RefreshCw className="h-4 w-4 mr-2" />
                   Try Again
@@ -164,7 +164,7 @@ class GlobalErrorBoundary extends Component<Props, State> {
                 <p className="mt-1">
                   <a 
                     href={`mailto:${conferenceConfig.contact.email}`} 
-                    className="text-theme-primary-600 hover:underline"
+                    className="text-[#25406b] hover:underline"
                   >
                     {conferenceConfig.contact.email}
                   </a>

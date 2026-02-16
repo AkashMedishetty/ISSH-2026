@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Fully accessible modal component with WCAG 2.1 AA compliance
  */
 
@@ -252,7 +252,7 @@ export function AccessibleAlertDialog({
               "transition-colors",
               variant === "destructive"
                 ? "bg-red-600 hover:bg-red-700 focus:ring-red-500"
-                : "bg-theme-primary-600 hover:bg-theme-primary-700 focus:ring-blue-500"
+                : "bg-[#25406b] hover:bg-[#1d3357] focus:ring-blue-500"
             )}
           >
             {confirmText}

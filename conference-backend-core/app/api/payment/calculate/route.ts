@@ -130,8 +130,7 @@ export async function POST(request: NextRequest) {
       baseAmount = 0
     }
 
-    // Calculate GST (18% on base registration amount only)
-    const gstAmount = calculateGST(baseAmount)
+    // GST will be calculated after all fees are computed
 
     // Get workshops from Workshop collection
     let workshops: any[] = []
@@ -196,8 +195,12 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Calculate subtotal
-    const subtotal = baseAmount + gstAmount + totalWorkshopFees + totalAccompanyingFees
+    // Calculate GST (18% on all fees: registration + workshops + accompanying persons)
+    const preGstTotal = baseAmount + totalWorkshopFees + totalAccompanyingFees
+    const gstAmount = calculateGST(preGstTotal)
+
+    // Calculate subtotal (all fees + GST)
+    const subtotal = preGstTotal + gstAmount
 
     // Apply discounts (if any)
     let totalDiscount = 0

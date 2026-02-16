@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState } from "react"
 import { motion } from "framer-motion"
@@ -234,7 +234,7 @@ export function RegistrationCard({ userData, onUpdate }: RegistrationCardProps) 
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5 text-theme-primary-600" />
+                <FileText className="h-5 w-5 text-[#25406b]" />
                 Registration Details
               </CardTitle>
               <CardDescription>
@@ -348,7 +348,7 @@ export function RegistrationCard({ userData, onUpdate }: RegistrationCardProps) 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {(isEditing ? editData.workshopSelections : userData.registration.workshopSelections).map((workshop) => (
                   <div key={workshop} className="flex items-center space-x-2">
-                    <span className="inline-flex items-center rounded-md bg-theme-primary-50 px-2 py-1 text-xs font-medium text-theme-primary-700 ring-1 ring-inset ring-blue-600/20 dark:bg-blue-900/20 dark:text-blue-200">
+                    <span className="inline-flex items-center rounded-md bg-[#f0f3f8] px-2 py-1 text-xs font-medium text-[#1d3357] ring-1 ring-inset ring-blue-600/20 dark:bg-blue-900/20 dark:text-blue-200">
                       {workshop}
                     </span>
                     {isEditing && canEdit && (
@@ -528,7 +528,7 @@ export function RegistrationCard({ userData, onUpdate }: RegistrationCardProps) 
               <Button
                 onClick={handleSave}
                 disabled={isLoading}
-                className="bg-gradient-to-r from-theme-primary-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
+                className="bg-gradient-to-r from-[#25406b] to-blue-700 hover:from-blue-700 hover:to-blue-800"
               >
                 <Save className="h-4 w-4 mr-1" />
                 {isLoading ? "Saving..." : "Save Changes"}

@@ -399,15 +399,17 @@ export default function RegisterPage() {
 
       // Auto-select registration type based on designation (if applicable)
       if (field === 'designation') {
-        // Find student/resident category if exists
+        // Find postgraduate/student/resident category if exists
         const studentCategory = conferenceConfig.registration.categories.find(cat => 
-          cat.label.toLowerCase().includes('student') || cat.label.toLowerCase().includes('resident')
+          cat.label.toLowerCase().includes('student') || 
+          cat.label.toLowerCase().includes('resident') ||
+          cat.label.toLowerCase().includes('postgraduate')
         )
         
         if (value === 'PG/Student' && studentCategory) {
           newData.registrationType = studentCategory.key
         } else if (value === 'Consultant' && studentCategory && prev.registrationType === studentCategory.key) {
-          // Clear student category if consultant is selected
+          // Clear postgraduate category if consultant is selected
           newData.registrationType = ''
         }
       }
@@ -1510,16 +1512,18 @@ export default function RegisterPage() {
               >
                 {registrationTypes
                   .filter(type => {
-                    // Find student/resident category
+                    // Find postgraduate/student/resident category
                     const studentCategory = conferenceConfig.registration.categories.find(cat => 
-                      cat.label.toLowerCase().includes('student') || cat.label.toLowerCase().includes('resident')
+                      cat.label.toLowerCase().includes('student') || 
+                      cat.label.toLowerCase().includes('resident') ||
+                      cat.label.toLowerCase().includes('postgraduate')
                     )
                     
-                    // If designation is PG/Student, only show student/resident option
+                    // If designation is PG/Student, only show postgraduate option
                     if (formData.designation === 'PG/Student' && studentCategory) {
                       return type.value === studentCategory.key
                     }
-                    // If designation is Consultant, show all except student/resident
+                    // If designation is Consultant, show all except postgraduate
                     if (formData.designation === 'Consultant' && studentCategory) {
                       return type.value !== studentCategory.key
                     }
@@ -1565,10 +1569,10 @@ export default function RegisterPage() {
                 required
                 className="h-10"
               />
-              {formData.mciNumber && !/^[a-zA-Z0-9-]{5,}$/.test(formData.mciNumber) && (
+              {formData.mciNumber && !/^[a-zA-Z0-9-]{3,}$/.test(formData.mciNumber) && (
                 <p className="text-xs text-orange-600 mt-1 flex items-center gap-1">
                   <AlertCircle className="w-3 h-3" />
-                  MCI number must be at least 5 characters
+                  MCI number must be at least 3 characters
                 </p>
               )}
             </div>
@@ -1809,14 +1813,6 @@ export default function RegisterPage() {
                       {formatCurrency(priceCalculation.registrationFee || priceCalculation.baseAmount || 0, priceCalculation.currency)}
                     </span>
                   </div>
-                  {(priceCalculation.gst > 0 || priceCalculation.breakdown?.gst > 0) && (
-                    <div className="flex justify-between">
-                      <span>GST (18%):</span>
-                      <span className="font-medium">
-                        {formatCurrency(priceCalculation.gst || priceCalculation.breakdown?.gst || 0, priceCalculation.currency)}
-                      </span>
-                    </div>
-                  )}
                   {priceCalculation.workshopFees > 0 && (
                     <div className="flex justify-between">
                       <span>Workshop Fees ({formData.workshopSelection.length} workshops):</span>
@@ -1844,6 +1840,14 @@ export default function RegisterPage() {
                       <span>Discount Applied{formData.discountCode ? ` (${formData.discountCode})` : ''}:</span>
                       <span className="font-medium">
                         -{formatCurrency(priceCalculation.discount, priceCalculation.currency)}
+                      </span>
+                    </div>
+                  )}
+                  {(priceCalculation.gst > 0 || priceCalculation.breakdown?.gst > 0) && (
+                    <div className="flex justify-between">
+                      <span>GST (18%):</span>
+                      <span className="font-medium">
+                        {formatCurrency(priceCalculation.gst || priceCalculation.breakdown?.gst || 0, priceCalculation.currency)}
                       </span>
                     </div>
                   )}
@@ -2067,6 +2071,9 @@ export default function RegisterPage() {
               />
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                 The UTR (Unique Transaction Reference) number is provided by your bank after successful transfer
+              </p>
+              <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                Hint: If your UTR is less than 12 digits, add leading zeros (e.g. 000012345678)
               </p>
             </div>
             )}

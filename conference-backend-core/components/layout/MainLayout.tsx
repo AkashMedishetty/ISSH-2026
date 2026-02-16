@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState, useEffect } from "react"
 import { useSession, signOut } from "next-auth/react"
@@ -158,7 +158,7 @@ function UserMenu({ userData }: { userData: any }) {
         <Button variant="ghost" className="relative h-10 w-10 rounded-full">
           <Avatar className="h-10 w-10">
             <AvatarImage src={userData?.profile?.profilePicture} />
-            <AvatarFallback className="bg-gradient-to-r from-theme-primary-600 to-blue-700 text-white">
+            <AvatarFallback className="bg-gradient-to-r from-[#25406b] to-blue-700 text-white">
               {userData?.profile ? getInitials(userData.profile.firstName, userData.profile.lastName) : 'U'}
             </AvatarFallback>
           </Avatar>
@@ -361,8 +361,8 @@ export function MainLayout({ children, currentPage, showSearch = false }: MainLa
                     <Button
                       variant="ghost"
                       className={`text-sm font-medium transition-all duration-200 ${isActivePage(item.href)
-                        ? "bg-gradient-to-r from-theme-primary-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 shadow-md"
-                        : "hover:bg-theme-primary-50 hover:text-theme-primary-600 dark:hover:bg-blue-900/20 dark:hover:text-blue-400"
+                        ? "bg-gradient-to-r from-[#25406b] to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 shadow-md"
+                        : "hover:bg-[#f0f3f8] hover:text-[#25406b] dark:hover:bg-blue-900/20 dark:hover:text-blue-400"
                         }`}
                     >
                       <Icon className="w-4 h-4 mr-2" />
@@ -395,7 +395,7 @@ export function MainLayout({ children, currentPage, showSearch = false }: MainLa
                     </Button>
                   </Link>
                   <button onClick={() => { if (typeof window !== 'undefined') { window.location.assign('/register') } }}>
-                    <Button className="bg-gradient-to-r from-theme-primary-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg">
+                    <Button className="bg-gradient-to-r from-[#25406b] to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg">
                       Register Now
                     </Button>
                   </button>
@@ -456,8 +456,8 @@ export function MainLayout({ children, currentPage, showSearch = false }: MainLa
                           <Button
                             variant="ghost"
                             className={`w-full justify-start text-left h-12 transition-all duration-200 ${isActivePage(item.href)
-                              ? "bg-gradient-to-r from-theme-primary-600 to-blue-700 text-white"
-                              : "hover:bg-theme-primary-50 hover:text-theme-primary-600 dark:hover:bg-blue-900/20 dark:hover:text-blue-400"
+                              ? "bg-gradient-to-r from-[#25406b] to-blue-700 text-white"
+                              : "hover:bg-[#f0f3f8] hover:text-[#25406b] dark:hover:bg-blue-900/20 dark:hover:text-blue-400"
                               }`}
                           >
                             <Icon className="w-4 h-4 mr-3" />
@@ -484,7 +484,7 @@ export function MainLayout({ children, currentPage, showSearch = false }: MainLa
                           </Button>
                         </Link>
                         <button onClick={() => { setIsMenuOpen(false); if (typeof window !== 'undefined') { window.location.assign('/register') } }}>
-                          <Button className="w-full bg-gradient-to-r from-theme-primary-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white h-12 shadow-lg">
+                          <Button className="w-full bg-gradient-to-r from-[#25406b] to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white h-12 shadow-lg">
                             <UserCheck className="w-4 h-4 mr-3" />
                             Register Now
                           </Button>
@@ -503,7 +503,7 @@ export function MainLayout({ children, currentPage, showSearch = false }: MainLa
                     >
                       <div className="flex items-center space-x-3 px-3 py-2">
                         <Avatar className="h-10 w-10">
-                          <AvatarFallback className="bg-gradient-to-r from-theme-primary-600 to-blue-700 text-white">
+                          <AvatarFallback className="bg-gradient-to-r from-[#25406b] to-blue-700 text-white">
                             {userData.profile ?
                               `${userData.profile.firstName?.charAt(0) || ''}${userData.profile.lastName?.charAt(0) || ''}`.toUpperCase()
                               : 'U'

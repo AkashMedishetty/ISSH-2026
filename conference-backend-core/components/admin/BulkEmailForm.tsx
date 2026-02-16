@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
@@ -354,7 +354,7 @@ export function BulkEmailForm() {
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5 text-theme-primary-500" />
+                <Users className="h-5 w-5 text-[#f0f3f8]0" />
                 Select Recipients ({selectedRecipients.length} selected)
               </CardTitle>
               <CardDescription>
@@ -375,7 +375,7 @@ export function BulkEmailForm() {
               <Button
                 onClick={handleSendEmail}
                 disabled={!subject.trim() || !content.trim() || selectedRecipients.length === 0 || isSending}
-                className="bg-gradient-to-r from-theme-primary-500 to-blue-700 hover:from-theme-primary-600 hover:to-blue-800 flex items-center gap-2"
+                className="bg-gradient-to-r from-[#f0f3f8]0 to-blue-700 hover:from-[#25406b] hover:to-blue-800 flex items-center gap-2"
               >
                 {isSending ? (
                   <>
@@ -633,7 +633,7 @@ export function BulkEmailForm() {
                 </Button>
                 <Button
                   onClick={handleSendEmail}
-                  className="bg-gradient-to-r from-theme-primary-500 to-blue-700 hover:from-theme-primary-600 hover:to-blue-800"
+                  className="bg-gradient-to-r from-[#f0f3f8]0 to-blue-700 hover:from-[#25406b] hover:to-blue-800"
                 >
                   <Send className="h-4 w-4 mr-2" />
                   Send Email
