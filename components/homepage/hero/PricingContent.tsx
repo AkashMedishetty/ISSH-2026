@@ -10,8 +10,8 @@ const registrationPricing = [
 ];
 
 const accommodationPricing = [
-  { type: 'Single Accommodation', price: '₹9,000/Day' },
-  { type: 'Sharing Accommodation', price: '₹6,000/Day' },
+  { type: 'Single Accommodation', price: '₹10,000/Day' },
+  { type: 'Sharing Accommodation', price: '₹7,500/Day' },
 ];
 
 export function PricingContent() {
