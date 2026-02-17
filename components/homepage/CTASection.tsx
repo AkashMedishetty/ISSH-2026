@@ -77,6 +77,16 @@ export function CTASection() {
             </div>
           ))}
         </div>
+
+        {/* Accommodation Note */}
+        <div className="mt-8 md:mt-10 p-4 rounded-xl border max-w-lg mx-auto" style={{ borderColor: `${config.theme.accent}40`, background: `${config.theme.accent}08` }}>
+          <p className="text-xs md:text-sm font-medium" style={{ color: config.theme.primary }}>
+            🏨 Hotel Accommodation at Novotel HICC — Single ₹10,000 / Sharing ₹7,500 per night (+ GST)
+          </p>
+          <p className="text-xs mt-1" style={{ color: `${config.theme.primary}99` }}>
+            Check-in: 2:00 PM | Check-out: 12:00 PM
+          </p>
+        </div>
       </div>
     </section>
   );

@@ -1837,7 +1837,7 @@ export default function RegisterPage() {
                 <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Hotel Accommodation (Optional)</h3>
               </div>
               <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                Book your stay at Novotel HICC, Hyderabad. Prices are exclusive of 18% GST.
+                Book your stay at Novotel HICC, Hyderabad. Check-in: 2:00 PM | Check-out: 12:00 PM. Prices are exclusive of 18% GST.
               </p>
 
               <div className="flex items-center gap-3 mb-4">
@@ -1893,7 +1893,7 @@ export default function RegisterPage() {
                   {/* Check-in / Check-out Dates */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Check-in Date *</label>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Check-in Date * <span className="font-normal text-gray-500">(2:00 PM)</span></label>
                       <Input
                         type="date"
                         value={formData.accommodationCheckIn}
@@ -1904,7 +1904,7 @@ export default function RegisterPage() {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Check-out Date *</label>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Check-out Date * <span className="font-normal text-gray-500">(12:00 PM)</span></label>
                       <Input
                         type="date"
                         value={formData.accommodationCheckOut}
