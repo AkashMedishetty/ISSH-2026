@@ -36,11 +36,20 @@ export interface InvoiceData {
     transactionId?: string;
     paidAt?: string;
   };
+  accommodation?: {
+    roomType: string;
+    checkIn: string;
+    checkOut: string;
+    nights: number;
+    perNight: number;
+    totalAmount: number;
+  };
   pricing: {
     baseAmount: number;
     gst: number;
     workshopFees: number;
     accompanyingFees: number;
+    accommodationFees: number;
     totalAmount: number;
     discount?: number;
     finalAmount: number;
@@ -419,22 +428,12 @@ export class InvoiceGenerator {
                       `
                     <tr>
                         <td>
-                            <strong>${data.registration.type} Registration</strong>
+                            <strong>${this.getCategoryLabel(data.registration.type)} Registration</strong>
                         </td>
                         <td class="text-center">1</td>
                         <td class="text-right">${formatCurrency(data.pricing.baseAmount)}</td>
                         <td class="text-right">${formatCurrency(data.pricing.baseAmount)}</td>
                     </tr>
-                    ${data.pricing.gst > 0 ? `
-                    <tr>
-                        <td>
-                            <strong>GST (18%)</strong>
-                        </td>
-                        <td class="text-center">1</td>
-                        <td class="text-right">${formatCurrency(data.pricing.gst)}</td>
-                        <td class="text-right">${formatCurrency(data.pricing.gst)}</td>
-                    </tr>
-                    ` : ''}
                     ${(data.pricing.workshopFees > 0 && data.registration.workshopSelections.length > 0) ? `
                     <tr>
                         <td>
@@ -459,6 +458,17 @@ export class InvoiceGenerator {
                         <td class="text-right">${formatCurrency(data.pricing.accompanyingFees || 0)}</td>
                     </tr>
                     ` : ''}
+                    ${data.invoiceType !== 'workshop-addon' && data.accommodation && data.pricing.accommodationFees > 0 ? `
+                    <tr>
+                        <td>
+                            <strong>Hotel Accommodation (${data.accommodation.roomType === 'single' ? 'Single Room' : 'Sharing Room'})</strong><br>
+                            <small>Check-in: ${formatDate(data.accommodation.checkIn)} — Check-out: ${formatDate(data.accommodation.checkOut)}</small>
+                        </td>
+                        <td class="text-center">${data.accommodation.nights}</td>
+                        <td class="text-right">${formatCurrency(data.accommodation.perNight)}</td>
+                        <td class="text-right">${formatCurrency(data.pricing.accommodationFees)}</td>
+                    </tr>
+                    ` : ''}
                 </tbody>
             </table>
         </div>
@@ -466,9 +476,33 @@ export class InvoiceGenerator {
         <!-- Total Section -->
         <div class="total-section">
             <div class="total-row">
-                <span>Subtotal:</span>
-                <span>${formatCurrency(data.pricing.totalAmount)}</span>
+                <span>Registration Fee:</span>
+                <span>${formatCurrency(data.pricing.baseAmount)}</span>
             </div>
+            ${data.pricing.workshopFees > 0 ? `
+            <div class="total-row">
+                <span>Workshop Fees:</span>
+                <span>${formatCurrency(data.pricing.workshopFees)}</span>
+            </div>
+            ` : ''}
+            ${data.pricing.accompanyingFees > 0 ? `
+            <div class="total-row">
+                <span>Accompanying Person(s):</span>
+                <span>${formatCurrency(data.pricing.accompanyingFees)}</span>
+            </div>
+            ` : ''}
+            ${data.pricing.accommodationFees > 0 ? `
+            <div class="total-row">
+                <span>Accommodation:</span>
+                <span>${formatCurrency(data.pricing.accommodationFees)}</span>
+            </div>
+            ` : ''}
+            ${data.pricing.gst > 0 ? `
+            <div class="total-row">
+                <span>GST (18%):</span>
+                <span>${formatCurrency(data.pricing.gst)}</span>
+            </div>
+            ` : ''}
             ${data.pricing.discount && data.pricing.discount > 0 ? `
             <div class="total-row">
                 <span>Discount:</span>
@@ -617,11 +651,26 @@ export class InvoiceGenerator {
         gst: payment.breakdown?.gst || payment.amount?.gst || 0,
         workshopFees: payment.amount.workshops || 0,
         accompanyingFees: payment.amount.accompanyingPersons || 0,
+        accommodationFees: payment.amount.accommodation || 0,
         totalAmount: payment.amount.total || 0,
         discount: payment.amount.discount || 0,
         finalAmount: payment.amount.total || 0
       }
     };
+
+    // Add accommodation if present
+    if (user.registration?.accommodation?.required) {
+      const acc = user.registration.accommodation;
+      const perNight = acc.roomType === 'single' ? 10000 : 7500;
+      invoiceData.accommodation = {
+        roomType: acc.roomType || 'single',
+        checkIn: acc.checkIn || '',
+        checkOut: acc.checkOut || '',
+        nights: acc.nights || 0,
+        perNight,
+        totalAmount: acc.totalAmount || 0
+      };
+    }
 
     return this.generatePDF(invoiceData);
   }
@@ -634,14 +683,25 @@ export class InvoiceGenerator {
     
     // Use actual breakdown values if available
     const registrationFee = paymentBreakdown.registration || 0;
-    const gst = paymentBreakdown.gst || 0;
+    let gst = paymentBreakdown.gst || 0;
     const workshopFees = paymentBreakdown.workshops || 0;
     const accompanyingFees = paymentBreakdown.accompanyingPersons || 0;
+    const accommodationFees = paymentBreakdown.accommodation || 0;
     const discount = paymentBreakdown.discount || 0;
     
     // If breakdown is missing, put everything in registration fee
-    const actualRegistrationFee = registrationFee || (totalPaid - workshopFees - accompanyingFees + discount);
-    const totalAmount = actualRegistrationFee + workshopFees + accompanyingFees - discount;
+    const actualRegistrationFee = registrationFee || (totalPaid - workshopFees - accompanyingFees - accommodationFees + discount);
+    
+    // If GST is missing from breakdown, recalculate it (18% on pre-GST total)
+    if (gst === 0 && totalPaid > 0) {
+      const preGstTotal = actualRegistrationFee + workshopFees + accompanyingFees + accommodationFees;
+      // Check if totalPaid already includes GST by seeing if preGstTotal * 1.18 ≈ totalPaid
+      if (preGstTotal > 0 && Math.abs(preGstTotal * 1.18 - totalPaid) < 2) {
+        gst = Math.round(preGstTotal * 0.18);
+      }
+    }
+    
+    const totalAmount = actualRegistrationFee + workshopFees + accompanyingFees + accommodationFees - discount;
     
     // Parse accompanying persons data
     let accompanyingPersons: Array<{ name: string; relationship: string }> = [];
@@ -710,11 +770,26 @@ export class InvoiceGenerator {
         gst: gst,
         workshopFees: workshopFees,
         accompanyingFees: accompanyingFees,
-        totalAmount: actualRegistrationFee + gst + workshopFees + accompanyingFees,
+        accommodationFees: accommodationFees,
+        totalAmount: actualRegistrationFee + gst + workshopFees + accompanyingFees + accommodationFees,
         discount: discount,
         finalAmount: totalAmount
       }
     };
+
+    // Add accommodation if present
+    if (user.registration?.accommodation?.required) {
+      const acc = user.registration.accommodation;
+      const perNight = acc.roomType === 'single' ? 10000 : 7500;
+      invoiceData.accommodation = {
+        roomType: acc.roomType || 'single',
+        checkIn: acc.checkIn || '',
+        checkOut: acc.checkOut || '',
+        nights: acc.nights || 0,
+        perNight,
+        totalAmount: acc.totalAmount || 0
+      };
+    }
 
     return this.generatePDF(invoiceData);
   }

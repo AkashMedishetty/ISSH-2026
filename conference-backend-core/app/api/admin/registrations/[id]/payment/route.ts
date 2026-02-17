@@ -158,8 +158,10 @@ export async function PUT(
         // Calculate payment breakdown if not available
         const breakdown = user.payment?.breakdown || user.paymentInfo?.breakdown || {
           registration: paymentAmount,
+          gst: 0,
           workshops: 0,
           accompanyingPersons: 0,
+          accommodation: 0,
           discount: 0
         };
         

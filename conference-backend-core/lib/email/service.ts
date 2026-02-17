@@ -257,8 +257,10 @@ export class EmailService {
             paidAt: paymentData.paymentDate || new Date().toISOString(),
             breakdown: {
               registration: paymentData.breakdown?.baseAmount || paymentData.breakdown?.registration || 0,
+              gst: paymentData.breakdown?.gst || 0,
               workshops: paymentData.breakdown?.workshops || 0,
               accompanyingPersons: paymentData.breakdown?.accompanyingPersonFees || paymentData.breakdown?.accompanyingPersons || 0,
+              accommodation: paymentData.breakdown?.accommodation || paymentData.breakdown?.accommodationFees || 0,
               discount: paymentData.breakdown?.discount || 0
             }
           }
@@ -381,8 +383,10 @@ export class EmailService {
         // If breakdown is provided, use it; otherwise try to calculate from data
         const breakdown = (acceptanceData as any).breakdown || {
           registration: acceptanceData.amount,
+          gst: 0,
           workshops: 0,
           accompanyingPersons: 0,
+          accommodation: 0,
           discount: 0
         };
         
@@ -412,7 +416,8 @@ export class EmailService {
             type: acceptanceData.registrationType,
             tier: (acceptanceData as any).tier || 'Standard',
             workshopSelections: acceptanceData.workshopSelections || [],
-            accompanyingPersons: accompanyingPersons
+            accompanyingPersons: accompanyingPersons,
+            accommodation: acceptanceData.accommodation || undefined
           },
           payment: {
             amount: acceptanceData.amount,

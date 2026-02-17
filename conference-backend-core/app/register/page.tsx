@@ -702,6 +702,44 @@ export default function RegisterPage() {
           return false
         }
 
+        // Validate accommodation fields if accommodation is required
+        if (formData.accommodationRequired) {
+          const missingAccommodation: string[] = []
+          if (!formData.accommodationRoomType) missingAccommodation.push('Room Type')
+          if (!formData.accommodationCheckIn) missingAccommodation.push('Check-in Date')
+          if (!formData.accommodationCheckOut) missingAccommodation.push('Check-out Date')
+
+          if (missingAccommodation.length > 0) {
+            console.log('Missing accommodation fields:', missingAccommodation)
+            toast({
+              title: "❌ Accommodation Details Required",
+              description: `You selected hotel accommodation. Please fill in: ${missingAccommodation.join(', ')}`,
+              variant: "destructive",
+              duration: 8000
+            })
+            const accSection = document.getElementById('accommodationRequired')
+            if (accSection) {
+              accSection.scrollIntoView({ behavior: 'smooth', block: 'center' })
+            }
+            return false
+          }
+
+          // Validate check-out is after check-in
+          if (formData.accommodationCheckIn && formData.accommodationCheckOut) {
+            const checkIn = new Date(formData.accommodationCheckIn)
+            const checkOut = new Date(formData.accommodationCheckOut)
+            if (checkOut <= checkIn) {
+              toast({
+                title: "❌ Invalid Dates",
+                description: "Check-out date must be after check-in date.",
+                variant: "destructive",
+                duration: 6000
+              })
+              return false
+            }
+          }
+        }
+
         // Validate accompanying persons if any
         if (formData.accompanyingPersons.length > 0) {
           for (let i = 0; i < formData.accompanyingPersons.length; i++) {

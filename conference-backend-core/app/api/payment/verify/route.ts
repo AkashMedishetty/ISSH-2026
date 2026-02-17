@@ -825,8 +825,10 @@ export async function POST(request: NextRequest) {
             breakdown: {
               ...paymentRecord.breakdown,
               registration: paymentRecord.amount.registration,
+              gst: paymentRecord.amount.gst || 0,
               workshops: paymentRecord.amount.workshops,
               accompanyingPersons: paymentRecord.amount.accompanyingPersons,
+              accommodation: paymentRecord.amount.accommodation || 0,
               discount: paymentRecord.amount.discount
             }
           })
