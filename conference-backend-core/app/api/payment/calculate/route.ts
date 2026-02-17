@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
     await connectDB()
     
     const body = await request.json()
-    const { registrationType, workshopSelections = [], accompanyingPersons = [], discountCode, age = 0 } = body
+    const { registrationType, workshopSelections = [], accompanyingPersons = [], discountCode, age = 0, accommodation } = body
     
     if (!registrationType) {
       return NextResponse.json({
@@ -195,8 +195,29 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Calculate GST (18% on all fees: registration + workshops + accompanying persons)
-    const preGstTotal = baseAmount + totalWorkshopFees + totalAccompanyingFees
+    // Calculate accommodation fees
+    let accommodationFees = 0
+    let accommodationNights = 0
+    let accommodationBreakdown: { roomType: string; checkIn: string; checkOut: string; nights: number; perNight: number; total: number } | null = null
+
+    if (accommodation && accommodation.roomType && accommodation.checkIn && accommodation.checkOut) {
+      const checkIn = new Date(accommodation.checkIn)
+      const checkOut = new Date(accommodation.checkOut)
+      accommodationNights = Math.max(0, Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24)))
+      const perNight = accommodation.roomType === 'single' ? 10000 : 7500
+      accommodationFees = accommodationNights * perNight
+      accommodationBreakdown = {
+        roomType: accommodation.roomType,
+        checkIn: accommodation.checkIn,
+        checkOut: accommodation.checkOut,
+        nights: accommodationNights,
+        perNight,
+        total: accommodationFees
+      }
+    }
+
+    // Calculate GST (18% on all fees: registration + workshops + accompanying persons + accommodation)
+    const preGstTotal = baseAmount + totalWorkshopFees + totalAccompanyingFees + accommodationFees
     const gstAmount = calculateGST(preGstTotal)
 
     // Calculate subtotal (all fees + GST)
@@ -257,6 +278,9 @@ export async function POST(request: NextRequest) {
       accompanyingPersonFees: totalAccompanyingFees,
       accompanyingPersonCount,
       freeChildrenCount,
+      accommodationFees,
+      accommodationNights,
+      accommodationBreakdown,
       subtotal,
       discount: totalDiscount,
       total: finalAmount,
@@ -273,6 +297,7 @@ export async function POST(request: NextRequest) {
         workshops: workshopFees,
         accompanyingPersons: accompanyingBreakdown,
         accompanyingPersonFeePerPerson: accompanyingPersonFee,
+        accommodation: accommodationBreakdown,
         appliedDiscounts,
         tier: currentTierName
       }

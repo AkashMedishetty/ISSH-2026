@@ -210,8 +210,14 @@ async function recalculatePaymentBreakdown(user: any, totalAmount: number, curre
     
     const accompanyingPersonFees = accompanyingPersonCount * accompanyingPersonFee
 
-    // Calculate GST (18% on all fees: registration + workshops + accompanying persons)
-    const preGstTotal = baseAmount + totalWorkshopFees + accompanyingPersonFees
+    // Calculate accommodation fees
+    let accommodationFees = 0
+    if (user.registration.accommodation?.required && user.registration.accommodation.totalAmount) {
+      accommodationFees = user.registration.accommodation.totalAmount
+    }
+
+    // Calculate GST (18% on all fees: registration + workshops + accompanying persons + accommodation)
+    const preGstTotal = baseAmount + totalWorkshopFees + accompanyingPersonFees + accommodationFees
     const gstAmount = calculateGST(preGstTotal)
 
     // Calculate discounts (placeholder for future discount implementation)
@@ -232,6 +238,7 @@ async function recalculatePaymentBreakdown(user: any, totalAmount: number, curre
         gstPercentage: 18,
         workshops: totalWorkshopFees,
         accompanyingPersons: accompanyingPersonFees,
+        accommodation: accommodationFees,
         discount: totalDiscount
       },
       breakdown: {
@@ -244,6 +251,8 @@ async function recalculatePaymentBreakdown(user: any, totalAmount: number, curre
         accompanyingPersonCount: accompanyingPersonCount,
         accompanyingPersonDetails: accompanyingPersonDetails,
         accompanyingPersonFees: accompanyingPersonFees,
+        accommodation: user.registration.accommodation || null,
+        accommodationFees: accommodationFees,
         discountsApplied: appliedDiscounts,
         paymentMethod: 'payment_gateway'
       }
@@ -395,7 +404,8 @@ export async function POST(request: NextRequest) {
             registrationType: user.registration.type,
             registrationTypeLabel: registrationTypeLabel,
             workshopSelections: workshopDetails,
-            accompanyingPersons: user.registration.accompanyingPersons || []
+            accompanyingPersons: user.registration.accompanyingPersons || [],
+            accommodation: user.registration.accommodation?.required ? user.registration.accommodation : undefined
           })
           console.log('✅ Registration confirmation email sent to:', user.email)
         } catch (emailError) {
@@ -490,7 +500,8 @@ export async function POST(request: NextRequest) {
               registrationType: user.registration.type,
               registrationTypeLabel: registrationTypeLabel,
               workshopSelections: workshopDetails,
-              accompanyingPersons: user.registration.accompanyingPersons || []
+              accompanyingPersons: user.registration.accompanyingPersons || [],
+              accommodation: user.registration.accommodation?.required ? user.registration.accommodation : undefined
             })
             console.log('✅ Registration confirmation email sent to:', user.email)
           } catch (emailError) {

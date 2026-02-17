@@ -104,6 +104,7 @@ export async function POST(
             workshopSelections: user.registration.workshopSelections || [],
             accompanyingPersons: user.registration.accompanyingPersons?.length || 0,
             accompanyingPersonsDetails: user.registration.accompanyingPersons || [],
+            accommodation: user.registration.accommodation?.required ? user.registration.accommodation : undefined,
             breakdown: breakdown,
             tier: user.registration.tier,
             paymentMethod: user.payment?.method,

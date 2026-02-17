@@ -18,6 +18,7 @@ import { CertificateDesigner } from './CertificateDesigner'
 import { BulkCertificateEmailer } from './BulkCertificateEmailer'
 import { AdvancedBulkEmailSystem } from './AdvancedBulkEmailSystem'
 import { StunningAnalyticsDashboard } from './StunningAnalyticsDashboard'
+import { AccommodationManager } from './AccommodationManager'
 import { PaymentTable } from './PaymentTable'
 import { PaymentSettingsManager } from './PaymentSettingsManager'
 import { SponsorManager } from './SponsorManager'
@@ -149,6 +150,13 @@ export function CompleteAdminPanel() {
         return (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
             <WorkshopManager />
+          </motion.div>
+        )
+
+      case 'accommodation':
+        return (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+            <AccommodationManager />
           </motion.div>
         )
 

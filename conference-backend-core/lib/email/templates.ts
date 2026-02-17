@@ -126,6 +126,7 @@ export function getRegistrationConfirmationTemplate(userData: {
   registrationTypeLabel: string
   workshopSelections?: Array<{id: string, name: string}>
   accompanyingPersons?: Array<{name: string, age: number, relationship: string}>
+  accommodation?: { required: boolean, roomType: string, checkIn: string, checkOut: string, nights: number, totalAmount: number }
   paymentMethod?: string
 }) {
   const isPaymentGateway = userData.paymentMethod === 'payment_gateway'
@@ -147,6 +148,8 @@ export function getRegistrationConfirmationTemplate(userData: {
           `<tr><th>Workshops</th><td>${userData.workshopSelections.map(w => typeof w === 'string' ? w : w.name).join(', ')}</td></tr>` : ''}
         ${userData.accompanyingPersons && userData.accompanyingPersons.length > 0 ? 
           `<tr><th>Accompanying Persons</th><td>${userData.accompanyingPersons.map(p => `${p.name} (${p.age} years, ${p.relationship})`).join(', ')}</td></tr>` : ''}
+        ${userData.accommodation?.required ? 
+          `<tr><th>Hotel Accommodation</th><td>${userData.accommodation.roomType === 'single' ? 'Single Room' : 'Sharing Room'} — ${userData.accommodation.nights} night(s)<br/>Check-in: ${userData.accommodation.checkIn} | Check-out: ${userData.accommodation.checkOut}<br/>Amount: ₹${userData.accommodation.totalAmount?.toLocaleString('en-IN')} (+ 18% GST)</td></tr>` : ''}
       </table>
     </div>
     
@@ -240,6 +243,9 @@ export function getPaymentConfirmationTemplate(paymentData: {
             paymentData.breakdown.accompanyingPersonDetails.map((p: any) => 
               `<tr><td colspan="2" style="font-size: 13px; color: #666; padding-left: 20px;">• ${p.name} - ${p.age} years old</td></tr>`
             ).join('') : ''}` : ''}
+        ${paymentData.breakdown.accommodation?.required ? 
+          `<tr><td><strong>Hotel Accommodation</strong></td><td style="text-align: right;"><strong>${paymentData.currency} ${paymentData.breakdown.accommodationFees || paymentData.breakdown.accommodation.totalAmount || 0}</strong></td></tr>
+          <tr><td colspan="2" style="font-size: 13px; color: #666; padding-left: 20px;">• ${paymentData.breakdown.accommodation.roomType === 'single' ? 'Single Room' : 'Sharing Room'} × ${paymentData.breakdown.accommodation.nights} night(s) (${paymentData.breakdown.accommodation.checkIn} to ${paymentData.breakdown.accommodation.checkOut})</td></tr>` : ''}
         ${paymentData.breakdown.discount > 0 ? 
           `<tr><td>Discount Applied</td><td style="color: green; text-align: right;">-${paymentData.currency} ${paymentData.breakdown.discount}</td></tr>` : ''}
         <tr style="border-top: 2px solid #015189; font-weight: bold; font-size: 16px;">
@@ -393,6 +399,7 @@ export function getRegistrationAcceptanceTemplate(userData: {
   transactionId?: string
   workshopSelections?: string[]
   accompanyingPersons?: number
+  accommodation?: { required: boolean, roomType: string, checkIn: string, checkOut: string, nights: number, totalAmount: number }
   qrCodeDataURL?: string
   password?: string
 }) {
@@ -432,6 +439,8 @@ export function getRegistrationAcceptanceTemplate(userData: {
           `<tr><th>Workshops</th><td>${userData.workshopSelections.join(', ')}</td></tr>` : ''}
         ${userData.accompanyingPersons && userData.accompanyingPersons > 0 ? 
           `<tr><th>Accompanying Persons</th><td>${userData.accompanyingPersons}</td></tr>` : ''}
+        ${userData.accommodation?.required ? 
+          `<tr><th>Hotel Accommodation</th><td>${userData.accommodation.roomType === 'single' ? 'Single Room' : 'Sharing Room'} — ${userData.accommodation.nights} night(s)<br/>Check-in: ${userData.accommodation.checkIn} | Check-out: ${userData.accommodation.checkOut}<br/>Amount: ₹${userData.accommodation.totalAmount?.toLocaleString('en-IN')} (+ 18% GST)</td></tr>` : ''}
       </table>
     </div>
 

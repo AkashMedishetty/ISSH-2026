@@ -84,6 +84,11 @@ export async function GET(request: NextRequest) {
       'Accompanying Persons',
       'Accompanying Names',
       'Registration Date',
+      'Accommodation Room Type',
+      'Accommodation Check-in',
+      'Accommodation Check-out',
+      'Accommodation Nights',
+      'Accommodation Amount',
       'Address',
       'Dietary Requirements',
       'Special Needs'
@@ -116,6 +121,11 @@ export async function GET(request: NextRequest) {
       user.registration.accompanyingPersons?.length || 0,
       (user.registration.accompanyingPersons || []).map((p: any) => p.name).join('; '),
       new Date(user.registration.registrationDate).toLocaleDateString(),
+      user.registration.accommodation?.roomType || '',
+      user.registration.accommodation?.checkIn || '',
+      user.registration.accommodation?.checkOut || '',
+      user.registration.accommodation?.nights || 0,
+      user.registration.accommodation?.totalAmount || 0,
       user.profile.address ? 
         `${user.profile.address.street || ''}, ${user.profile.address.city || ''}, ${user.profile.address.state || ''}, ${user.profile.address.country || ''}`.replace(/^,+|,+$/g, '') : '',
       user.profile.dietaryRequirements || '',

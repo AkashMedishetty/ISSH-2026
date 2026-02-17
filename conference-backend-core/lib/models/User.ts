@@ -73,6 +73,14 @@ export interface IUser extends Document {
       dietaryRequirements?: string
       relationship: string
     }>
+    accommodation?: {
+      required: boolean
+      roomType: 'single' | 'sharing'
+      checkIn: string
+      checkOut: string
+      nights: number
+      totalAmount: number
+    }
     registrationDate: Date
     confirmedDate?: Date
     paymentDate?: Date
@@ -237,6 +245,14 @@ const UserSchema = new Schema<IUser>({
       dietaryRequirements: String,
       relationship: { type: String, required: true }
     }],
+    accommodation: {
+      required: { type: Boolean, default: false },
+      roomType: { type: String, enum: ['single', 'sharing'] },
+      checkIn: { type: String },
+      checkOut: { type: String },
+      nights: { type: Number, default: 0 },
+      totalAmount: { type: Number, default: 0 }
+    },
     registrationDate: {
       type: Date,
       default: Date.now

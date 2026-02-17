@@ -67,6 +67,14 @@ interface Registration {
       relationship: string
       dietaryRequirements?: string
     }>
+    accommodation?: {
+      required: boolean
+      roomType: 'single' | 'sharing'
+      checkIn: string
+      checkOut: string
+      nights: number
+      totalAmount: number
+    }
     registrationDate: string
     paymentDate?: string
     paymentType?: 'regular' | 'pending' | 'online' | 'bank-transfer' | 'complementary' | 'sponsored' | 'complimentary'
@@ -1324,6 +1332,36 @@ function RegistrationTab({ registration, onCopy }: { registration: Registration,
                   </div>
                 </div>
               ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {registration.registration.accommodation?.required && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Hotel Accommodation</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Room Type</span>
+              <Badge variant="outline">{registration.registration.accommodation.roomType === 'single' ? 'Single Room' : 'Sharing Room'}</Badge>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Check-in</span>
+              <span className="font-medium">{registration.registration.accommodation.checkIn}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Check-out</span>
+              <span className="font-medium">{registration.registration.accommodation.checkOut}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Nights</span>
+              <span className="font-medium">{registration.registration.accommodation.nights}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Amount</span>
+              <span className="font-medium">₹{registration.registration.accommodation.totalAmount?.toLocaleString('en-IN')}</span>
             </div>
           </CardContent>
         </Card>

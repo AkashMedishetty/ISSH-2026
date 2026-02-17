@@ -79,6 +79,7 @@ export class EmailService {
     registrationTypeLabel: string
     workshopSelections?: Array<{id: string, name: string}>
     accompanyingPersons?: Array<{name: string, age: number, relationship: string}>
+    accommodation?: { required: boolean, roomType: string, checkIn: string, checkOut: string, nights: number, totalAmount: number }
     paymentMethod?: 'bank_transfer' | 'payment_gateway'
   }) {
     try {
@@ -107,6 +108,7 @@ export class EmailService {
         email: userData.email,
         workshopSelections: userData.workshopSelections,
         accompanyingPersons: userData.accompanyingPersons,
+        accommodation: userData.accommodation,
         paymentMethod: userData.paymentMethod || 'bank_transfer'
       })
       
@@ -307,6 +309,7 @@ export class EmailService {
     workshopSelections?: string[]
     accompanyingPersons?: number
     accompanyingPersonsDetails?: Array<{ name: string; relationship: string }>
+    accommodation?: { required: boolean, roomType: string, checkIn: string, checkOut: string, nights: number, totalAmount: number }
     breakdown?: {
       registration: number
       workshops: number

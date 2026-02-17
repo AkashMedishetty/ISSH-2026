@@ -44,6 +44,7 @@ export function ModernSidebar({ activeTab, onTabChange, isOpen, onToggle }: Mode
     { id: 'reviewer-settings', label: 'Reviewer Settings', icon: UserCheck },
     { id: 'program', label: 'Program Schedule', icon: Calendar },
     { id: 'workshops', label: 'Workshops', icon: GraduationCap },
+    { id: 'accommodation', label: 'Accommodation', icon: Building },
     { id: 'badges', label: 'Badge Designer', icon: BadgeCheck },
     { id: 'certificates', label: 'Certificate Designer', icon: Award },
     { id: 'bulk-emailer', label: 'Bulk Email', icon: Mail },

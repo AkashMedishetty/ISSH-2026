@@ -260,6 +260,12 @@ export default function RegisterPage() {
     }>,
     discountCode: "",
 
+    // Accommodation
+    accommodationRequired: false,
+    accommodationRoomType: "" as string,
+    accommodationCheckIn: "",
+    accommodationCheckOut: "",
+
     // Payment
     paymentMethod: "bank-transfer",
     bankTransferUTR: "",
@@ -316,7 +322,7 @@ export default function RegisterPage() {
     if (formData.registrationType) {
       calculatePrice()
     }
-  }, [formData.registrationType, JSON.stringify(formData.workshopSelection), JSON.stringify(formData.accompanyingPersons), formData.discountCode, formData.age, step])
+  }, [formData.registrationType, JSON.stringify(formData.workshopSelection), JSON.stringify(formData.accompanyingPersons), formData.discountCode, formData.age, step, formData.accommodationRequired, formData.accommodationRoomType, formData.accommodationCheckIn, formData.accommodationCheckOut])
 
   const calculatePrice = async () => {
     if (!formData.registrationType) return
@@ -330,7 +336,12 @@ export default function RegisterPage() {
           workshopSelections: formData.workshopSelection,
           accompanyingPersons: formData.accompanyingPersons,
           discountCode: formData.discountCode || undefined,
-          age: parseInt(formData.age) || 0
+          age: parseInt(formData.age) || 0,
+          accommodation: formData.accommodationRequired ? {
+            roomType: formData.accommodationRoomType,
+            checkIn: formData.accommodationCheckIn,
+            checkOut: formData.accommodationCheckOut,
+          } : undefined
         })
       })
 
@@ -864,7 +875,15 @@ export default function RegisterPage() {
             type: formData.registrationType,
             membershipNumber: formData.membershipNumber,
             workshopSelections: formData.workshopSelection,
-            accompanyingPersons: formData.accompanyingPersons
+            accompanyingPersons: formData.accompanyingPersons,
+            accommodation: formData.accommodationRequired ? {
+              required: true,
+              roomType: formData.accommodationRoomType,
+              checkIn: formData.accommodationCheckIn,
+              checkOut: formData.accommodationCheckOut,
+              nights: priceCalculation?.accommodationNights || 0,
+              totalAmount: priceCalculation?.accommodationFees || 0
+            } : { required: false }
           },
           payment: {
             method: formData.paymentMethod,
@@ -1773,6 +1792,116 @@ export default function RegisterPage() {
                 Available discounts: Early Bird, Student discounts, Independence Day offers
               </p>
             </div> */}
+
+            {/* Accommodation / Hotel Booking Section */}
+            <div className="border-t pt-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Hotel Accommodation (Optional)</h3>
+              </div>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                Book your stay at Novotel HICC, Hyderabad. Prices are exclusive of 18% GST.
+              </p>
+
+              <div className="flex items-center gap-3 mb-4">
+                <Checkbox
+                  id="accommodationRequired"
+                  checked={formData.accommodationRequired}
+                  onCheckedChange={(checked) => handleInputChange("accommodationRequired", !!checked)}
+                />
+                <Label htmlFor="accommodationRequired" className="text-sm font-medium cursor-pointer">
+                  I need hotel accommodation
+                </Label>
+              </div>
+
+              {formData.accommodationRequired && (
+                <div className="space-y-4 bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
+                  {/* Room Type Selection */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Room Type *</label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div
+                        className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                          formData.accommodationRoomType === 'single'
+                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
+                            : 'border-gray-200 dark:border-gray-700 hover:border-blue-300'
+                        }`}
+                        onClick={() => handleInputChange("accommodationRoomType", "single")}
+                      >
+                        <div className="flex items-center gap-2 mb-1">
+                          <input type="radio" checked={formData.accommodationRoomType === 'single'} readOnly className="text-blue-600" />
+                          <span className="font-semibold text-gray-800 dark:text-gray-200">Single Room</span>
+                        </div>
+                        <p className="text-lg font-bold text-blue-600">₹10,000 <span className="text-xs font-normal text-gray-500">/ night</span></p>
+                        <p className="text-xs text-gray-500">+ 18% GST</p>
+                      </div>
+                      <div
+                        className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                          formData.accommodationRoomType === 'sharing'
+                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
+                            : 'border-gray-200 dark:border-gray-700 hover:border-blue-300'
+                        }`}
+                        onClick={() => handleInputChange("accommodationRoomType", "sharing")}
+                      >
+                        <div className="flex items-center gap-2 mb-1">
+                          <input type="radio" checked={formData.accommodationRoomType === 'sharing'} readOnly className="text-blue-600" />
+                          <span className="font-semibold text-gray-800 dark:text-gray-200">Sharing Room</span>
+                        </div>
+                        <p className="text-lg font-bold text-blue-600">₹7,500 <span className="text-xs font-normal text-gray-500">/ night</span></p>
+                        <p className="text-xs text-gray-500">+ 18% GST</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Check-in / Check-out Dates */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Check-in Date *</label>
+                      <Input
+                        type="date"
+                        value={formData.accommodationCheckIn}
+                        onChange={(e) => handleInputChange("accommodationCheckIn", e.target.value)}
+                        min="2026-04-23"
+                        max="2026-04-26"
+                        className="dark:bg-gray-800 dark:border-gray-600"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Check-out Date *</label>
+                      <Input
+                        type="date"
+                        value={formData.accommodationCheckOut}
+                        onChange={(e) => handleInputChange("accommodationCheckOut", e.target.value)}
+                        min={formData.accommodationCheckIn || "2026-04-24"}
+                        max="2026-04-27"
+                        className="dark:bg-gray-800 dark:border-gray-600"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Nights & Cost Summary */}
+                  {formData.accommodationRoomType && formData.accommodationCheckIn && formData.accommodationCheckOut && (
+                    (() => {
+                      const checkIn = new Date(formData.accommodationCheckIn);
+                      const checkOut = new Date(formData.accommodationCheckOut);
+                      const nights = Math.max(0, Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24)));
+                      const perNight = formData.accommodationRoomType === 'single' ? 10000 : 7500;
+                      const total = nights * perNight;
+                      return nights > 0 ? (
+                        <div className="bg-white dark:bg-gray-800 p-3 rounded-lg border border-blue-200 dark:border-blue-700">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-600 dark:text-gray-400">
+                              {formData.accommodationRoomType === 'single' ? 'Single' : 'Sharing'} × {nights} night{nights > 1 ? 's' : ''}
+                            </span>
+                            <span className="font-semibold text-gray-800 dark:text-gray-200">₹{total.toLocaleString('en-IN')}</span>
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">+ 18% GST will be added to the total bill</p>
+                        </div>
+                      ) : null;
+                    })()
+                  )}
+                </div>
+              )}
+            </div>
             </div>
 
             <div className="flex gap-3 justify-between pt-5 border-t border-gray-100 mt-5">
@@ -1833,6 +1962,14 @@ export default function RegisterPage() {
                     <div className="flex justify-between text-green-600">
                       <span>Children under 10 ({priceCalculation.freeChildrenCount}):</span>
                       <span className="font-medium">FREE</span>
+                    </div>
+                  )}
+                  {priceCalculation.accommodationFees > 0 && (
+                    <div className="flex justify-between">
+                      <span>Accommodation ({priceCalculation.accommodationBreakdown?.roomType === 'single' ? 'Single' : 'Sharing'} × {priceCalculation.accommodationNights} night{priceCalculation.accommodationNights > 1 ? 's' : ''}):</span>
+                      <span className="font-medium">
+                        {formatCurrency(priceCalculation.accommodationFees, priceCalculation.currency)}
+                      </span>
                     </div>
                   )}
                   {priceCalculation.discount > 0 && (

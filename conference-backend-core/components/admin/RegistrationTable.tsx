@@ -57,6 +57,14 @@ interface Registration {
     membershipNumber?: string
     workshopSelections: string[]
     accompanyingPersons: Array<{ name: string; age: number; relationship: string; dietaryRequirements?: string }>
+    accommodation?: {
+      required: boolean
+      roomType: 'single' | 'sharing'
+      checkIn: string
+      checkOut: string
+      nights: number
+      totalAmount: number
+    }
     registrationDate: string
     paymentDate?: string
     paymentType?: 'regular' | 'pending' | 'online' | 'bank-transfer' | 'complementary' | 'complimentary' | 'sponsored'
