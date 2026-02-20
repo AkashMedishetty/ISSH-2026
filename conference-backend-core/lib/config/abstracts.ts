@@ -173,7 +173,7 @@ export const defaultAbstractsSettings: AbstractsSettings = {
     'application/vnd.ms-powerpoint',
     'application/vnd.openxmlformats-officedocument.presentationml.presentation'
   ],
-  maxFileSizeMB: 10
+  maxFileSizeMB: 4
 }
 
 

@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     await connectDB()
     const config = await Configuration.findOne({ type: CONFIG_TYPE, key: CONFIG_KEY })
     
-    // Also fetch the new AbstractsConfig for guidelines and templates
+    // Also fetch the new AbstractsConfig for guidelines, templates, and submission window
     const abstractsConfig = await AbstractsConfig.findOne({})
     
     // Check if abstract submission feature is enabled in admin panel
@@ -24,11 +24,31 @@ export async function GET(request: NextRequest) {
     // Return config or defaults
     const settings = config?.value || defaultAbstractsSettings
     
+    // Merge submissionWindow from both sources:
+    // The inline AbstractsSettingsManager saves submissionWindow to the Configuration collection
+    // but it may also be stored directly on the AbstractsConfig document.
+    // Check both: prefer Configuration collection, but also check AbstractsConfig fields.
+    const submissionWindowEnabled = settings.submissionWindow?.enabled || abstractsConfig?.submissionWindow?.enabled || false
+    const submissionStart = settings.submissionWindow?.start || abstractsConfig?.submissionOpenDate
+    const submissionEnd = settings.submissionWindow?.end || abstractsConfig?.submissionCloseDate
+    
+    // Also check enableAbstractsWithoutRegistration from both sources
+    const enableAbstractsWithoutRegistration = settings.enableAbstractsWithoutRegistration || abstractsConfig?.enableAbstractsWithoutRegistration || false
+    
     // Check if submissions are open based on dates
     const now = new Date()
-    const startDate = new Date(settings.submissionWindow?.start)
-    const endDate = new Date(settings.submissionWindow?.end)
-    const isOpen = settings.submissionWindow?.enabled && now >= startDate && now <= endDate
+    let isOpen = false
+    let daysRemaining = 0
+    
+    if (submissionWindowEnabled && submissionStart && submissionEnd) {
+      const startDate = new Date(submissionStart)
+      const endDate = new Date(submissionEnd)
+      isOpen = now >= startDate && now <= endDate
+      daysRemaining = isOpen ? Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)) : 0
+    } else if (submissionWindowEnabled) {
+      // If enabled but no dates set, treat as open
+      isOpen = true
+    }
     
     // Check final submission window
     let isFinalSubmissionOpen = false
@@ -42,11 +62,19 @@ export async function GET(request: NextRequest) {
       success: true, 
       data: {
         ...settings,
+        // Override submissionWindow with merged data
+        submissionWindow: {
+          ...settings.submissionWindow,
+          enabled: submissionWindowEnabled,
+          start: submissionStart || settings.submissionWindow?.start,
+          end: submissionEnd || settings.submissionWindow?.end,
+        },
+        enableAbstractsWithoutRegistration,
         featureEnabled: isFeatureEnabled,
         isCurrentlyOpen: isOpen && isFeatureEnabled,
-        daysRemaining: isOpen ? Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)) : 0,
+        daysRemaining,
         // Add guidelines and templates from AbstractsConfig
-        guidelines: abstractsConfig?.guidelines || null,
+        guidelines: abstractsConfig?.guidelines || settings.guidelines || null,
         fileRequirements: abstractsConfig?.fileRequirements || null,
         isFinalSubmissionOpen,
         finalSubmissionDeadline: abstractsConfig?.finalSubmissionCloseDate || null

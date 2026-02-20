@@ -159,13 +159,12 @@ interface RegisteredFormProps {
   session: any
   onClose: () => void
   onSuccess: (data: any) => void
+  abstractsConfig: any
 }
 
-const RegisteredAbstractForm = memo(function RegisteredAbstractForm({ session, onClose, onSuccess }: RegisteredFormProps) {
+const RegisteredAbstractForm = memo(function RegisteredAbstractForm({ session, onClose, onSuccess, abstractsConfig }: RegisteredFormProps) {
   const [formData, setFormData] = useState({
-    submittingFor: "",
     submissionCategory: "",
-    submissionTopic: "",
     title: "",
     authors: "",
     abstract: "",
@@ -173,6 +172,11 @@ const RegisteredAbstractForm = memo(function RegisteredAbstractForm({ session, o
     file: null as File | null
   })
   const [isLoading, setIsLoading] = useState(false)
+
+  // Dynamic options from config
+  const submissionCategoryOptions = abstractsConfig?.submissionCategories?.filter((o: any) => o.enabled)?.map((o: any) => ({ value: o.key, label: o.label })) || SUBMISSION_CATEGORY_OPTIONS
+  const wordLimit = abstractsConfig?.guidelines?.freePaper?.wordLimit || abstractsConfig?.guidelines?.poster?.wordLimit || 250
+  const maxFileSizeMB = abstractsConfig?.maxFileSizeMB || 4
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -183,8 +187,8 @@ const RegisteredAbstractForm = memo(function RegisteredAbstractForm({ session, o
         toast.error("Please upload Word documents or PDF files")
         return
       }
-      if (file.size > 10 * 1024 * 1024) {
-        toast.error("File size must not exceed 10MB")
+      if (file.size > maxFileSizeMB * 1024 * 1024) {
+        toast.error(`File size must not exceed ${maxFileSizeMB}MB`)
         return
       }
       setFormData(prev => ({ ...prev, file }))
@@ -194,8 +198,8 @@ const RegisteredAbstractForm = memo(function RegisteredAbstractForm({ session, o
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!formData.submittingFor || !formData.submissionCategory || !formData.submissionTopic) {
-      toast.error('Please fill all required fields')
+    if (!formData.submissionCategory) {
+      toast.error('Please select a submission category')
       return
     }
     if (!formData.title.trim() || !formData.authors.trim()) {
@@ -258,33 +262,12 @@ const RegisteredAbstractForm = memo(function RegisteredAbstractForm({ session, o
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label>Submitting For <span className="text-red-500">*</span></Label>
-                <Select value={formData.submittingFor} onValueChange={(v) => setFormData(prev => ({ ...prev, submittingFor: v, submissionTopic: '' }))}>
-                  <SelectTrigger className="mt-1"><SelectValue placeholder="Select Neurosurgery or Neurology" /></SelectTrigger>
-                  <SelectContent>
-                    {SUBMITTING_FOR_OPTIONS.map(opt => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Submission Category <span className="text-red-500">*</span></Label>
-                <Select value={formData.submissionCategory} onValueChange={(v) => setFormData(prev => ({ ...prev, submissionCategory: v }))}>
-                  <SelectTrigger className="mt-1"><SelectValue placeholder="Select category" /></SelectTrigger>
-                  <SelectContent>
-                    {SUBMISSION_CATEGORY_OPTIONS.map(opt => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            
             <div>
-              <Label>Submission Topic <span className="text-red-500">*</span></Label>
-              <Select value={formData.submissionTopic} onValueChange={(v) => setFormData(prev => ({ ...prev, submissionTopic: v }))} disabled={!formData.submittingFor}>
-                <SelectTrigger className="mt-1"><SelectValue placeholder={formData.submittingFor ? "Select topic" : "First select Neurosurgery or Neurology"} /></SelectTrigger>
+              <Label>Submission Category <span className="text-red-500">*</span></Label>
+              <Select value={formData.submissionCategory} onValueChange={(v) => setFormData(prev => ({ ...prev, submissionCategory: v }))}>
+                <SelectTrigger className="mt-1"><SelectValue placeholder="Select category" /></SelectTrigger>
                 <SelectContent>
-                  {getTopicsForSelection(formData.submittingFor).map(topic => <SelectItem key={topic} value={topic}>{topic}</SelectItem>)}
+                  {submissionCategoryOptions.map((opt: any) => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
@@ -301,7 +284,7 @@ const RegisteredAbstractForm = memo(function RegisteredAbstractForm({ session, o
             
             <div>
               <Label>Abstract Content (Optional)</Label>
-              <Textarea placeholder="Enter abstract content (max 200 words)" value={formData.abstract} onChange={(e) => setFormData(prev => ({ ...prev, abstract: e.target.value }))} className="mt-1 min-h-[120px]" />
+              <Textarea placeholder={`Enter abstract content (max ${wordLimit} words)`} value={formData.abstract} onChange={(e) => setFormData(prev => ({ ...prev, abstract: e.target.value }))} className="mt-1 min-h-[120px]" />
             </div>
             
             <div>
@@ -323,7 +306,7 @@ const RegisteredAbstractForm = memo(function RegisteredAbstractForm({ session, o
                   ) : (
                     <div>
                       <p className="text-sm text-gray-600 dark:text-gray-400">Click to upload</p>
-                      <p className="text-xs text-gray-500">Word (.doc, .docx) or PDF - Max 10MB</p>
+                      <p className="text-xs text-gray-500">Word (.doc, .docx) or PDF - Max {maxFileSizeMB}MB</p>
                     </div>
                   )}
                 </label>
@@ -349,9 +332,10 @@ interface UnregisteredFormProps {
   registrationTypes: Array<{ value: string; label: string; price: number }>
   onClose: () => void
   onSuccess: (data: any) => void
+  abstractsConfig: any
 }
 
-const UnregisteredForm = memo(function UnregisteredForm({ registrationTypes, onClose, onSuccess }: UnregisteredFormProps) {
+const UnregisteredForm = memo(function UnregisteredForm({ registrationTypes, onClose, onSuccess, abstractsConfig }: UnregisteredFormProps) {
   const [step, setStep] = useState(1)
   const [isLoading, setIsLoading] = useState(false)
   const [file, setFile] = useState<File | null>(null)
@@ -415,6 +399,18 @@ const UnregisteredForm = memo(function UnregisteredForm({ registrationTypes, onC
     setFormData(prev => ({ ...prev, [field]: value }))
   }, [])
 
+  const wordLimit = abstractsConfig?.guidelines?.freePaper?.wordLimit || abstractsConfig?.guidelines?.poster?.wordLimit || 250
+  const maxFileSizeMB = abstractsConfig?.maxFileSizeMB || 4
+  const submittingForOptions = abstractsConfig?.submittingForOptions?.filter((o: any) => o.enabled)?.map((o: any) => ({ value: o.key, label: o.label })) || SUBMITTING_FOR_OPTIONS
+  const submissionCategoryOptions = abstractsConfig?.submissionCategories?.filter((o: any) => o.enabled)?.map((o: any) => ({ value: o.key, label: o.label })) || SUBMISSION_CATEGORY_OPTIONS
+
+  const getTopics = (submittingFor: string) => {
+    if (abstractsConfig?.topicsBySpecialty) {
+      return abstractsConfig.topicsBySpecialty[submittingFor] || []
+    }
+    return getTopicsForSelection(submittingFor)
+  }
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0]
     if (f) {
@@ -423,8 +419,8 @@ const UnregisteredForm = memo(function UnregisteredForm({ registrationTypes, onC
         toast.error("Please upload Word or PDF files")
         return
       }
-      if (f.size > 10 * 1024 * 1024) {
-        toast.error("File size must not exceed 10MB")
+      if (f.size > maxFileSizeMB * 1024 * 1024) {
+        toast.error(`File size must not exceed ${maxFileSizeMB}MB`)
         return
       }
       setFile(f)
@@ -451,9 +447,7 @@ const UnregisteredForm = memo(function UnregisteredForm({ registrationTypes, onC
       if (!formData.state.trim()) { errors.state = 'Required'; hasErrors = true }
       if (!formData.registrationType) { errors.registrationType = 'Required'; hasErrors = true }
     } else if (s === 3) {
-      if (!formData.submittingFor) { errors.submittingFor = 'Required'; hasErrors = true }
       if (!formData.submissionCategory) { errors.submissionCategory = 'Required'; hasErrors = true }
-      if (!formData.submissionTopic) { errors.submissionTopic = 'Required'; hasErrors = true }
       if (!formData.abstractTitle.trim()) { errors.abstractTitle = 'Required'; hasErrors = true }
       if (!formData.authors.trim()) { errors.authors = 'Required'; hasErrors = true }
       if (!file) { errors.file = 'Required'; hasErrors = true }
@@ -698,28 +692,11 @@ const UnregisteredForm = memo(function UnregisteredForm({ registrationTypes, onC
             {/* Step 3: Abstract Details */}
             {step === 3 && (
               <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>Submitting For <span className="text-red-500">*</span></Label>
-                    <Select value={formData.submittingFor} onValueChange={(v) => { updateField('submittingFor', v); updateField('submissionTopic', '') }}>
-                      <SelectTrigger className={`mt-1 ${fieldErrors.submittingFor ? 'border-red-500' : ''}`}><SelectValue placeholder="Neurosurgery or Neurology" /></SelectTrigger>
-                      <SelectContent>{SUBMITTING_FOR_OPTIONS.map(opt => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}</SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label>Category <span className="text-red-500">*</span></Label>
-                    <Select value={formData.submissionCategory} onValueChange={(v) => updateField('submissionCategory', v)}>
-                      <SelectTrigger className={`mt-1 ${fieldErrors.submissionCategory ? 'border-red-500' : ''}`}><SelectValue placeholder="Select category" /></SelectTrigger>
-                      <SelectContent>{SUBMISSION_CATEGORY_OPTIONS.map(opt => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}</SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                
                 <div>
-                  <Label>Topic <span className="text-red-500">*</span></Label>
-                  <Select value={formData.submissionTopic} onValueChange={(v) => updateField('submissionTopic', v)} disabled={!formData.submittingFor}>
-                    <SelectTrigger className={`mt-1 ${fieldErrors.submissionTopic ? 'border-red-500' : ''}`}><SelectValue placeholder={formData.submittingFor ? "Select topic" : "First select Neurosurgery or Neurology"} /></SelectTrigger>
-                    <SelectContent>{getTopicsForSelection(formData.submittingFor).map(topic => <SelectItem key={topic} value={topic}>{topic}</SelectItem>)}</SelectContent>
+                  <Label>Submission Category <span className="text-red-500">*</span></Label>
+                  <Select value={formData.submissionCategory} onValueChange={(v) => updateField('submissionCategory', v)}>
+                    <SelectTrigger className={`mt-1 ${fieldErrors.submissionCategory ? 'border-red-500' : ''}`}><SelectValue placeholder="Select category" /></SelectTrigger>
+                    <SelectContent>{submissionCategoryOptions.map((opt: any) => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
                 
@@ -735,7 +712,7 @@ const UnregisteredForm = memo(function UnregisteredForm({ registrationTypes, onC
                 
                 <div>
                   <Label>Abstract Content (Optional)</Label>
-                  <Textarea value={formData.abstractContent} onChange={(e) => updateField('abstractContent', e.target.value)} placeholder="Enter abstract content (max 200 words)" rows={4} className="mt-1" />
+                  <Textarea value={formData.abstractContent} onChange={(e) => updateField('abstractContent', e.target.value)} placeholder={`Enter abstract content (max ${wordLimit} words)`} rows={4} className="mt-1" />
                 </div>
                 
                 <div>
@@ -757,7 +734,7 @@ const UnregisteredForm = memo(function UnregisteredForm({ registrationTypes, onC
                       ) : (
                         <div>
                           <p className="text-sm text-gray-600 dark:text-gray-400">Click to upload</p>
-                          <p className="text-xs text-gray-500">Word (.doc, .docx) or PDF - Max 10MB</p>
+                          <p className="text-xs text-gray-500">Word (.doc, .docx) or PDF - Max {maxFileSizeMB}MB</p>
                         </div>
                       )}
                     </label>
@@ -997,7 +974,7 @@ export default function AbstractsPage() {
         <section className="py-12">
           <div className="container mx-auto px-4">
             {activeFlow === 'registered' && (session || isAuthenticated) && (
-              <RegisteredAbstractForm session={session} onClose={handleCloseForm} onSuccess={handleFormSuccess} />
+              <RegisteredAbstractForm session={session} onClose={handleCloseForm} onSuccess={handleFormSuccess} abstractsConfig={abstractsConfig} />
             )}
             
             {activeFlow === 'registered' && !session && !isAuthenticated && (
@@ -1015,7 +992,7 @@ export default function AbstractsPage() {
             )}
             
             {activeFlow === 'unregistered' && (
-              <UnregisteredForm registrationTypes={registrationTypes} onClose={handleCloseForm} onSuccess={handleFormSuccess} />
+              <UnregisteredForm registrationTypes={registrationTypes} onClose={handleCloseForm} onSuccess={handleFormSuccess} abstractsConfig={abstractsConfig} />
             )}
             
             {activeFlow === 'none' && submissionsDisabled && (
@@ -1043,7 +1020,8 @@ export default function AbstractsPage() {
                   <p className="text-lg text-gray-600 dark:text-gray-400 max-w-3xl mx-auto">Please read the guidelines carefully before submitting</p>
                 </motion.div>
 
-                {/* Important Dates */}
+                {/* Important Dates - from config */}
+                {abstractsConfig?.submissionWindow && (
                 <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="mb-8">
                   <Card className="bg-gradient-to-r from-[#25406b] to-[#152843] text-white border-0 shadow-xl">
                     <CardContent className="p-6">
@@ -1053,22 +1031,43 @@ export default function AbstractsPage() {
                           <div><h3 className="text-xl font-bold">Important Dates</h3><p className="text-white/80">Mark your calendar!</p></div>
                         </div>
                         <div className="flex flex-col sm:flex-row gap-4 text-center">
-                          <div className="bg-white/20 backdrop-blur-sm rounded-lg px-4 py-2"><p className="text-sm text-white/80">Submission Opens</p><p className="font-bold">15th Nov 2025</p></div>
-                          <div className="bg-white/20 backdrop-blur-sm rounded-lg px-4 py-2"><p className="text-sm text-white/80">Last Date</p><p className="font-bold text-yellow-300">20th Feb 2026</p></div>
-                          <div className="bg-white/20 backdrop-blur-sm rounded-lg px-4 py-2"><p className="text-sm text-white/80">Register By</p><p className="font-bold">10th Feb 2026</p></div>
+                          {abstractsConfig.submissionWindow.start && (
+                            <div className="bg-white/20 backdrop-blur-sm rounded-lg px-4 py-2">
+                              <p className="text-sm text-white/80">Submission Opens</p>
+                              <p className="font-bold">{new Date(abstractsConfig.submissionWindow.start).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                            </div>
+                          )}
+                          {abstractsConfig.submissionWindow.end && (
+                            <div className="bg-white/20 backdrop-blur-sm rounded-lg px-4 py-2">
+                              <p className="text-sm text-white/80">Last Date</p>
+                              <p className="font-bold text-yellow-300">{new Date(abstractsConfig.submissionWindow.end).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                            </div>
+                          )}
+                          {abstractsConfig.daysRemaining > 0 && (
+                            <div className="bg-white/20 backdrop-blur-sm rounded-lg px-4 py-2">
+                              <p className="text-sm text-white/80">Days Remaining</p>
+                              <p className="font-bold text-green-300">{abstractsConfig.daysRemaining} days</p>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </CardContent>
                   </Card>
                 </motion.div>
+                )}
 
-                {/* Quick Rules */}
+                {/* Quick Rules - from config */}
                 <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="mb-8">
                   <Card className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
                     <CardContent className="p-6">
                       <h3 className="text-lg font-bold text-blue-800 dark:text-blue-200 mb-4 flex items-center gap-2"><FileText className="w-5 h-5" />Quick Submission Rules</h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        {['Max 200 words', 'Word format only (.doc/.docx)', '1 paper per presenter', 'Unlimited e-posters'].map((rule, i) => (
+                        {[
+                          `Max ${abstractsConfig?.guidelines?.freePaper?.wordLimit || abstractsConfig?.guidelines?.poster?.wordLimit || 250} words`,
+                          'Word format only (.doc/.docx)',
+                          'Original, unpublished work only',
+                          'Follow submission guidelines carefully'
+                        ].map((rule, i) => (
                           <div key={i} className="flex items-center gap-2 text-blue-700 dark:text-blue-300">
                             <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" /><span className="text-sm">{rule}</span>
                           </div>
@@ -1078,14 +1077,18 @@ export default function AbstractsPage() {
                   </Card>
                 </motion.div>
 
-                {/* Categories */}
+                {/* Categories - from config guidelines */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                  {/* Award Paper */}
                   <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.1 }}>
                     <Card className="bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 border-yellow-200 dark:border-yellow-800 shadow-lg h-full">
                       <CardHeader className="pb-2"><CardTitle className="flex items-center gap-2 text-lg text-yellow-800 dark:text-yellow-200"><Award className="w-6 h-6 text-yellow-500" />Award Paper</CardTitle></CardHeader>
                       <CardContent>
                         <ul className="text-sm text-yellow-900/80 dark:text-yellow-100/80 space-y-2">
-                          {['Original, unpublished work only', 'Presenter must be a resident', 'Bona fide certificate required', 'Must be TNS member'].map((item, i) => (
+                          {(abstractsConfig?.guidelines?.freePaper?.requirements?.length > 0
+                            ? abstractsConfig.guidelines.freePaper.requirements.slice(0, 4)
+                            : ['Original, unpublished work only', 'Abstract must follow guidelines', 'Upload as Word document (.doc/.docx)']
+                          ).map((item: string, i: number) => (
                             <li key={i} className="flex items-start gap-2"><CheckCircle className="w-4 h-4 text-yellow-600 mt-0.5 flex-shrink-0" />{item}</li>
                           ))}
                         </ul>
@@ -1093,12 +1096,16 @@ export default function AbstractsPage() {
                     </Card>
                   </motion.div>
 
+                  {/* Free Paper */}
                   <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.2 }}>
                     <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-blue-200 dark:border-blue-800 shadow-lg h-full">
                       <CardHeader className="pb-2"><CardTitle className="flex items-center gap-2 text-lg text-blue-800 dark:text-blue-200"><FileText className="w-6 h-6 text-blue-500" />Free Paper</CardTitle></CardHeader>
                       <CardContent>
                         <ul className="text-sm text-blue-900/80 dark:text-blue-100/80 space-y-2">
-                          {['Original, unpublished research', 'Not presented at any conference', 'One paper per presenter', 'May be moved to E-Poster'].map((item, i) => (
+                          {(abstractsConfig?.guidelines?.freePaper?.requirements?.length > 0
+                            ? abstractsConfig.guidelines.freePaper.requirements.slice(0, 4)
+                            : ['Original, unpublished research', 'Not presented at any conference', 'Upload as Word document (.doc/.docx)']
+                          ).map((item: string, i: number) => (
                             <li key={i} className="flex items-start gap-2"><CheckCircle className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />{item}</li>
                           ))}
                         </ul>
@@ -1106,12 +1113,16 @@ export default function AbstractsPage() {
                     </Card>
                   </motion.div>
 
+                  {/* E-Poster */}
                   <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.3 }}>
                     <Card className="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 border-purple-200 dark:border-purple-800 shadow-lg h-full">
                       <CardHeader className="pb-2"><CardTitle className="flex items-center gap-2 text-lg text-purple-800 dark:text-purple-200"><Calendar className="w-6 h-6 text-purple-500" />E-Poster</CardTitle></CardHeader>
                       <CardContent>
                         <ul className="text-sm text-purple-900/80 dark:text-purple-100/80 space-y-2">
-                          {['Displayed on 42" LCD screen', '16:9 ratio, landscape format', 'PowerPoint format only', 'Unlimited submissions allowed'].map((item, i) => (
+                          {(abstractsConfig?.guidelines?.poster?.requirements?.length > 0
+                            ? abstractsConfig.guidelines.poster.requirements.slice(0, 4)
+                            : ['E-poster displayed on LCD screen', 'Follow poster format guidelines', 'Upload as Word document (.doc/.docx)']
+                          ).map((item: string, i: number) => (
                             <li key={i} className="flex items-start gap-2"><CheckCircle className="w-4 h-4 text-purple-600 mt-0.5 flex-shrink-0" />{item}</li>
                           ))}
                         </ul>
@@ -1119,6 +1130,23 @@ export default function AbstractsPage() {
                     </Card>
                   </motion.div>
                 </div>
+
+                {/* General Guidelines - from config */}
+                {abstractsConfig?.guidelines?.general && (
+                <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="mb-8">
+                  <Card className="bg-white dark:bg-gray-800 border-slate-200 dark:border-slate-700 shadow-lg">
+                    <CardContent className="p-6">
+                      <div className="flex items-start">
+                        <FileText className="w-6 h-6 mr-3 text-blue-600 mt-1 flex-shrink-0" />
+                        <div>
+                          <h3 className="text-lg font-bold text-gray-800 dark:text-gray-200 mb-3">Submission Guidelines</h3>
+                          <p className="text-gray-700 dark:text-gray-300 text-sm whitespace-pre-line">{abstractsConfig.guidelines.general}</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+                )}
 
                 {/* Important Notice */}
                 <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
@@ -1129,9 +1157,9 @@ export default function AbstractsPage() {
                         <div>
                           <h3 className="text-lg font-bold text-red-800 dark:text-red-200 mb-3">Important Notice</h3>
                           <ul className="text-red-700 dark:text-red-300 space-y-2 text-sm">
-                            <li>â€¢ All presenters must register by <strong>10th Feb 2026</strong></li>
-                            <li>â€¢ Abstracts will be rejected if guidelines are not followed</li>
-                            <li>â€¢ The Scientific Committee reserves the right to accept/reject any paper</li>
+                            <li>• All presenters must register for the conference</li>
+                            <li>• Abstracts will be rejected if guidelines are not followed</li>
+                            <li>• The Scientific Committee reserves the right to accept/reject any paper</li>
                           </ul>
                         </div>
                       </div>

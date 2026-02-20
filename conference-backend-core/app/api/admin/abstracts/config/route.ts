@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import connectDB from '@/lib/mongodb'
 import AbstractsConfig from '@/conference-backend-core/lib/models/AbstractsConfig'
+import Configuration from '@/lib/models/Configuration'
 import { logAction } from '@/conference-backend-core/lib/audit/service'
 
 // GET - Fetch abstracts config
@@ -125,6 +126,24 @@ export async function PUT(request: NextRequest) {
     } else {
       Object.assign(config, updates)
       await config.save()
+    }
+
+    // Sync submissionWindow to the Configuration collection so the public API can read it
+    if (updates.submissionWindow) {
+      await Configuration.findOneAndUpdate(
+        { type: 'abstracts', key: 'settings' },
+        { 
+          $set: { 
+            'value.submissionWindow': updates.submissionWindow,
+            'value.enableAbstractsWithoutRegistration': updates.enableAbstractsWithoutRegistration ?? false,
+            'value.submittingForOptions': updates.submittingForOptions,
+            'value.submissionCategories': updates.submissionCategories,
+            'value.topicsBySpecialty': updates.topicsBySpecialty,
+            'value.maxAbstractsPerUser': updates.maxAbstractsPerUser,
+          }
+        },
+        { upsert: true }
+      )
     }
 
     // Log the action
