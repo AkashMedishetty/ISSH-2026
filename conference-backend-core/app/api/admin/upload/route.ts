@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
-import { writeFile, mkdir } from 'fs/promises'
-import path from 'path'
-import { existsSync } from 'fs'
+import { put } from '@vercel/blob'
 
 export async function POST(request: NextRequest) {
   try {
@@ -27,6 +25,7 @@ export async function POST(request: NextRequest) {
     const allowedTypes: Record<string, string[]> = {
       'program-brochure': ['application/pdf'],
       'speaker-photo': ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'],
+      'qr-code': ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/svg+xml'],
       'default': ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
     }
 
@@ -38,41 +37,28 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Validate file size (25MB max)
-    if (file.size > 25 * 1024 * 1024) {
+    // Validate file size (4MB max for Vercel serverless)
+    if (file.size > 4 * 1024 * 1024) {
       return NextResponse.json({
         success: false,
-        message: 'File size must be less than 25MB'
+        message: 'File size must be less than 4MB'
       }, { status: 400 })
     }
 
-    // Get file extension
-    const fileExtension = file.name.split('.').pop()
-    const timestamp = Date.now()
+    // Upload to Vercel Blob
     const sanitizedType = type?.replace(/[^a-z0-9-]/gi, '_') || 'upload'
-    const filename = `${sanitizedType}-${timestamp}.${fileExtension}`
+    const timestamp = Date.now()
+    const fileExtension = file.name.split('.').pop()
+    const blobPath = `admin/${sanitizedType}-${timestamp}.${fileExtension}`
 
-    // Create upload directory if it doesn't exist
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads')
-    if (!existsSync(uploadDir)) {
-      await mkdir(uploadDir, { recursive: true })
-    }
-
-    // Convert file to buffer
-    const bytes = await file.arrayBuffer()
-    const buffer = new Uint8Array(bytes)
-
-    // Write file
-    const filepath = path.join(uploadDir, filename)
-    await writeFile(filepath, buffer)
-
-    // Return URL
-    const url = `/uploads/${filename}`
+    const blob = await put(blobPath, file, {
+      access: 'public',
+    })
 
     return NextResponse.json({
       success: true,
-      url,
-      filename,
+      url: blob.url,
+      filename: blobPath,
       size: file.size,
       type: file.type,
       message: 'File uploaded successfully'
