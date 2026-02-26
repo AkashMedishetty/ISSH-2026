@@ -123,8 +123,20 @@ export async function GET(request: NextRequest) {
         }
 
         if (userObj.payment && typeof userObj.payment.amount === 'number') {
+          let displayAmount = userObj.payment.amount
+          const accom = userObj.registration?.accommodation
+          if (accom?.required && accom.totalAmount > 0) {
+            const accomWithGst = Math.round(accom.totalAmount * 1.18)
+            // Detect if accommodation is already included in payment.amount:
+            // If subtracting accommodation leaves a non-negative value, it's included.
+            // If it goes negative, the stored amount is just the reg fee — add accommodation.
+            if (displayAmount - accomWithGst < 0) {
+              displayAmount += accomWithGst
+            }
+          }
+
           paymentInfo = {
-            amount: userObj.payment.amount,
+            amount: displayAmount,
             currency: 'INR',
             transactionId: userObj.payment.bankTransferUTR || userObj.payment.transactionId,
             paymentDate: userObj.payment.paymentDate,
