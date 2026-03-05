@@ -393,7 +393,7 @@ export function CompleteDashboard() {
                         disabled={(data.abstracts?.length || 0) >= conferenceConfig.abstracts.maxAbstractsPerUser}
                         asChild={(data.abstracts?.length || 0) < conferenceConfig.abstracts.maxAbstractsPerUser}
                       >
-                        <Link href="/dashboard/abstracts">
+                        <Link href="/abstracts">
                           <Upload className="h-5 w-5 mr-3" />
                           <div className="text-left">
                             <div className="font-semibold">Submit Abstract</div>
