@@ -76,9 +76,7 @@ export async function POST(request: NextRequest) {
     const specialNeeds = body.specialNeeds || ''
     
     // Extract abstract details
-    const submittingFor = body.submittingFor
     const submissionCategory = body.submissionCategory
-    const submissionTopic = body.submissionTopic
     const abstractTitle = body.abstractTitle?.trim()
     const authors = body.authors
     const abstractContent = body.abstractContent || ''
@@ -133,9 +131,7 @@ export async function POST(request: NextRequest) {
     }
     
     const missingAbstractFields: string[] = []
-    if (!submittingFor) missingAbstractFields.push('submittingFor')
     if (!submissionCategory) missingAbstractFields.push('submissionCategory')
-    if (!submissionTopic) missingAbstractFields.push('submissionTopic')
     if (!abstractTitle) missingAbstractFields.push('abstractTitle')
     if (!authors) missingAbstractFields.push('authors')
     
@@ -230,9 +226,7 @@ export async function POST(request: NextRequest) {
       userId: user._id,
       registrationId,
       title: abstractTitle,
-      submittingFor,
       submissionCategory: mappedCategory,
-      submissionTopic,
       keywords: keywords ? keywords.split(',').map((k: string) => k.trim()).filter((k: string) => k) : [],
       authors: authors.split(',').map((author: string) => author.trim()).filter((a: string) => a),
       status: 'submitted',
@@ -276,7 +270,6 @@ export async function POST(request: NextRequest) {
           <p><strong>Abstract ID:</strong> ${abstractId}</p>
           <p><strong>Title:</strong> ${abstractTitle}</p>
           <p><strong>Category:</strong> ${submissionCategory}</p>
-          <p><strong>Topic:</strong> ${submissionTopic}</p>
         </div>
         <div style="background: #faf5ff; border-radius: 8px; padding: 20px; margin: 20px 0;">
           <h3 style="margin-top: 0;">Login to Check Status</h3>

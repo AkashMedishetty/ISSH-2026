@@ -119,11 +119,11 @@ const AbstractSchema = new Schema<IAbstract>({
   userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
   registrationId: { type: String, required: true, index: true },
 
-  // ISSH 2026 Classification fields
+  // Classification fields
   submittingFor: { 
     type: String, 
     enum: ['neurosurgery', 'neurology'],
-    required: true,
+    required: false,
     index: true
   },
   submissionCategory: { 
@@ -132,7 +132,7 @@ const AbstractSchema = new Schema<IAbstract>({
     required: true,
     index: true
   },
-  submissionTopic: { type: String, required: true, index: true },
+  submissionTopic: { type: String, required: false, index: true },
 
   // Legacy fields (kept for backward compatibility)
   track: { type: String },

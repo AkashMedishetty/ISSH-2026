@@ -19,35 +19,14 @@ import { conferenceConfig } from "../../config/conference.config"
 import { upload } from "@vercel/blob/client"
 
 // Constants
-const SUBMITTING_FOR_OPTIONS = [
-  { value: 'neurosurgery', label: 'Neurosurgery' },
-  { value: 'neurology', label: 'Neurology' }
-]
-
 const SUBMISSION_CATEGORY_OPTIONS = [
   { value: 'award-paper', label: 'Award Paper' },
   { value: 'free-paper', label: 'Free Paper' },
   { value: 'poster-presentation', label: 'E-Poster' }
 ]
 
-const NEUROSURGERY_TOPICS = [
-  'Skullbase', 'Vascular', 'Neuro Oncology', 'Paediatric Neurosurgery',
-  'Spine', 'Functional', 'General Neurosurgery', 'Miscellaneous'
-]
-
-const NEUROLOGY_TOPICS = [
-  'General Neurology', 'Neuroimmunology', 'Stroke', 'Neuromuscular Disorders',
-  'Epilepsy', 'Therapeutics in Neurology', 'Movement Disorders', 'Miscellaneous'
-]
-
 const TITLES = ['Dr.', 'Prof.', 'Mr.', 'Mrs.', 'Ms.']
 const DESIGNATIONS = ['Consultant', 'PG/Student']
-
-const getTopicsForSelection = (submittingFor: string) => {
-  if (submittingFor === 'neurosurgery') return NEUROSURGERY_TOPICS
-  if (submittingFor === 'neurology') return NEUROLOGY_TOPICS
-  return []
-}
 
 type FlowType = 'none' | 'registered' | 'unregistered'
 
@@ -351,8 +330,8 @@ const UnregisteredForm = memo(function UnregisteredForm({ registrationTypes, onC
     title: 'Dr.', firstName: '', lastName: '', email: '', phone: '', age: '',
     designation: 'Consultant', password: '', confirmPassword: '', institution: '',
     mciNumber: '', address: '', city: '', state: '', country: 'India', pincode: '',
-    registrationType: '', dietaryRequirements: '', specialNeeds: '', submittingFor: '',
-    submissionCategory: '', submissionTopic: '', abstractTitle: '', authors: '',
+    registrationType: '', dietaryRequirements: '', specialNeeds: '',
+    submissionCategory: '', abstractTitle: '', authors: '',
     abstractContent: '', keywords: '', agreeTerms: false
   })
 
@@ -401,15 +380,7 @@ const UnregisteredForm = memo(function UnregisteredForm({ registrationTypes, onC
 
   const wordLimit = abstractsConfig?.guidelines?.freePaper?.wordLimit || abstractsConfig?.guidelines?.poster?.wordLimit || 250
   const maxFileSizeMB = abstractsConfig?.maxFileSizeMB || 4
-  const submittingForOptions = abstractsConfig?.submittingForOptions?.filter((o: any) => o.enabled)?.map((o: any) => ({ value: o.key, label: o.label })) || SUBMITTING_FOR_OPTIONS
   const submissionCategoryOptions = abstractsConfig?.submissionCategories?.filter((o: any) => o.enabled)?.map((o: any) => ({ value: o.key, label: o.label })) || SUBMISSION_CATEGORY_OPTIONS
-
-  const getTopics = (submittingFor: string) => {
-    if (abstractsConfig?.topicsBySpecialty) {
-      return abstractsConfig.topicsBySpecialty[submittingFor] || []
-    }
-    return getTopicsForSelection(submittingFor)
-  }
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0]

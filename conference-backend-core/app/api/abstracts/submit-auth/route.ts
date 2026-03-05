@@ -20,28 +20,6 @@ async function generateAbstractId(registrationId: string): Promise<string> {
   return baseId
 }
 
-// Validate submission topic based on submittingFor
-function isValidTopic(submittingFor: string, topic: string): boolean {
-  const neurosurgeryTopics = [
-    'Skullbase', 'Vascular', 'Neuro Oncology', 'Paediatric Neurosurgery',
-    'Spine', 'Functional', 'General Neurosurgery', 'Miscellaneous'
-  ]
-  
-  const neurologyTopics = [
-    'General Neurology', 'Neuroimmunology', 'Stroke', 'Neuromuscular Disorders',
-    'Epilepsy', 'Therapeutics in Neurology', 'Movement Disorders', 'Miscellaneous'
-  ]
-  
-  if (submittingFor === 'neurosurgery') return neurosurgeryTopics.includes(topic)
-  if (submittingFor === 'neurology') return neurologyTopics.includes(topic)
-  return false
-}
-
-function getSubmittingForLabel(value: string): string {
-  const labels: Record<string, string> = { 'neurosurgery': 'Neurosurgery', 'neurology': 'Neurology' }
-  return labels[value] || value
-}
-
 function getSubmissionCategoryLabel(value: string): string {
   const labels: Record<string, string> = {
     'award-paper': 'Award Paper',
@@ -88,9 +66,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     
     const {
-      submittingFor,
       submissionCategory,
-      submissionTopic,
       title,
       authors: authorsStr,
       abstract: abstractContent,
@@ -103,9 +79,9 @@ export async function POST(request: NextRequest) {
     } = body
 
     // Validate required fields
-    if (!submittingFor || !submissionCategory || !submissionTopic) {
+    if (!submissionCategory) {
       return NextResponse.json(
-        { success: false, message: 'Please select Submitting For, Submission Category, and Submission Topic' },
+        { success: false, message: 'Please select a Submission Category' },
         { status: 400 }
       )
     }
@@ -125,26 +101,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validate submittingFor
-    if (!['neurosurgery', 'neurology'].includes(submittingFor)) {
-      return NextResponse.json(
-        { success: false, message: 'Invalid Submitting For selection' },
-        { status: 400 }
-      )
-    }
-
     // Validate submissionCategory
     if (!['award-paper', 'free-paper', 'poster-presentation'].includes(submissionCategory)) {
       return NextResponse.json(
         { success: false, message: 'Invalid Submission Category selection' },
-        { status: 400 }
-      )
-    }
-
-    // Validate submissionTopic
-    if (!isValidTopic(submittingFor, submissionTopic)) {
-      return NextResponse.json(
-        { success: false, message: `Invalid Submission Topic for ${getSubmittingForLabel(submittingFor)}` },
         { status: 400 }
       )
     }
@@ -160,14 +120,14 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Check submission limits
+    // Check submission limits - one per category
     const existingAbstracts = await Abstract.find({ userId: user._id })
     const existingInCategory = existingAbstracts.find(
-      abs => abs.submittingFor === submittingFor && abs.submissionCategory === submissionCategory
+      abs => abs.submissionCategory === submissionCategory
     )
     if (existingInCategory) {
       return NextResponse.json(
-        { success: false, message: `You already have a ${getSubmissionCategoryLabel(submissionCategory)} submission for ${getSubmittingForLabel(submittingFor)} with ID: ${existingInCategory.abstractId}` },
+        { success: false, message: `You already have a ${getSubmissionCategoryLabel(submissionCategory)} submission with ID: ${existingInCategory.abstractId}` },
         { status: 400 }
       )
     }
@@ -198,9 +158,7 @@ export async function POST(request: NextRequest) {
       abstractId,
       userId: user._id,
       registrationId: user.registration.registrationId,
-      submittingFor,
       submissionCategory,
-      submissionTopic,
       track: getSubmissionCategoryLabel(submissionCategory),
       title,
       authors,
@@ -220,7 +178,7 @@ export async function POST(request: NextRequest) {
         registrationId: user.registration.registrationId,
         abstractId: abstract.abstractId,
         title: abstract.title,
-        track: `${getSubmittingForLabel(submittingFor)} - ${getSubmissionCategoryLabel(submissionCategory)} - ${submissionTopic}`,
+        track: getSubmissionCategoryLabel(submissionCategory),
         authors: abstract.authors,
         submittedAt: abstract.submittedAt.toISOString()
       })
@@ -233,9 +191,7 @@ export async function POST(request: NextRequest) {
       data: {
         abstractId: abstract.abstractId,
         title: abstract.title,
-        submittingFor: getSubmittingForLabel(submittingFor),
         submissionCategory: getSubmissionCategoryLabel(submissionCategory),
-        submissionTopic,
         status: abstract.status,
         submittedAt: abstract.submittedAt
       }
