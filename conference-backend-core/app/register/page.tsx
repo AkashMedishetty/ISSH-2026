@@ -491,7 +491,7 @@ export default function RegisterPage() {
 
     switch (currentStep) {
       case 1:
-        // Check all required fields for step 1
+        // Check all required fields for step 1 (including address)
         const requiredFields = {
           title: formData.title,
           firstName: formData.firstName,
@@ -502,7 +502,11 @@ export default function RegisterPage() {
           designation: formData.designation,
           password: formData.password,
           confirmPassword: formData.confirmPassword,
-          institution: formData.institution
+          institution: formData.institution,
+          address: formData.address,
+          city: formData.city,
+          state: formData.state,
+          pincode: formData.pincode
         }
 
         console.log('Checking required fields:', requiredFields)
@@ -639,46 +643,8 @@ export default function RegisterPage() {
       case 2:
         console.log('Step 2 validation - checking registration details...')
         console.log('Step 2 form data:', {
-          address: formData.address,
-          city: formData.city,
-          state: formData.state,
-          pincode: formData.pincode,
           registrationType: formData.registrationType
         })
-
-        // Check address fields
-        const addressFields = {
-          address: formData.address,
-          city: formData.city,
-          state: formData.state,
-          pincode: formData.pincode
-        }
-
-        const missingAddressFields = Object.entries(addressFields).filter(([key, value]) => {
-          return !value || (typeof value === 'string' && value.trim() === '')
-        })
-
-        if (missingAddressFields.length > 0) {
-          const missingNames = missingAddressFields.map(([key]) =>
-            key.replace(/([A-Z])/g, ' $1').toLowerCase().replace(/^./, str => str.toUpperCase())
-          ).join(', ')
-
-          console.log('Missing address fields:', missingNames)
-          toast({
-            title: "❌ Address Information Required",
-            description: `Please complete all address fields: ${missingNames}`,
-            variant: "destructive",
-            duration: 8000
-          })
-          // Highlight the first missing address field
-          const firstField = document.querySelector(`[name="${missingAddressFields[0][0]}"]`)
-          if (firstField) {
-            firstField.scrollIntoView({ behavior: 'smooth', block: 'center' })
-            firstField.classList.add('border-2', 'border-red-500')
-            setTimeout(() => firstField.classList.remove('border-2', 'border-red-500'), 5000)
-          }
-          return false
-        }
 
         // Check registration type
         if (!formData.registrationType) {
@@ -792,8 +758,21 @@ export default function RegisterPage() {
             return false
           }
 
-          // Payment screenshot is optional for bank transfer
-          // (can be made mandatory via admin configuration)
+          // Payment screenshot is mandatory for bank transfer
+          if (!formData.paymentScreenshot) {
+            console.log('Payment screenshot missing')
+            toast({
+              title: "❌ Payment Screenshot Required",
+              description: "Please upload a screenshot of your payment confirmation.",
+              variant: "destructive",
+              duration: 6000
+            })
+            const screenshotSection = document.querySelector('[data-screenshot-upload]')
+            if (screenshotSection) {
+              screenshotSection.scrollIntoView({ behavior: 'smooth', block: 'center' })
+            }
+            return false
+          }
         }
 
         if (!formData.agreeTerms) {
@@ -1125,7 +1104,11 @@ export default function RegisterPage() {
         password: formData.password,
         confirmPassword: formData.confirmPassword,
         institution: formData.institution,
-        mciNumber: formData.mciNumber
+        mciNumber: formData.mciNumber,
+        address: formData.address,
+        city: formData.city,
+        state: formData.state,
+        pincode: formData.pincode
       }
 
       missingFields = Object.entries(requiredFields)
@@ -1433,7 +1416,7 @@ export default function RegisterPage() {
 
                 <div className="space-y-3">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Address</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Address *</label>
                     <Textarea
                       value={formData.address}
                       onChange={(e) => {
@@ -1443,13 +1426,19 @@ export default function RegisterPage() {
                         }
                       }}
                       placeholder="Complete address"
-                      className="min-h-[60px] resize-none"
+                      className={`min-h-[60px] resize-none ${touchedFields.address && !formData.address.trim() ? 'border-red-500' : ''}`}
                     />
+                    {touchedFields.address && !formData.address.trim() && (
+                      <p className="text-xs text-red-500 mt-1.5 flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3" />
+                        Address is required
+                      </p>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1.5">City</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">City *</label>
                       <Input
                         value={formData.city}
                         onChange={(e) => {
@@ -1458,12 +1447,18 @@ export default function RegisterPage() {
                             handleInputChange("city", value)
                           }
                         }}
-                        className="h-10"
+                        className={`h-10 ${touchedFields.city && !formData.city.trim() ? 'border-red-500' : ''}`}
                       />
+                      {touchedFields.city && !formData.city.trim() && (
+                        <p className="text-xs text-red-500 mt-1.5 flex items-center gap-1">
+                          <AlertCircle className="w-3 h-3" />
+                          City is required
+                        </p>
+                      )}
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1.5">State/Province</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">State/Province *</label>
                       <Input
                         value={formData.state}
                         onChange={(e) => {
@@ -1472,8 +1467,14 @@ export default function RegisterPage() {
                             handleInputChange("state", value)
                           }
                         }}
-                        className="h-10"
+                        className={`h-10 ${touchedFields.state && !formData.state.trim() ? 'border-red-500' : ''}`}
                       />
+                      {touchedFields.state && !formData.state.trim() && (
+                        <p className="text-xs text-red-500 mt-1.5 flex items-center gap-1">
+                          <AlertCircle className="w-3 h-3" />
+                          State is required
+                        </p>
+                      )}
                     </div>
 
                     <div>
@@ -1491,7 +1492,7 @@ export default function RegisterPage() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1.5">Postal/ZIP Code</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">Postal/ZIP Code *</label>
                       <Input
                         value={formData.pincode}
                         onChange={(e) => {
@@ -1500,8 +1501,14 @@ export default function RegisterPage() {
                             handleInputChange("pincode", value)
                           }
                         }}
-                        className="h-10"
+                        className={`h-10 ${touchedFields.pincode && !formData.pincode.trim() ? 'border-red-500' : ''}`}
                       />
+                      {touchedFields.pincode && !formData.pincode.trim() && (
+                        <p className="text-xs text-red-500 mt-1.5 flex items-center gap-1">
+                          <AlertCircle className="w-3 h-3" />
+                          Postal code is required
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -2257,7 +2264,7 @@ export default function RegisterPage() {
             {formData.paymentMethod === 'bank-transfer' && (
             <div data-screenshot-upload>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Payment Screenshot (Optional)
+                Payment Screenshot <span className="text-red-500">*</span>
               </label>
               <div className={`border-2 border-dashed rounded-lg p-4 text-center ${formData.paymentScreenshot ? 'border-green-400 dark:border-green-600' : 'border-gray-300 dark:border-gray-600'}`}>
                 {formData.paymentScreenshot ? (
@@ -2310,7 +2317,7 @@ export default function RegisterPage() {
                       <span>Upload Screenshot</span>
                     </label>
                     <p className="text-xs text-gray-500 dark:text-gray-400">
-                      Upload a screenshot of your payment confirmation (JPEG, PNG, max 5MB)
+                      Upload a screenshot of your payment confirmation (JPEG, PNG, max 5MB) — Required
                     </p>
                   </div>
                 )}
