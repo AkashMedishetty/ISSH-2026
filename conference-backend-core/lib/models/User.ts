@@ -53,6 +53,7 @@ export interface IUser extends Document {
     dietaryRequirements?: string
     specialNeeds?: string
     mciNumber?: string
+    hodFormUrl?: string
   }
   reviewer?: {
     expertise?: string[]
@@ -189,6 +190,7 @@ const UserSchema = new Schema<IUser>({
     profilePicture: String,
     dietaryRequirements: String,
     mciNumber: { type: String, required: true },
+    hodFormUrl: String,
     specialNeeds: String
   },
   reviewer: {

@@ -15,7 +15,7 @@ import { Checkbox } from "@/conference-backend-core/components/ui/checkbox"
 import { Alert, AlertDescription } from "@/conference-backend-core/components/ui/alert"
 import { Badge } from "@/conference-backend-core/components/ui/badge"
 import { Progress, StepProgress } from "@/conference-backend-core/components/ui/progress"
-import { Calendar, FileText, Award, Users, CheckCircle, CreditCard, Eye, EyeOff, Loader2, AlertCircle, CheckIcon, UserPlus, MapPin, Phone, Mail, Building, Shield, Sparkles } from "lucide-react"
+import { Calendar, FileText, Award, Users, CheckCircle, CreditCard, Eye, EyeOff, Loader2, AlertCircle, CheckIcon, UserPlus, MapPin, Phone, Mail, Building, Shield, Sparkles, Upload } from "lucide-react"
 import Link from "next/link"
 import { Navigation } from "@/conference-backend-core/components/Navigation"
 import dynamic from "next/dynamic"
@@ -271,6 +271,8 @@ export default function RegisterPage() {
     bankTransferUTR: "",
     paymentScreenshot: null as File | null,
     paymentScreenshotUrl: "",
+    hodForm: null as File | null,
+    hodFormUrl: "",
     agreeTerms: false,
   })
 
@@ -638,6 +640,23 @@ export default function RegisterPage() {
           return false
         }
 
+        // HOD form is mandatory for PG/Student
+        if (formData.designation === 'PG/Student' && !formData.hodForm) {
+          console.log('HOD form missing for PG/Student')
+          setTouchedFields(prev => ({ ...prev, hodForm: true }))
+          toast({
+            title: "❌ HOD Recommendation Form Required",
+            description: "PG/Student registrations must upload an HOD Recommendation Form.",
+            variant: "destructive",
+            duration: 8000
+          })
+          const hodSection = document.querySelector('[data-hod-upload]')
+          if (hodSection) {
+            hodSection.scrollIntoView({ behavior: 'smooth', block: 'center' })
+          }
+          return false
+        }
+
         console.log('✅ Step 1 validation passed successfully!')
         return true
       case 2:
@@ -863,6 +882,37 @@ export default function RegisterPage() {
           }
         }
 
+        // Upload HOD form if provided (PG/Student only)
+        let hodFormUrl = ''
+        if (formData.designation === 'PG/Student' && formData.hodForm) {
+          console.log('Uploading HOD form...')
+          try {
+            const uploadFormData = new FormData()
+            uploadFormData.append('file', formData.hodForm)
+            
+            const uploadResponse = await fetch('/api/upload/hod-form', {
+              method: 'POST',
+              body: uploadFormData
+            })
+            
+            const uploadResult = await uploadResponse.json()
+            if (uploadResult.success) {
+              hodFormUrl = uploadResult.data.url
+              console.log('HOD form uploaded:', hodFormUrl)
+            } else {
+              console.warn('HOD form upload failed:', uploadResult.message)
+              toast({ title: "HOD Form Upload Failed", description: uploadResult.message, variant: "destructive" })
+              setLoading(false)
+              return
+            }
+          } catch (uploadError) {
+            console.warn('HOD form upload error:', uploadError)
+            toast({ title: "HOD Form Upload Failed", description: "Please try again.", variant: "destructive" })
+            setLoading(false)
+            return
+          }
+        }
+
         console.log('Making API call to /api/auth/register...')
 
         const requestBody = {
@@ -886,7 +936,8 @@ export default function RegisterPage() {
               pincode: formData.pincode
             },
             dietaryRequirements: formData.dietaryRequirements,
-            specialNeeds: formData.specialNeeds
+            specialNeeds: formData.specialNeeds,
+            hodFormUrl: hodFormUrl || undefined
           },
           registration: {
             type: formData.registrationType,
@@ -1311,6 +1362,72 @@ export default function RegisterPage() {
                     </p>
                   )}
                 </div>
+
+                {/* HOD Recommendation Form - Required for PG/Student */}
+                {formData.designation === 'PG/Student' && (
+                  <div className="col-span-full" data-hod-upload>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                      HOD Recommendation Form <span className="text-red-500">*</span>
+                    </label>
+                    <div className={`border-2 border-dashed rounded-lg p-4 text-center ${formData.hodForm ? 'border-green-400' : touchedFields.hodForm && !formData.hodForm ? 'border-red-500' : 'border-gray-300'}`}>
+                      {formData.hodForm ? (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-center gap-2 text-green-600">
+                            <CheckCircle className="h-5 w-5" />
+                            <span className="font-medium">{formData.hodForm.name}</span>
+                          </div>
+                          <p className="text-xs text-gray-500">
+                            {(formData.hodForm.size / 1024).toFixed(1)} KB
+                          </p>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setFormData(prev => ({ ...prev, hodForm: null, hodFormUrl: "" }))}
+                            className="text-red-500 hover:text-red-600"
+                          >
+                            Remove
+                          </Button>
+                        </div>
+                      ) : (
+                        <div>
+                          <label htmlFor="hod-form-upload" className="cursor-pointer">
+                            <Upload className="h-8 w-8 mx-auto text-gray-400 mb-2" />
+                            <span className="text-sm text-gray-600">Click to upload HOD Recommendation Form</span>
+                            <p className="text-xs text-gray-500 mt-1">PDF or Image (JPEG, PNG) — Max 5MB</p>
+                          </label>
+                          <input
+                            id="hod-form-upload"
+                            type="file"
+                            accept=".pdf,.jpg,.jpeg,.png"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0]
+                              if (file) {
+                                const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png']
+                                if (!allowedTypes.includes(file.type)) {
+                                  toast({ title: "Invalid file type", description: "Please upload a PDF or image file.", variant: "destructive" })
+                                  return
+                                }
+                                if (file.size > 5 * 1024 * 1024) {
+                                  toast({ title: "File too large", description: "Maximum file size is 5MB.", variant: "destructive" })
+                                  return
+                                }
+                                setFormData(prev => ({ ...prev, hodForm: file }))
+                              }
+                            }}
+                          />
+                        </div>
+                      )}
+                    </div>
+                    {touchedFields.hodForm && !formData.hodForm && (
+                      <p className="text-xs text-red-500 mt-1.5 flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3" />
+                        HOD Recommendation Form is required for PG/Student
+                      </p>
+                    )}
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">Institution/Hospital *</label>

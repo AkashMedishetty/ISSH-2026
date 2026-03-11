@@ -140,6 +140,7 @@ export async function POST(request: NextRequest) {
           },
           dietaryRequirements: profile.dietaryRequirements || '',
           mciNumber: profile.mciNumber,
+          hodFormUrl: profile.hodFormUrl || '',
           specialNeeds: profile.specialNeeds || ''
         } as any
         existingUser.registration.workshopSelections = registration?.workshopSelections || []
@@ -297,6 +298,7 @@ export async function POST(request: NextRequest) {
         },
         dietaryRequirements: profile.dietaryRequirements || '',
         mciNumber: profile.mciNumber,
+        hodFormUrl: profile.hodFormUrl || '',
         specialNeeds: profile.specialNeeds || ''
       },
       registration: {

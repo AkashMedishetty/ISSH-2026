@@ -89,7 +89,12 @@ export async function GET(request: NextRequest) {
       'Accommodation Check-out',
       'Accommodation Nights',
       'Accommodation Amount',
-      'Address',
+      'Street Address',
+      'City',
+      'State',
+      'Country',
+      'Pincode',
+      'HOD Form',
       'Dietary Requirements',
       'Special Needs'
     ]
@@ -126,8 +131,12 @@ export async function GET(request: NextRequest) {
       user.registration.accommodation?.checkOut || '',
       user.registration.accommodation?.nights || 0,
       user.registration.accommodation?.totalAmount || 0,
-      user.profile.address ? 
-        `${user.profile.address.street || ''}, ${user.profile.address.city || ''}, ${user.profile.address.state || ''}, ${user.profile.address.country || ''}`.replace(/^,+|,+$/g, '') : '',
+      user.profile.address?.street || '',
+      user.profile.address?.city || '',
+      user.profile.address?.state || '',
+      user.profile.address?.country || '',
+      user.profile.address?.pincode || '',
+      user.profile.hodFormUrl || '',
       user.profile.dietaryRequirements || '',
       user.profile.specialNeeds || ''
     ])
