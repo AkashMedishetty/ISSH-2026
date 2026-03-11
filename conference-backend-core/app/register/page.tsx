@@ -780,6 +780,7 @@ export default function RegisterPage() {
           // Payment screenshot is mandatory for bank transfer
           if (!formData.paymentScreenshot) {
             console.log('Payment screenshot missing')
+            setTouchedFields(prev => ({ ...prev, paymentScreenshot: true }))
             toast({
               title: "❌ Payment Screenshot Required",
               description: "Please upload a screenshot of your payment confirmation.",
@@ -2383,7 +2384,7 @@ export default function RegisterPage() {
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Payment Screenshot <span className="text-red-500">*</span>
               </label>
-              <div className={`border-2 border-dashed rounded-lg p-4 text-center ${formData.paymentScreenshot ? 'border-green-400 dark:border-green-600' : 'border-gray-300 dark:border-gray-600'}`}>
+              <div className={`border-2 border-dashed rounded-lg p-4 text-center ${formData.paymentScreenshot ? 'border-green-400 dark:border-green-600' : touchedFields.paymentScreenshot ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}>
                 {formData.paymentScreenshot ? (
                   <div className="space-y-2">
                     <div className="flex items-center justify-center gap-2 text-green-600 dark:text-green-400">
@@ -2439,6 +2440,12 @@ export default function RegisterPage() {
                   </div>
                 )}
               </div>
+              {touchedFields.paymentScreenshot && !formData.paymentScreenshot && (
+                <p className="text-xs text-red-500 mt-1.5 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" />
+                  Payment screenshot is required for bank transfer
+                </p>
+              )}
             </div>
             )}
 
@@ -2468,7 +2475,7 @@ export default function RegisterPage() {
               <Button
                 type="submit"
                 className="bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white h-11 rounded-xl shadow-lg shadow-pink-200/50 font-medium disabled:opacity-50"
-                disabled={!formData.agreeTerms || (formData.paymentMethod === 'bank-transfer' && !formData.bankTransferUTR) || loading}
+                disabled={!formData.agreeTerms || (formData.paymentMethod === 'bank-transfer' && (!formData.bankTransferUTR || !formData.paymentScreenshot)) || loading}
               >
                 {loading ? (
                   <>
