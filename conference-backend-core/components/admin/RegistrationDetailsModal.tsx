@@ -54,6 +54,7 @@ interface Registration {
     }
     dietaryRequirements?: string
     specialNeeds?: string
+    hodFormUrl?: string
   }
   registration: {
     registrationId: string
@@ -1213,6 +1214,43 @@ function ProfileTab({ registration, onCopy }: { registration: Registration, onCo
           </div>
         </CardContent>
       </Card>
+
+      {/* HOD Recommendation Form - shown for PG/Student */}
+      {registration.profile.hodFormUrl && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">HOD Recommendation Form</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {registration.profile.hodFormUrl.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
+              <div className="space-y-2">
+                <img
+                  src={registration.profile.hodFormUrl}
+                  alt="HOD Recommendation Form"
+                  className="max-w-full max-h-64 rounded-lg border object-contain"
+                />
+                <a
+                  href={registration.profile.hodFormUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline"
+                >
+                  <Eye className="h-3 w-3" /> View Full Size
+                </a>
+              </div>
+            ) : (
+              <a
+                href={registration.profile.hodFormUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-3 py-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors text-sm"
+              >
+                <FileText className="h-4 w-4" /> View HOD Form (PDF)
+              </a>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader className="pb-2">
