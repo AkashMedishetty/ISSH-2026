@@ -668,6 +668,7 @@ export default function RegisterPage() {
         // Check registration type
         if (!formData.registrationType) {
           console.log('Missing registration type')
+          setTouchedFields(prev => ({ ...prev, registrationType: true }))
           toast({
             title: "Registration Type Required",
             description: "Please select your registration type (Postgraduate or Consultant) before proceeding to the next step.",
@@ -757,6 +758,7 @@ export default function RegisterPage() {
         if (formData.paymentMethod === 'bank-transfer') {
           if (!formData.bankTransferUTR) {
             console.log('UTR number missing')
+            setTouchedFields(prev => ({ ...prev, bankTransferUTR: true }))
             toast({
               title: "UTR Number Required",
               description: "Please enter your bank transfer UTR number",
@@ -768,6 +770,7 @@ export default function RegisterPage() {
 
           if (formData.bankTransferUTR.length < 12) {
             console.log('UTR number too short')
+            setTouchedFields(prev => ({ ...prev, bankTransferUTR: true }))
             toast({
               title: "Invalid UTR Number",
               description: "UTR number must be at least 12 characters",
@@ -797,6 +800,7 @@ export default function RegisterPage() {
 
         if (!formData.agreeTerms) {
           console.log('Terms not agreed')
+          setTouchedFields(prev => ({ ...prev, agreeTerms: true }))
           toast({
             title: "Terms and Conditions Required",
             description: "Please read and agree to the terms and conditions before proceeding.",
@@ -1302,6 +1306,12 @@ export default function RegisterPage() {
                       Email already registered
                     </p>
                   )}
+                  {touchedFields.email && !formData.email && (
+                    <p className="text-xs text-red-500 mt-1.5 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" />
+                      Email is required
+                    </p>
+                  )}
                 </div>
 
                 <div>
@@ -1326,6 +1336,12 @@ export default function RegisterPage() {
                       Must be 10 digits
                     </p>
                   )}
+                  {touchedFields.phone && !formData.phone && (
+                    <p className="text-xs text-red-500 mt-1.5 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" />
+                      Phone number is required
+                    </p>
+                  )}
                 </div>
 
                 <div>
@@ -1343,6 +1359,12 @@ export default function RegisterPage() {
                     placeholder="Age"
                     className="h-10"
                   />
+                  {touchedFields.age && !formData.age && (
+                    <p className="text-xs text-red-500 mt-1.5 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" />
+                      Age is required
+                    </p>
+                  )}
                 </div>
 
                 <div>
@@ -1721,7 +1743,7 @@ export default function RegisterPage() {
                     </div>
                   ))}
               </RadioGroup>
-              {!formData.registrationType && (
+              {touchedFields.registrationType && !formData.registrationType && (
                 <p className="text-xs text-red-600 mt-1 flex items-center gap-1">
                   <AlertCircle className="w-3 h-3" />
                   Please select a registration type
@@ -1755,6 +1777,12 @@ export default function RegisterPage() {
                 <p className="text-xs text-orange-600 mt-1 flex items-center gap-1">
                   <AlertCircle className="w-3 h-3" />
                   MCI number must be at least 3 characters
+                </p>
+              )}
+              {touchedFields.mciNumber && !formData.mciNumber && (
+                <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" />
+                  MCI/NMC number is required
                 </p>
               )}
             </div>
@@ -2365,10 +2393,22 @@ export default function RegisterPage() {
                 value={formData.bankTransferUTR}
                 onChange={(e) => handleInputChange("bankTransferUTR", e.target.value)}
                 placeholder="Enter 12-digit UTR number from your bank transfer"
-                className="dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200"
+                className={`dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200 ${touchedFields.bankTransferUTR && (!formData.bankTransferUTR || formData.bankTransferUTR.length < 12) ? 'border-red-500' : ''}`}
                 maxLength={12}
                 required
               />
+              {touchedFields.bankTransferUTR && !formData.bankTransferUTR && (
+                <p className="text-xs text-red-500 mt-1.5 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" />
+                  UTR number is required
+                </p>
+              )}
+              {touchedFields.bankTransferUTR && formData.bankTransferUTR && formData.bankTransferUTR.length < 12 && (
+                <p className="text-xs text-red-500 mt-1.5 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" />
+                  UTR number must be at least 12 characters
+                </p>
+              )}
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                 The UTR (Unique Transaction Reference) number is provided by your bank after successful transfer
               </p>
@@ -2466,6 +2506,12 @@ export default function RegisterPage() {
                 </Link>
               </label>
             </div>
+            {touchedFields.agreeTerms && !formData.agreeTerms && (
+              <p className="text-xs text-red-500 mt-1 ml-6 flex items-center gap-1">
+                <AlertCircle className="w-3 h-3" />
+                You must agree to the terms and conditions
+              </p>
+            )}
             </div>
             
             <div className="flex gap-3 justify-between pt-5 border-t border-gray-100 mt-5">
