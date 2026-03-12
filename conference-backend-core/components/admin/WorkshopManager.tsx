@@ -111,13 +111,10 @@ export function WorkshopManager() {
     
     if (!formData.id?.trim()) errors.push('Workshop ID is required')
     if (!formData.name?.trim()) errors.push('Workshop Name is required')
-    if (!formData.description?.trim()) errors.push('Description is required')
     if (formData.price === undefined || formData.price === null || isNaN(formData.price) || formData.price < 0) errors.push('Valid Price is required (0 or more)')
     if (!formData.maxSeats || formData.maxSeats < 1) errors.push('Max Seats must be at least 1')
-    if (!formData.registrationStart) errors.push('Registration Start Date is required')
-    if (!formData.registrationEnd) errors.push('Registration End Date is required')
     
-    // Validate dates
+    // Validate dates only if both are provided
     if (formData.registrationStart && formData.registrationEnd) {
       const start = new Date(formData.registrationStart)
       const end = new Date(formData.registrationEnd)
@@ -377,7 +374,7 @@ export function WorkshopManager() {
       </div>
 
       <div>
-        <Label>Description *</Label>
+        <Label>Description <span className="text-gray-400">(Optional)</span></Label>
         <Textarea
           value={formData.description}
           onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
@@ -480,21 +477,19 @@ export function WorkshopManager() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <Label>Registration Start Date *</Label>
+          <Label>Registration Start Date <span className="text-gray-400">(Optional)</span></Label>
           <Input
             type="date"
             value={formData.registrationStart}
             onChange={(e) => setFormData(prev => ({ ...prev, registrationStart: e.target.value }))}
-            required
           />
         </div>
         <div>
-          <Label>Registration End Date *</Label>
+          <Label>Registration End Date <span className="text-gray-400">(Optional)</span></Label>
           <Input
             type="date"
             value={formData.registrationEnd}
             onChange={(e) => setFormData(prev => ({ ...prev, registrationEnd: e.target.value }))}
-            required
           />
         </div>
       </div>
