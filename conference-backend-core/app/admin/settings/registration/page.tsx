@@ -579,8 +579,12 @@ export default function RegistrationSettingsPage() {
                                 <Input
                                   id="workshop-price"
                                   type="number"
+                                  min="0"
                                   value={workshopForm.price}
-                                  onChange={(e) => setWorkshopForm({ ...workshopForm, price: parseFloat(e.target.value) })}
+                                  onChange={(e) => {
+                                    const val = e.target.value
+                                    setWorkshopForm({ ...workshopForm, price: val === '' ? 0 : parseFloat(val) })
+                                  }}
                                   required
                                 />
                               </div>
@@ -589,8 +593,12 @@ export default function RegistrationSettingsPage() {
                                 <Input
                                   id="max-seats"
                                   type="number"
+                                  min="1"
                                   value={workshopForm.maxSeats}
-                                  onChange={(e) => setWorkshopForm({ ...workshopForm, maxSeats: parseInt(e.target.value) })}
+                                  onChange={(e) => {
+                                    const val = e.target.value
+                                    setWorkshopForm({ ...workshopForm, maxSeats: val === '' ? 0 : parseInt(val) })
+                                  }}
                                   required
                                 />
                               </div>

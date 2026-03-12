@@ -112,7 +112,7 @@ export function WorkshopManager() {
     if (!formData.id?.trim()) errors.push('Workshop ID is required')
     if (!formData.name?.trim()) errors.push('Workshop Name is required')
     if (!formData.description?.trim()) errors.push('Description is required')
-    if (!formData.price || formData.price < 0) errors.push('Valid Price is required')
+    if (formData.price === undefined || formData.price === null || isNaN(formData.price) || formData.price < 0) errors.push('Valid Price is required (0 or more)')
     if (!formData.maxSeats || formData.maxSeats < 1) errors.push('Max Seats must be at least 1')
     if (!formData.registrationStart) errors.push('Registration Start Date is required')
     if (!formData.registrationEnd) errors.push('Registration End Date is required')

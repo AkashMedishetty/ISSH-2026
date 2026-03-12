@@ -3,7 +3,7 @@ import mongoose, { Document, Schema } from 'mongoose'
 export interface IWorkshop extends Document {
   id: string
   name: string
-  description: string
+  description?: string
   instructor?: string
   duration?: string
   price: number
@@ -11,8 +11,8 @@ export interface IWorkshop extends Document {
   maxSeats: number  // 0 = unlimited
   bookedSeats: number
   availableSeats: number
-  registrationStart: Date
-  registrationEnd: Date
+  registrationStart?: Date
+  registrationEnd?: Date
   workshopDate?: Date
   workshopTime?: string
   venue?: string
@@ -37,8 +37,9 @@ const WorkshopSchema = new Schema<IWorkshop>({
   },
   description: {
     type: String,
-    required: true,
-    trim: true
+    required: false,
+    trim: true,
+    default: ''
   },
   instructor: {
     type: String,
@@ -76,11 +77,11 @@ const WorkshopSchema = new Schema<IWorkshop>({
   },
   registrationStart: {
     type: Date,
-    required: true
+    required: false
   },
   registrationEnd: {
     type: Date,
-    required: true
+    required: false
   },
   workshopDate: {
     type: Date,
@@ -124,6 +125,7 @@ WorkshopSchema.virtual('availableSeats').get(function() {
 
 // Virtual for registration status
 WorkshopSchema.virtual('registrationStatus').get(function() {
+  if (!this.registrationStart || !this.registrationEnd) return 'open'
   const now = new Date()
   if (now < this.registrationStart) return 'not-started'
   if (now > this.registrationEnd) return 'closed'
@@ -141,10 +143,9 @@ WorkshopSchema.virtual('isFull').get(function() {
 WorkshopSchema.virtual('canRegister').get(function() {
   const now = new Date()
   const seatsAvailable = this.maxSeats === 0 || this.bookedSeats < this.maxSeats
-  return this.isActive && 
-         now >= this.registrationStart && 
-         now <= this.registrationEnd && 
-         seatsAvailable
+  const withinDates = !this.registrationStart || !this.registrationEnd || 
+    (now >= this.registrationStart && now <= this.registrationEnd)
+  return this.isActive && withinDates && seatsAvailable
 })
 
 // Index for efficient queries

@@ -87,26 +87,31 @@ export async function POST(request: NextRequest) {
     } = body
 
     // Validate required fields (only truly required ones)
-    if (!id || !name || !description || price === undefined || !maxSeats || !registrationStart || !registrationEnd) {
+    if (!id || !name || price === undefined || price === null || !maxSeats) {
       return NextResponse.json({
         success: false,
-        message: 'Missing required fields: id, name, description, price, maxSeats, registrationStart, registrationEnd'
+        message: 'Missing required fields: id, name, price, maxSeats'
       }, { status: 400 })
     }
 
-    // Validate dates
-    const regStart = new Date(registrationStart)
-    const regEnd = new Date(registrationEnd)
+    // Validate dates if provided
+    let regStart: Date | null = null
+    let regEnd: Date | null = null
+    
+    if (registrationStart && registrationEnd) {
+      regStart = new Date(registrationStart)
+      regEnd = new Date(registrationEnd)
 
-    if (regStart >= regEnd) {
-      return NextResponse.json({
-        success: false,
-        message: 'Registration start date must be before end date'
-      }, { status: 400 })
+      if (regStart >= regEnd) {
+        return NextResponse.json({
+          success: false,
+          message: 'Registration start date must be before end date'
+        }, { status: 400 })
+      }
     }
 
-    // Only validate workshop date if provided
-    if (workshopDate) {
+    // Only validate workshop date if both workshop date and registration end are provided
+    if (workshopDate && regEnd) {
       const wsDate = new Date(workshopDate)
       if (regEnd > wsDate) {
         return NextResponse.json({
@@ -128,21 +133,22 @@ export async function POST(request: NextRequest) {
     const workshop = new Workshop({
       id,
       name,
-      description,
+      description: description || '',
       instructor: instructor || '',
       duration: duration || '',
-      price: parseFloat(price),
+      price: parseFloat(price) || 0,
       currency: currency || 'INR',
       maxSeats: parseInt(maxSeats),
       bookedSeats: 0,
-      registrationStart: regStart,
-      registrationEnd: regEnd,
-      workshopDate: workshopDate ? new Date(workshopDate) : null,
+      registrationStart: regStart || undefined,
+      registrationEnd: regEnd || undefined,
+      workshopDate: workshopDate ? new Date(workshopDate) : undefined,
       workshopTime: workshopTime || '',
       venue: venue || '',
       prerequisites: prerequisites || '',
       materials: materials || '',
-      isActive: isActive !== false
+      isActive: isActive !== false,
+      canRegister: body.canRegister !== false
     })
 
     await workshop.save()
