@@ -53,27 +53,43 @@ export default function FacultyRegisterPage() {
     agreeTerms: false,
   })
 
+  const [priceCalculation, setPriceCalculation] = useState<any>(null)
+
   // Calculate if payment is needed
   const hasAccompanying = formData.accompanyingPersons.length > 0
   const hasAccommodation = formData.accommodationRequired && formData.accommodationRoomType && formData.accommodationCheckIn && formData.accommodationCheckOut
   const needsPayment = hasAccompanying || hasAccommodation
 
-  // Calculate costs
-  const getAccommodationCost = () => {
-    if (!hasAccommodation) return { nights: 0, perNight: 0, total: 0 }
-    const checkIn = new Date(formData.accommodationCheckIn)
-    const checkOut = new Date(formData.accommodationCheckOut)
-    const nights = Math.max(0, Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24)))
-    const perNight = formData.accommodationRoomType === 'single' ? 10000 : 7500
-    return { nights, perNight, total: nights * perNight }
-  }
+  // Fetch real pricing from the payment/calculate API (same as delegate registration)
+  useEffect(() => {
+    if (!needsPayment) { setPriceCalculation(null); return }
+    const fetchPrice = async () => {
+      try {
+        const res = await fetch('/api/payment/calculate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            registrationType: 'faculty',
+            workshopSelections: [],
+            accompanyingPersons: formData.accompanyingPersons,
+            accommodation: hasAccommodation ? {
+              roomType: formData.accommodationRoomType,
+              checkIn: formData.accommodationCheckIn,
+              checkOut: formData.accommodationCheckOut,
+            } : undefined
+          })
+        })
+        if (res.ok) {
+          const result = await res.json()
+          if (result.success) setPriceCalculation(result.data)
+        }
+      } catch {}
+    }
+    fetchPrice()
+  }, [JSON.stringify(formData.accompanyingPersons), formData.accommodationRequired, formData.accommodationRoomType, formData.accommodationCheckIn, formData.accommodationCheckOut])
 
-  const getAccompanyingCost = () => formData.accompanyingPersons.length * 1000 // approximate per-person
-  const accomCost = getAccommodationCost()
-  const accompCost = getAccompanyingCost()
-  const subtotal = accomCost.total + accompCost
-  const gst = Math.round(subtotal * 0.18)
-  const totalAmount = subtotal + gst
+  // Derived values from API response (fallback to 0)
+  const totalAmount = priceCalculation?.total || priceCalculation?.finalAmount || 0
 
   useEffect(() => {
     document.title = `Faculty Registration | ${conferenceConfig.shortName}`
@@ -393,11 +409,11 @@ export default function FacultyRegisterPage() {
                             <div><Label>Check-in Date *</Label><Input type="date" value={formData.accommodationCheckIn} onChange={(e) => updateField("accommodationCheckIn", e.target.value)} min="2026-04-23" max="2026-04-26" className="mt-1" /></div>
                             <div><Label>Check-out Date *</Label><Input type="date" value={formData.accommodationCheckOut} onChange={(e) => updateField("accommodationCheckOut", e.target.value)} min={formData.accommodationCheckIn || "2026-04-24"} max="2026-04-27" className="mt-1" /></div>
                           </div>
-                          {accomCost.nights > 0 && (
+                          {priceCalculation?.accommodationNights > 0 && (
                             <div className="bg-white dark:bg-gray-800 p-3 rounded-lg border border-blue-200 dark:border-blue-700">
                               <div className="flex justify-between text-sm">
-                                <span className="text-gray-600">{formData.accommodationRoomType === 'single' ? 'Single' : 'Sharing'} × {accomCost.nights} night{accomCost.nights > 1 ? 's' : ''}</span>
-                                <span className="font-semibold">₹{accomCost.total.toLocaleString('en-IN')}</span>
+                                <span className="text-gray-600">{formData.accommodationRoomType === 'single' ? 'Single' : 'Sharing'} × {priceCalculation.accommodationNights} night{priceCalculation.accommodationNights > 1 ? 's' : ''}</span>
+                                <span className="font-semibold">₹{priceCalculation.accommodationFees.toLocaleString('en-IN')}</span>
                               </div>
                               <p className="text-xs text-gray-500 mt-1">+ 18% GST will be added</p>
                             </div>
@@ -444,20 +460,37 @@ export default function FacultyRegisterPage() {
                     {/* Price Summary */}
                     <div className="bg-yellow-50 p-4 rounded-lg">
                       <h3 className="text-base font-semibold text-gray-900 mb-3">Payment Summary</h3>
+                      {priceCalculation ? (
                       <div className="space-y-2">
                         <div className="flex justify-between"><span>Faculty Registration:</span><span className="font-medium text-green-600">FREE</span></div>
-                        {hasAccompanying && <div className="flex justify-between"><span>Accompanying Persons ({formData.accompanyingPersons.length}):</span><span className="font-medium">₹{accompCost.toLocaleString('en-IN')}</span></div>}
-                        {hasAccommodation && accomCost.nights > 0 && (
+                        {(priceCalculation.accompanyingPersonFees > 0 || priceCalculation.accompanyingPersons > 0) && (
                           <div className="flex justify-between">
-                            <span>Accommodation ({formData.accommodationRoomType === 'single' ? 'Single' : 'Sharing'} × {accomCost.nights} night{accomCost.nights > 1 ? 's' : ''}):</span>
-                            <span className="font-medium">₹{accomCost.total.toLocaleString('en-IN')}</span>
+                            <span>Accompanying Persons ({priceCalculation.accompanyingPersonCount || formData.accompanyingPersons.length}):</span>
+                            <span className="font-medium">₹{(priceCalculation.accompanyingPersonFees || priceCalculation.accompanyingPersons || 0).toLocaleString('en-IN')}</span>
                           </div>
                         )}
-                        <div className="flex justify-between"><span>GST (18%):</span><span className="font-medium">₹{gst.toLocaleString('en-IN')}</span></div>
+                        {priceCalculation.freeChildrenCount > 0 && (
+                          <div className="flex justify-between text-green-600">
+                            <span>Children under 10 ({priceCalculation.freeChildrenCount}):</span>
+                            <span className="font-medium">FREE</span>
+                          </div>
+                        )}
+                        {priceCalculation.accommodationFees > 0 && (
+                          <div className="flex justify-between">
+                            <span>Accommodation ({priceCalculation.accommodationBreakdown?.roomType === 'single' ? 'Single' : 'Sharing'} × {priceCalculation.accommodationNights} night{priceCalculation.accommodationNights > 1 ? 's' : ''}):</span>
+                            <span className="font-medium">₹{priceCalculation.accommodationFees.toLocaleString('en-IN')}</span>
+                          </div>
+                        )}
+                        {(priceCalculation.gst > 0 || priceCalculation.breakdown?.gst > 0) && (
+                          <div className="flex justify-between"><span>GST (18%):</span><span className="font-medium">₹{(priceCalculation.gst || priceCalculation.breakdown?.gst || 0).toLocaleString('en-IN')}</span></div>
+                        )}
                         <div className="border-t pt-2 mt-2">
                           <div className="flex justify-between font-bold text-lg"><span>Total Amount:</span><span className="text-[#25406b]">₹{totalAmount.toLocaleString('en-IN')}</span></div>
                         </div>
                       </div>
+                      ) : (
+                        <div className="text-center py-4 text-gray-500"><Loader2 className="w-5 h-5 animate-spin inline mr-2" />Calculating pricing...</div>
+                      )}
                     </div>
 
                     {/* Bank Transfer Details */}

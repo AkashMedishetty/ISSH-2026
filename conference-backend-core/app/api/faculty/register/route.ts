@@ -177,7 +177,7 @@ export async function POST(request: NextRequest) {
         registrationId,
         name: fullName,
         status,
-        accompanyingPersonsCharge: hasAccompanying ? accompanyingPersons.length * 1000 : 0,
+        paymentAmount: paymentData?.amount || 0,
         accommodationCharge
       }
     }, { status: 201 })
