@@ -294,7 +294,7 @@ export const conferenceConfig: ConferenceConfig = {
     // Form field options (used in dropdowns and validation)
     formFields: {
       titles: ['Dr.', 'Prof.', 'Mr.', 'Mrs.', 'Ms.'],
-      designations: ['Consultant', 'PG/Student'],
+      designations: ['Consultant', 'PG/Student', 'Faculty'],
       relationshipTypes: ['Spouse', 'Child', 'Parent', 'Friend', 'Colleague', 'Other'],
       paymentMethods: ['bank-transfer', 'online', 'pay-now', 'cash']
     },
@@ -313,6 +313,10 @@ export const conferenceConfig: ConferenceConfig = {
       {
         key: "postgraduate",
         label: "Postgraduate"
+      },
+      {
+        key: "faculty",
+        label: "Faculty (Invited)"
       }
     ],
     

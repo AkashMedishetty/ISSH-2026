@@ -44,6 +44,7 @@ export function ModernSidebar({ activeTab, onTabChange, isOpen, onToggle }: Mode
     { id: 'reviewer-settings', label: 'Reviewer Settings', icon: UserCheck },
     { id: 'program', label: 'Program Schedule', icon: Calendar },
     { id: 'workshops', label: 'Workshops', icon: GraduationCap },
+    { id: 'faculty', label: 'Faculty', icon: Award },
     { id: 'accommodation', label: 'Accommodation', icon: Building },
     { id: 'badges', label: 'Badge Designer', icon: BadgeCheck },
     { id: 'certificates', label: 'Certificate Designer', icon: Award },
@@ -60,6 +61,7 @@ export function ModernSidebar({ activeTab, onTabChange, isOpen, onToggle }: Mode
     if (id === 'bulk-emailer') return success
     if (id === 'sponsors') return '#8b5cf6' // Purple
     if (id === 'reviewer-settings') return '#10b981' // Emerald
+    if (id === 'faculty') return '#f59e0b' // Amber
     return primary
   }
 

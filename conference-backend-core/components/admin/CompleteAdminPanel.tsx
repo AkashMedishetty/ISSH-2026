@@ -22,6 +22,7 @@ import { AccommodationManager } from './AccommodationManager'
 import { PaymentTable } from './PaymentTable'
 import { PaymentSettingsManager } from './PaymentSettingsManager'
 import { SponsorManager } from './SponsorManager'
+import { FacultyManager } from './FacultyManager'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { Alert, AlertDescription } from '../ui/alert'
 import { Button } from '../ui/button'
@@ -150,6 +151,13 @@ export function CompleteAdminPanel() {
         return (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
             <WorkshopManager />
+          </motion.div>
+        )
+
+      case 'faculty':
+        return (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+            <FacultyManager />
           </motion.div>
         )
 
