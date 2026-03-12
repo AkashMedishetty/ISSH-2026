@@ -106,6 +106,10 @@ export async function POST(request: NextRequest) {
       resourceType: 'registration',
       resourceId: 'bulk',
       resourceName: `${results.filter(r => r.status === 'created').length} faculty imported`,
+      metadata: {
+        ip: request.headers.get('x-forwarded-for') || 'unknown',
+        userAgent: request.headers.get('user-agent') || ''
+      },
       description: `Bulk faculty import: ${results.filter(r => r.status === 'created').length} created, ${results.filter(r => r.status === 'skipped').length} skipped, ${results.filter(r => r.status === 'error').length} errors`
     })
 

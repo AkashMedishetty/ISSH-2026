@@ -111,6 +111,10 @@ export async function POST(request: NextRequest) {
       resourceType: 'registration',
       resourceId: user._id.toString(),
       resourceName: registrationId,
+      metadata: {
+        ip: request.headers.get('x-forwarded-for') || 'unknown',
+        userAgent: request.headers.get('user-agent') || ''
+      },
       description: `Faculty member added by admin: ${firstName} ${lastName}`
     })
 
@@ -185,6 +189,10 @@ export async function DELETE(request: NextRequest) {
       resourceType: 'registration',
       resourceId: userId,
       resourceName: user.registration.registrationId,
+      metadata: {
+        ip: request.headers.get('x-forwarded-for') || 'unknown',
+        userAgent: request.headers.get('user-agent') || ''
+      },
       description: `Faculty member removed: ${user.profile.firstName} ${user.profile.lastName}`
     })
 

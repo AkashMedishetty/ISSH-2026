@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
           userId: (member as any)._id,
           userName: name,
           templateName: 'faculty-custom-email',
-          category: 'notification'
+          category: 'custom'
         })
         sent++
       } catch {
