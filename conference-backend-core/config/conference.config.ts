@@ -316,7 +316,7 @@ export const conferenceConfig: ConferenceConfig = {
       },
       {
         key: "faculty",
-        label: "Faculty (Invited)"
+        label: "Faculty"
       }
     ],
     

@@ -4,14 +4,13 @@ import { useState, useEffect, useCallback } from "react"
 import { motion } from "framer-motion"
 import { Button } from "../../../components/ui/button"
 import { Input } from "../../../components/ui/input"
-import { Textarea } from "../../../components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card"
 import { Label } from "../../../components/ui/label"
 import { Checkbox } from "../../../components/ui/checkbox"
 import { Alert, AlertDescription } from "../../../components/ui/alert"
 import { Navigation } from "../../../components/Navigation"
-import { CheckCircle, Loader2, AlertCircle, Eye, EyeOff, GraduationCap, UserPlus, Mail, Lock } from "lucide-react"
+import { CheckCircle, Loader2, AlertCircle, Eye, EyeOff, GraduationCap, UserPlus, Lock } from "lucide-react"
 import Link from "next/link"
 import { toast } from "sonner"
 import { conferenceConfig } from "../../../config/conference.config"
@@ -49,6 +48,10 @@ export default function FacultyRegisterPage() {
     dietaryRequirements: "",
     specialNeeds: "",
     accompanyingPersons: [] as Array<{ name: string; age: number; relationship: string; dietaryRequirements?: string }>,
+    accommodationRequired: false,
+    accommodationRoomType: "" as string,
+    accommodationCheckIn: "",
+    accommodationCheckOut: "",
     agreeTerms: false,
   })
 
@@ -126,6 +129,12 @@ export default function FacultyRegisterPage() {
     for (const p of formData.accompanyingPersons) {
       if (!p.name.trim()) { toast.error("All accompanying person names are required"); return false }
     }
+    if (formData.accommodationRequired) {
+      if (!formData.accommodationRoomType) { toast.error("Please select a room type"); return false }
+      if (!formData.accommodationCheckIn) { toast.error("Please select check-in date"); return false }
+      if (!formData.accommodationCheckOut) { toast.error("Please select check-out date"); return false }
+      if (new Date(formData.accommodationCheckOut) <= new Date(formData.accommodationCheckIn)) { toast.error("Check-out must be after check-in"); return false }
+    }
     return true
   }
 
@@ -167,7 +176,7 @@ export default function FacultyRegisterPage() {
               <div className="text-sm text-green-700 dark:text-green-300 space-y-1 text-left">
                 <p><strong>Registration ID:</strong> {submissionData.registrationId}</p>
                 <p><strong>Name:</strong> {submissionData.name}</p>
-                <p><strong>Type:</strong> Faculty (Invited)</p>
+                <p><strong>Type:</strong> Faculty</p>
               </div>
             </div>
           )}
@@ -175,7 +184,17 @@ export default function FacultyRegisterPage() {
             <Alert className="mb-6 text-left bg-amber-50 border-amber-200">
               <AlertCircle className="h-4 w-4 text-amber-600" />
               <AlertDescription className="text-amber-800">
-                <strong>Payment Required for Accompanying Persons:</strong> ₹{submissionData.accompanyingPersonsCharge.toLocaleString()} (+ GST). Please login to complete payment.
+                <strong>Payment Required:</strong> ₹{submissionData.accompanyingPersonsCharge.toLocaleString()}
+                {submissionData?.accommodationCharge > 0 && ` + ₹${submissionData.accommodationCharge.toLocaleString()} (accommodation)`}
+                {' '}(+ GST). Please login to complete payment.
+              </AlertDescription>
+            </Alert>
+          )}
+          {!submissionData?.accompanyingPersonsCharge && submissionData?.accommodationCharge > 0 && (
+            <Alert className="mb-6 text-left bg-amber-50 border-amber-200">
+              <AlertCircle className="h-4 w-4 text-amber-600" />
+              <AlertDescription className="text-amber-800">
+                <strong>Payment Required for Accommodation:</strong> ₹{submissionData.accommodationCharge.toLocaleString()} (+ GST). Please login to complete payment.
               </AlertDescription>
             </Alert>
           )}
@@ -370,6 +389,81 @@ export default function FacultyRegisterPage() {
 
                     {/* Dietary & Special Needs */}
                     <div className="grid grid-cols-2 gap-4">
+
+                    {/* Hotel Accommodation */}
+                    <div className="col-span-2 space-y-4">
+                      <div className="flex items-center justify-between border-b pb-2">
+                        <h3 className="font-semibold text-gray-800 dark:text-white">Hotel Accommodation (Optional)</h3>
+                      </div>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        Book your stay at Novotel HICC, Hyderabad. Check-in: 2:00 PM | Check-out: 12:00 PM. Prices are exclusive of 18% GST.
+                      </p>
+                      <div className="flex items-center gap-3">
+                        <Checkbox
+                          id="accommodationRequired"
+                          checked={formData.accommodationRequired}
+                          onCheckedChange={(checked) => updateField("accommodationRequired", !!checked)}
+                        />
+                        <label htmlFor="accommodationRequired" className="text-sm font-medium cursor-pointer">I need hotel accommodation</label>
+                      </div>
+                      {formData.accommodationRequired && (
+                        <div className="space-y-4 bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
+                          <div>
+                            <Label>Room Type *</Label>
+                            <div className="grid grid-cols-2 gap-3 mt-2">
+                              <div
+                                className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${formData.accommodationRoomType === 'single' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30' : 'border-gray-200 dark:border-gray-700 hover:border-blue-300'}`}
+                                onClick={() => updateField("accommodationRoomType", "single")}
+                              >
+                                <div className="flex items-center gap-2 mb-1">
+                                  <input type="radio" checked={formData.accommodationRoomType === 'single'} readOnly className="text-blue-600" />
+                                  <span className="font-semibold text-gray-800 dark:text-gray-200">Single Room</span>
+                                </div>
+                                <p className="text-lg font-bold text-blue-600">₹10,000 <span className="text-xs font-normal text-gray-500">/ night</span></p>
+                                <p className="text-xs text-gray-500">+ 18% GST</p>
+                              </div>
+                              <div
+                                className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${formData.accommodationRoomType === 'sharing' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30' : 'border-gray-200 dark:border-gray-700 hover:border-blue-300'}`}
+                                onClick={() => updateField("accommodationRoomType", "sharing")}
+                              >
+                                <div className="flex items-center gap-2 mb-1">
+                                  <input type="radio" checked={formData.accommodationRoomType === 'sharing'} readOnly className="text-blue-600" />
+                                  <span className="font-semibold text-gray-800 dark:text-gray-200">Sharing Room</span>
+                                </div>
+                                <p className="text-lg font-bold text-blue-600">₹7,500 <span className="text-xs font-normal text-gray-500">/ night</span></p>
+                                <p className="text-xs text-gray-500">+ 18% GST</p>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <Label>Check-in Date * <span className="font-normal text-gray-500 text-xs">(2:00 PM)</span></Label>
+                              <Input type="date" value={formData.accommodationCheckIn} onChange={(e) => updateField("accommodationCheckIn", e.target.value)} min="2026-04-23" max="2026-04-26" className="mt-1" />
+                            </div>
+                            <div>
+                              <Label>Check-out Date * <span className="font-normal text-gray-500 text-xs">(12:00 PM)</span></Label>
+                              <Input type="date" value={formData.accommodationCheckOut} onChange={(e) => updateField("accommodationCheckOut", e.target.value)} min={formData.accommodationCheckIn || "2026-04-24"} max="2026-04-27" className="mt-1" />
+                            </div>
+                          </div>
+                          {formData.accommodationRoomType && formData.accommodationCheckIn && formData.accommodationCheckOut && (() => {
+                            const checkIn = new Date(formData.accommodationCheckIn)
+                            const checkOut = new Date(formData.accommodationCheckOut)
+                            const nights = Math.max(0, Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24)))
+                            const perNight = formData.accommodationRoomType === 'single' ? 10000 : 7500
+                            const total = nights * perNight
+                            return nights > 0 ? (
+                              <div className="bg-white dark:bg-gray-800 p-3 rounded-lg border border-blue-200 dark:border-blue-700">
+                                <div className="flex justify-between text-sm">
+                                  <span className="text-gray-600 dark:text-gray-400">{formData.accommodationRoomType === 'single' ? 'Single' : 'Sharing'} × {nights} night{nights > 1 ? 's' : ''}</span>
+                                  <span className="font-semibold text-gray-800 dark:text-gray-200">₹{total.toLocaleString('en-IN')}</span>
+                                </div>
+                                <p className="text-xs text-gray-500 mt-1">+ 18% GST will be added to the total bill</p>
+                              </div>
+                            ) : null
+                          })()}
+                        </div>
+                      )}
+                    </div>
                       <div>
                         <Label>Dietary Requirements</Label>
                         <Select value={formData.dietaryRequirements} onValueChange={(v) => updateField("dietaryRequirements", v)}>

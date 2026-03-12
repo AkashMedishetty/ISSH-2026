@@ -6,6 +6,7 @@ import { generateRegistrationId } from '@/lib/utils/generateId'
 import { sendEmailWithHistory } from '@/conference-backend-core/lib/email/email-with-history'
 import { logAction } from '@/conference-backend-core/lib/audit/service'
 import { conferenceConfig } from '@/conference-backend-core/config/conference.config'
+import { getRegistrationConfirmationTemplate } from '@/conference-backend-core/lib/email/templates'
 
 export async function POST(request: NextRequest) {
   console.log('=== FACULTY REGISTER ROUTE HIT ===')
@@ -19,7 +20,9 @@ export async function POST(request: NextRequest) {
       password, institution, mciNumber, specialization,
       address, city, state, country, pincode,
       dietaryRequirements, specialNeeds,
-      accompanyingPersons
+      accompanyingPersons,
+      accommodationRequired, accommodationRoomType,
+      accommodationCheckIn, accommodationCheckOut
     } = body
 
     // Validate required fields
@@ -53,10 +56,31 @@ export async function POST(request: NextRequest) {
     const registrationId = await generateRegistrationId()
     const hashedPassword = await bcrypt.hash(password, 12)
 
-    // Determine payment status based on accompanying persons
+    // Determine payment status based on accompanying persons and accommodation
     const hasAccompanying = accompanyingPersons && accompanyingPersons.length > 0
-    const status = hasAccompanying ? 'pending-payment' : 'confirmed'
-    const paymentType = hasAccompanying ? 'pending' : 'complimentary'
+    const hasAccommodation = accommodationRequired && accommodationRoomType && accommodationCheckIn && accommodationCheckOut
+    const needsPayment = hasAccompanying || hasAccommodation
+    const status = needsPayment ? 'pending-payment' : 'confirmed'
+    const paymentType = needsPayment ? 'pending' : 'complimentary'
+
+    // Calculate accommodation details
+    let accommodationData: any = { required: false }
+    let accommodationCharge = 0
+    if (hasAccommodation) {
+      const checkIn = new Date(accommodationCheckIn)
+      const checkOut = new Date(accommodationCheckOut)
+      const nights = Math.max(0, Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24)))
+      const perNight = accommodationRoomType === 'single' ? 10000 : 7500
+      accommodationCharge = nights * perNight
+      accommodationData = {
+        required: true,
+        roomType: accommodationRoomType,
+        checkIn: accommodationCheckIn,
+        checkOut: accommodationCheckOut,
+        nights,
+        totalAmount: accommodationCharge
+      }
+    }
 
     const user = await User.create({
       email: email.toLowerCase().trim(),
@@ -94,7 +118,8 @@ export async function POST(request: NextRequest) {
           age: p.age || 0,
           relationship: p.relationship || 'Other',
           dietaryRequirements: p.dietaryRequirements || ''
-        }))
+        })),
+        accommodation: accommodationData
       },
       isActive: true
     })
@@ -110,43 +135,27 @@ export async function POST(request: NextRequest) {
         ip: request.headers.get('x-forwarded-for') || 'unknown',
         userAgent: request.headers.get('user-agent') || ''
       },
-      description: `Faculty registration created${hasAccompanying ? ' (with accompanying persons - payment pending)' : ' (complimentary)'}`
+      description: `Faculty registration created${needsPayment ? ' (payment pending)' : ' (complimentary)'}`
     })
 
-    // Send confirmation email
+    // Send confirmation email using the same template as delegate registration
     const fullName = `${title || 'Dr.'} ${firstName} ${lastName}`.trim()
-    const emailHtml = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #1a365d;">Faculty Registration Confirmed!</h2>
-        <p>Dear ${fullName},</p>
-        <p>Thank you for registering as <strong>Faculty</strong> for <strong>${conferenceConfig.shortName}</strong>.</p>
-        <div style="background: #f0fdf4; border-radius: 8px; padding: 20px; margin: 20px 0; border: 1px solid #bbf7d0;">
-          <h3 style="margin-top: 0; color: #166534;">Registration Details</h3>
-          <p><strong>Registration ID:</strong> ${registrationId}</p>
-          <p><strong>Type:</strong> Faculty (Invited) — Complimentary</p>
-          <p><strong>Status:</strong> <span style="color: ${hasAccompanying ? '#d69e2e' : '#16a34a'};">${hasAccompanying ? 'Pending Payment (Accompanying Persons)' : 'Confirmed'}</span></p>
-        </div>
-        ${hasAccompanying ? `
-        <div style="background: #fffbeb; border-radius: 8px; padding: 20px; margin: 20px 0; border: 1px solid #fde68a;">
-          <h3 style="margin-top: 0; color: #92400e;">⚠️ Payment Required</h3>
-          <p>You have ${accompanyingPersons.length} accompanying person(s). Payment is required for them.</p>
-          <p><a href="${conferenceConfig.contact.website}/auth/login" style="background: #4c51bf; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; margin-top: 10px;">Login & Complete Payment</a></p>
-        </div>` : ''}
-        <div style="background: #f7fafc; border-radius: 8px; padding: 20px; margin: 20px 0;">
-          <h3 style="margin-top: 0;">Login Credentials</h3>
-          <p><strong>Email:</strong> ${email}</p>
-          <p><strong>Password:</strong> The password you created</p>
-          <p><a href="${conferenceConfig.contact.website}/auth/login" style="background: #1a365d; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; margin-top: 10px;">Login to Dashboard</a></p>
-        </div>
-        <p>Best regards,<br>${conferenceConfig.shortName} Team</p>
-      </div>
-    `
+    const emailHtml = getRegistrationConfirmationTemplate({
+      name: fullName,
+      email: email.toLowerCase(),
+      registrationId,
+      registrationType: 'faculty',
+      registrationTypeLabel: 'Faculty',
+      accompanyingPersons: hasAccompanying ? accompanyingPersons : undefined,
+      accommodation: hasAccommodation ? accommodationData : undefined,
+      paymentMethod: needsPayment ? undefined : 'payment_gateway' // Use 'payment_gateway' to show "Confirmed" status when no payment needed
+    })
 
     await sendEmailWithHistory({
       to: email.toLowerCase(),
-      subject: `${conferenceConfig.shortName} - Faculty Registration ${hasAccompanying ? '(Payment Pending)' : 'Confirmed'}`,
+      subject: `${conferenceConfig.shortName} - Faculty Registration ${needsPayment ? '(Payment Pending)' : 'Confirmed'}`,
       html: emailHtml,
-      text: `Faculty Registration ID: ${registrationId}. ${hasAccompanying ? 'Payment pending for accompanying persons.' : 'Registration confirmed.'}`,
+      text: `Faculty Registration ID: ${registrationId}. ${needsPayment ? 'Payment pending for accompanying persons/accommodation.' : 'Registration confirmed.'}`,
       userId: user._id,
       userName: fullName,
       templateName: 'faculty-registration',
@@ -160,7 +169,8 @@ export async function POST(request: NextRequest) {
         registrationId,
         name: fullName,
         status,
-        accompanyingPersonsCharge: hasAccompanying ? accompanyingPersons.length * 1000 : 0 // Approximate, actual calculated at payment
+        accompanyingPersonsCharge: hasAccompanying ? accompanyingPersons.length * 1000 : 0,
+        accommodationCharge
       }
     }, { status: 201 })
 
