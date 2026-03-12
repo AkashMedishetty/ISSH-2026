@@ -10,7 +10,7 @@ import { Label } from "../../../components/ui/label"
 import { Checkbox } from "../../../components/ui/checkbox"
 import { Alert, AlertDescription } from "../../../components/ui/alert"
 import { Navigation } from "../../../components/Navigation"
-import { CheckCircle, Loader2, AlertCircle, Eye, EyeOff, GraduationCap, UserPlus, Lock } from "lucide-react"
+import { CheckCircle, Loader2, AlertCircle, Eye, EyeOff, GraduationCap, UserPlus, Lock, CreditCard, Building, FileText } from "lucide-react"
 import Link from "next/link"
 import { toast } from "sonner"
 import { conferenceConfig } from "../../../config/conference.config"
@@ -18,7 +18,17 @@ import { conferenceConfig } from "../../../config/conference.config"
 const TITLES = conferenceConfig.registration.formFields.titles
 const RELATIONSHIP_TYPES = conferenceConfig.registration.formFields.relationshipTypes
 
+interface PaymentConfig {
+  gateway: boolean
+  bankTransfer: boolean
+  bankDetails: {
+    accountName?: string; accountNumber?: string; ifscCode?: string
+    bankName?: string; branch?: string; qrCodeUrl?: string; upiId?: string
+  } | null
+}
+
 export default function FacultyRegisterPage() {
+  const [step, setStep] = useState(1) // 1=form, 2=payment (if needed)
   const [isLoading, setIsLoading] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [submissionData, setSubmissionData] = useState<any>(null)
@@ -27,36 +37,50 @@ export default function FacultyRegisterPage() {
   const [emailAvailable, setEmailAvailable] = useState<boolean | null>(null)
   const [isCheckingEmail, setIsCheckingEmail] = useState(false)
   const [emailCheckTimeout, setEmailCheckTimeout] = useState<NodeJS.Timeout | null>(null)
+  const [paymentConfig, setPaymentConfig] = useState<PaymentConfig>({ gateway: false, bankTransfer: true, bankDetails: null })
+  const [bankTransferUTR, setBankTransferUTR] = useState("")
+  const [paymentScreenshot, setPaymentScreenshot] = useState<File | null>(null)
 
   const [formData, setFormData] = useState({
-    title: "Dr.",
-    firstName: "",
-    lastName: "",
-    email: "",
-    phone: "",
-    age: "",
-    password: "",
-    confirmPassword: "",
-    institution: "",
-    mciNumber: "",
-    specialization: "",
-    address: "",
-    city: "",
-    state: "",
-    country: "India",
-    pincode: "",
-    dietaryRequirements: "",
-    specialNeeds: "",
+    title: "Dr.", firstName: "", lastName: "", email: "", phone: "", age: "",
+    password: "", confirmPassword: "",
+    institution: "", mciNumber: "", specialization: "",
+    address: "", city: "", state: "", country: "India", pincode: "",
+    dietaryRequirements: "", specialNeeds: "",
     accompanyingPersons: [] as Array<{ name: string; age: number; relationship: string; dietaryRequirements?: string }>,
-    accommodationRequired: false,
-    accommodationRoomType: "" as string,
-    accommodationCheckIn: "",
-    accommodationCheckOut: "",
+    accommodationRequired: false, accommodationRoomType: "" as string,
+    accommodationCheckIn: "", accommodationCheckOut: "",
     agreeTerms: false,
   })
 
+  // Calculate if payment is needed
+  const hasAccompanying = formData.accompanyingPersons.length > 0
+  const hasAccommodation = formData.accommodationRequired && formData.accommodationRoomType && formData.accommodationCheckIn && formData.accommodationCheckOut
+  const needsPayment = hasAccompanying || hasAccommodation
+
+  // Calculate costs
+  const getAccommodationCost = () => {
+    if (!hasAccommodation) return { nights: 0, perNight: 0, total: 0 }
+    const checkIn = new Date(formData.accommodationCheckIn)
+    const checkOut = new Date(formData.accommodationCheckOut)
+    const nights = Math.max(0, Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24)))
+    const perNight = formData.accommodationRoomType === 'single' ? 10000 : 7500
+    return { nights, perNight, total: nights * perNight }
+  }
+
+  const getAccompanyingCost = () => formData.accompanyingPersons.length * 1000 // approximate per-person
+  const accomCost = getAccommodationCost()
+  const accompCost = getAccompanyingCost()
+  const subtotal = accomCost.total + accompCost
+  const gst = Math.round(subtotal * 0.18)
+  const totalAmount = subtotal + gst
+
   useEffect(() => {
     document.title = `Faculty Registration | ${conferenceConfig.shortName}`
+    // Load payment config
+    fetch('/api/admin/settings/payment-methods').then(r => r.json()).then(d => {
+      if (d.success && d.data) setPaymentConfig(d.data)
+    }).catch(() => {})
     return () => { if (emailCheckTimeout) clearTimeout(emailCheckTimeout) }
   }, [emailCheckTimeout])
 
@@ -64,16 +88,8 @@ export default function FacultyRegisterPage() {
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return
     setIsCheckingEmail(true)
     try {
-      const response = await fetch("/api/auth/check-email", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim().toLowerCase() }),
-      })
-      if (response.ok) {
-        const result = await response.json()
-        setEmailAvailable(result.available)
-        if (!result.available) toast.error("This email is already registered.")
-      }
+      const res = await fetch("/api/auth/check-email", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: email.trim().toLowerCase() }) })
+      if (res.ok) { const r = await res.json(); setEmailAvailable(r.available); if (!r.available) toast.error("This email is already registered.") }
     } catch {} finally { setIsCheckingEmail(false) }
   }, [])
 
@@ -81,42 +97,19 @@ export default function FacultyRegisterPage() {
     setFormData(prev => ({ ...prev, email: email.toLowerCase() }))
     setEmailAvailable(null)
     if (emailCheckTimeout) clearTimeout(emailCheckTimeout)
-    if (email.includes("@") && email.includes(".")) {
-      const t = setTimeout(() => checkEmailUniqueness(email), 1000)
-      setEmailCheckTimeout(t)
-    }
+    if (email.includes("@") && email.includes(".")) { const t = setTimeout(() => checkEmailUniqueness(email), 1000); setEmailCheckTimeout(t) }
   }, [emailCheckTimeout, checkEmailUniqueness])
 
-  const updateField = useCallback((field: string, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }))
-  }, [])
+  const updateField = useCallback((field: string, value: any) => { setFormData(prev => ({ ...prev, [field]: value })) }, [])
 
   const addAccompanyingPerson = () => {
-    if (formData.accompanyingPersons.length >= (conferenceConfig.registration.maxAccompanyingPersons || 3)) {
-      toast.error(`Maximum ${conferenceConfig.registration.maxAccompanyingPersons || 3} accompanying persons allowed`)
-      return
-    }
-    setFormData(prev => ({
-      ...prev,
-      accompanyingPersons: [...prev.accompanyingPersons, { name: "", age: 0, relationship: "Spouse" }],
-    }))
+    if (formData.accompanyingPersons.length >= (conferenceConfig.registration.maxAccompanyingPersons || 3)) { toast.error(`Maximum ${conferenceConfig.registration.maxAccompanyingPersons || 3} accompanying persons allowed`); return }
+    setFormData(prev => ({ ...prev, accompanyingPersons: [...prev.accompanyingPersons, { name: "", age: 0, relationship: "Spouse" }] }))
   }
+  const removeAccompanyingPerson = (index: number) => { setFormData(prev => ({ ...prev, accompanyingPersons: prev.accompanyingPersons.filter((_, i) => i !== index) })) }
+  const updateAccompanyingPerson = (index: number, field: string, value: any) => { setFormData(prev => ({ ...prev, accompanyingPersons: prev.accompanyingPersons.map((p, i) => i === index ? { ...p, [field]: value } : p) })) }
 
-  const removeAccompanyingPerson = (index: number) => {
-    setFormData(prev => ({
-      ...prev,
-      accompanyingPersons: prev.accompanyingPersons.filter((_, i) => i !== index),
-    }))
-  }
-
-  const updateAccompanyingPerson = (index: number, field: string, value: any) => {
-    setFormData(prev => ({
-      ...prev,
-      accompanyingPersons: prev.accompanyingPersons.map((p, i) => i === index ? { ...p, [field]: value } : p),
-    }))
-  }
-
-  const validate = (): boolean => {
+  const validateStep1 = (): boolean => {
     if (!formData.firstName.trim() || !formData.lastName.trim()) { toast.error("First and last name are required"); return false }
     if (!formData.email.trim() || emailAvailable === false) { toast.error("Valid email is required"); return false }
     if (!formData.phone.trim() || !/^[0-9]{10}$/.test(formData.phone)) { toast.error("Valid 10-digit phone required"); return false }
@@ -126,9 +119,7 @@ export default function FacultyRegisterPage() {
     if (formData.password !== formData.confirmPassword) { toast.error("Passwords do not match"); return false }
     if (!formData.city.trim() || !formData.state.trim()) { toast.error("City and state are required"); return false }
     if (!formData.agreeTerms) { toast.error("Please agree to the terms"); return false }
-    for (const p of formData.accompanyingPersons) {
-      if (!p.name.trim()) { toast.error("All accompanying person names are required"); return false }
-    }
+    for (const p of formData.accompanyingPersons) { if (!p.name.trim()) { toast.error("All accompanying person names are required"); return false } }
     if (formData.accommodationRequired) {
       if (!formData.accommodationRoomType) { toast.error("Please select a room type"); return false }
       if (!formData.accommodationCheckIn) { toast.error("Please select check-in date"); return false }
@@ -138,31 +129,50 @@ export default function FacultyRegisterPage() {
     return true
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleNext = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!validate()) return
+    if (!validateStep1()) return
+    if (needsPayment) { setStep(2); window.scrollTo(0, 0) }
+    else handleFinalSubmit()
+  }
 
+  const handleFinalSubmit = async () => {
     setIsLoading(true)
     try {
+      // Upload screenshot if provided
+      let screenshotUrl = ''
+      if (paymentScreenshot) {
+        const fd = new FormData()
+        fd.append('file', paymentScreenshot)
+        const uploadRes = await fetch('/api/upload/payment-screenshot', { method: 'POST', body: fd })
+        if (uploadRes.ok) { const ur = await uploadRes.json(); if (ur.success) screenshotUrl = ur.url }
+      }
+
       const response = await fetch("/api/faculty/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...formData,
+          payment: needsPayment ? {
+            method: 'bank-transfer', bankTransferUTR: bankTransferUTR,
+            screenshotUrl, amount: totalAmount, status: 'pending'
+          } : undefined
+        }),
       })
       const data = await response.json()
-      if (data.success) {
-        toast.success("Faculty registration successful!")
-        setSubmissionData(data.data)
-        setIsSubmitted(true)
-      } else {
-        toast.error(data.message || "Registration failed")
-      }
-    } catch {
-      toast.error("Registration failed. Please try again.")
-    } finally {
-      setIsLoading(false)
-    }
+      if (data.success) { toast.success("Faculty registration successful!"); setSubmissionData(data.data); setIsSubmitted(true) }
+      else toast.error(data.message || "Registration failed")
+    } catch { toast.error("Registration failed. Please try again.") }
+    finally { setIsLoading(false) }
   }
+
+  const handlePaymentSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!bankTransferUTR || bankTransferUTR.length < 12) { toast.error("Please enter a valid 12-digit UTR number"); return }
+    if (!paymentScreenshot) { toast.error("Please upload payment screenshot"); return }
+    handleFinalSubmit()
+  }
+
+  const copyToClipboard = (text: string, label: string) => { navigator.clipboard.writeText(text); toast.success(`${label} copied!`) }
 
   // Success screen
   if (isSubmitted) {
@@ -177,28 +187,18 @@ export default function FacultyRegisterPage() {
                 <p><strong>Registration ID:</strong> {submissionData.registrationId}</p>
                 <p><strong>Name:</strong> {submissionData.name}</p>
                 <p><strong>Type:</strong> Faculty</p>
+                <p><strong>Status:</strong> {submissionData.status === 'pending-payment' ? 'Payment Verification Pending' : 'Confirmed'}</p>
               </div>
             </div>
           )}
-          {submissionData?.accompanyingPersonsCharge > 0 && (
+          {needsPayment && (
             <Alert className="mb-6 text-left bg-amber-50 border-amber-200">
               <AlertCircle className="h-4 w-4 text-amber-600" />
               <AlertDescription className="text-amber-800">
-                <strong>Payment Required:</strong> ₹{submissionData.accompanyingPersonsCharge.toLocaleString()}
-                {submissionData?.accommodationCharge > 0 && ` + ₹${submissionData.accommodationCharge.toLocaleString()} (accommodation)`}
-                {' '}(+ GST). Please login to complete payment.
+                Your bank transfer details have been submitted. Our team will verify your payment within 10 business days.
               </AlertDescription>
             </Alert>
           )}
-          {!submissionData?.accompanyingPersonsCharge && submissionData?.accommodationCharge > 0 && (
-            <Alert className="mb-6 text-left bg-amber-50 border-amber-200">
-              <AlertCircle className="h-4 w-4 text-amber-600" />
-              <AlertDescription className="text-amber-800">
-                <strong>Payment Required for Accommodation:</strong> ₹{submissionData.accommodationCharge.toLocaleString()} (+ GST). Please login to complete payment.
-              </AlertDescription>
-            </Alert>
-          )}
-          <p className="text-gray-600 dark:text-gray-300 mb-2">Your registration as faculty is confirmed.</p>
           <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">📧 A confirmation email has been sent.</p>
           <div className="flex flex-col gap-3">
             <Link href="/auth/login"><Button className="w-full bg-green-600 hover:bg-green-700">Login to Dashboard</Button></Link>
@@ -213,7 +213,6 @@ export default function FacultyRegisterPage() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-white dark:from-gray-900 dark:to-gray-800">
       <Navigation />
       <div className="pt-24 pb-12">
-        {/* Header */}
         <section className="py-12 bg-gradient-to-r from-[#25406b] to-[#152843] text-white">
           <div className="container mx-auto px-4 text-center">
             <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }}>
@@ -223,30 +222,45 @@ export default function FacultyRegisterPage() {
               </div>
               <h1 className="text-4xl md:text-5xl font-bold mb-4">Faculty Registration</h1>
               <p className="text-lg text-blue-200 max-w-2xl mx-auto">
-                Complimentary registration for invited faculty members of {conferenceConfig.shortName}
+                Complimentary registration for faculty members of {conferenceConfig.shortName}
               </p>
             </motion.div>
           </div>
         </section>
 
-        <section className="py-12">
+        {/* Step indicator */}
+        {needsPayment && (
+          <div className="container mx-auto px-4 mt-6">
+            <div className="max-w-3xl mx-auto flex items-center justify-center gap-4">
+              <div className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium ${step === 1 ? 'bg-[#25406b] text-white' : 'bg-green-100 text-green-800'}`}>
+                {step > 1 ? <CheckCircle className="w-4 h-4" /> : <span>1</span>} Registration Details
+              </div>
+              <div className="w-8 h-0.5 bg-gray-300" />
+              <div className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium ${step === 2 ? 'bg-[#25406b] text-white' : 'bg-gray-100 text-gray-500'}`}>
+                <span>2</span> Payment
+              </div>
+            </div>
+          </div>
+        )}
+
+        <section className="py-8">
           <div className="container mx-auto px-4">
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-3xl mx-auto">
+
+              {/* STEP 1: Registration Form */}
+              {step === 1 && (
               <Card className="bg-white dark:bg-gray-800 shadow-xl">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <UserPlus className="w-5 h-5 text-[#25406b]" />
-                    Faculty Registration Form
-                  </CardTitle>
+                  <CardTitle className="flex items-center gap-2"><UserPlus className="w-5 h-5 text-[#25406b]" /> Faculty Registration Form</CardTitle>
                   <Alert className="bg-green-50 border-green-200">
                     <CheckCircle className="h-4 w-4 text-green-600" />
                     <AlertDescription className="text-green-800">
-                      Registration is <strong>free</strong> for faculty members. Accompanying persons, if any, will be charged at the standard rate.
+                      Registration is <strong>free</strong> for faculty members. Accompanying persons and hotel accommodation, if any, will be charged separately.
                     </AlertDescription>
                   </Alert>
                 </CardHeader>
                 <CardContent>
-                  <form onSubmit={handleSubmit} className="space-y-6">
+                  <form onSubmit={handleNext} className="space-y-6">
                     {/* Personal Information */}
                     <div className="space-y-4">
                       <h3 className="font-semibold text-gray-800 dark:text-white border-b pb-2">Personal Information</h3>
@@ -264,14 +278,8 @@ export default function FacultyRegisterPage() {
                         </div>
                       </div>
                       <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Label>Last Name <span className="text-red-500">*</span></Label>
-                          <Input value={formData.lastName} onChange={(e) => updateField("lastName", e.target.value)} placeholder="Last name" className="mt-1" />
-                        </div>
-                        <div>
-                          <Label>Age</Label>
-                          <Input type="number" value={formData.age} onChange={(e) => updateField("age", e.target.value)} placeholder="Age" min="18" max="100" className="mt-1" />
-                        </div>
+                        <div><Label>Last Name <span className="text-red-500">*</span></Label><Input value={formData.lastName} onChange={(e) => updateField("lastName", e.target.value)} placeholder="Last name" className="mt-1" /></div>
+                        <div><Label>Age</Label><Input type="number" value={formData.age} onChange={(e) => updateField("age", e.target.value)} placeholder="Age" min="18" max="100" className="mt-1" /></div>
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div>
@@ -285,25 +293,13 @@ export default function FacultyRegisterPage() {
                             </div>
                           </div>
                         </div>
-                        <div>
-                          <Label>Phone <span className="text-red-500">*</span></Label>
-                          <Input value={formData.phone} onChange={(e) => updateField("phone", e.target.value.replace(/\D/g, "").slice(0, 10))} placeholder="10-digit mobile" maxLength={10} className="mt-1" />
-                        </div>
+                        <div><Label>Phone <span className="text-red-500">*</span></Label><Input value={formData.phone} onChange={(e) => updateField("phone", e.target.value.replace(/\D/g, "").slice(0, 10))} placeholder="10-digit mobile" maxLength={10} className="mt-1" /></div>
                       </div>
                       <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Label>Institution <span className="text-red-500">*</span></Label>
-                          <Input value={formData.institution} onChange={(e) => updateField("institution", e.target.value)} placeholder="Your institution" className="mt-1" />
-                        </div>
-                        <div>
-                          <Label>MCI/NMC Number <span className="text-red-500">*</span></Label>
-                          <Input value={formData.mciNumber} onChange={(e) => updateField("mciNumber", e.target.value)} placeholder="Registration number" className="mt-1" />
-                        </div>
+                        <div><Label>Institution <span className="text-red-500">*</span></Label><Input value={formData.institution} onChange={(e) => updateField("institution", e.target.value)} placeholder="Your institution" className="mt-1" /></div>
+                        <div><Label>MCI/NMC Number <span className="text-red-500">*</span></Label><Input value={formData.mciNumber} onChange={(e) => updateField("mciNumber", e.target.value)} placeholder="Registration number" className="mt-1" /></div>
                       </div>
-                      <div>
-                        <Label>Specialization</Label>
-                        <Input value={formData.specialization} onChange={(e) => updateField("specialization", e.target.value)} placeholder="e.g., Hand Surgery" className="mt-1" />
-                      </div>
+                      <div><Label>Specialization</Label><Input value={formData.specialization} onChange={(e) => updateField("specialization", e.target.value)} placeholder="e.g., Hand Surgery" className="mt-1" /></div>
                     </div>
 
                     {/* Password */}
@@ -314,18 +310,14 @@ export default function FacultyRegisterPage() {
                           <Label>Password <span className="text-red-500">*</span></Label>
                           <div className="relative mt-1">
                             <Input type={showPassword ? "text" : "password"} value={formData.password} onChange={(e) => updateField("password", e.target.value)} placeholder="Min 8 characters" className="pr-10" />
-                            <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">
-                              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                            </button>
+                            <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">{showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}</button>
                           </div>
                         </div>
                         <div>
                           <Label>Confirm Password <span className="text-red-500">*</span></Label>
                           <div className="relative mt-1">
                             <Input type={showConfirmPassword ? "text" : "password"} value={formData.confirmPassword} onChange={(e) => updateField("confirmPassword", e.target.value)} placeholder="Re-enter password" className="pr-10" />
-                            <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">
-                              {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                            </button>
+                            <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">{showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}</button>
                           </div>
                         </div>
                       </div>
@@ -336,14 +328,8 @@ export default function FacultyRegisterPage() {
                       <h3 className="font-semibold text-gray-800 dark:text-white border-b pb-2">Address</h3>
                       <Input value={formData.address} onChange={(e) => updateField("address", e.target.value)} placeholder="Street address" />
                       <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Label>City <span className="text-red-500">*</span></Label>
-                          <Input value={formData.city} onChange={(e) => updateField("city", e.target.value)} placeholder="City" className="mt-1" />
-                        </div>
-                        <div>
-                          <Label>State <span className="text-red-500">*</span></Label>
-                          <Input value={formData.state} onChange={(e) => updateField("state", e.target.value)} placeholder="State" className="mt-1" />
-                        </div>
+                        <div><Label>City <span className="text-red-500">*</span></Label><Input value={formData.city} onChange={(e) => updateField("city", e.target.value)} placeholder="City" className="mt-1" /></div>
+                        <div><Label>State <span className="text-red-500">*</span></Label><Input value={formData.state} onChange={(e) => updateField("state", e.target.value)} placeholder="State" className="mt-1" /></div>
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                         <Input value={formData.country} onChange={(e) => updateField("country", e.target.value)} placeholder="Country" />
@@ -357,9 +343,7 @@ export default function FacultyRegisterPage() {
                         <h3 className="font-semibold text-gray-800 dark:text-white">Accompanying Persons</h3>
                         <Button type="button" variant="outline" size="sm" onClick={addAccompanyingPerson}>+ Add Person</Button>
                       </div>
-                      <p className="text-sm text-amber-700 bg-amber-50 p-3 rounded-lg">
-                        ⚠️ Accompanying persons are chargeable at the standard rate. Payment will be required after registration.
-                      </p>
+                      <p className="text-sm text-amber-700 bg-amber-50 p-3 rounded-lg">⚠️ Accompanying persons are chargeable. Payment details will be collected in the next step.</p>
                       {formData.accompanyingPersons.map((person, idx) => (
                         <div key={idx} className="border rounded-lg p-4 space-y-3">
                           <div className="flex justify-between items-center">
@@ -367,16 +351,9 @@ export default function FacultyRegisterPage() {
                             <Button type="button" variant="ghost" size="sm" onClick={() => removeAccompanyingPerson(idx)} className="text-red-500 h-8">Remove</Button>
                           </div>
                           <div className="grid grid-cols-3 gap-3">
-                            <div className="col-span-1">
-                              <Label>Name <span className="text-red-500">*</span></Label>
-                              <Input value={person.name} onChange={(e) => updateAccompanyingPerson(idx, "name", e.target.value)} placeholder="Full name" className="mt-1" />
-                            </div>
-                            <div>
-                              <Label>Age</Label>
-                              <Input type="number" value={person.age || ""} onChange={(e) => updateAccompanyingPerson(idx, "age", parseInt(e.target.value) || 0)} placeholder="Age" min="0" className="mt-1" />
-                            </div>
-                            <div>
-                              <Label>Relationship</Label>
+                            <div className="col-span-1"><Label>Name <span className="text-red-500">*</span></Label><Input value={person.name} onChange={(e) => updateAccompanyingPerson(idx, "name", e.target.value)} placeholder="Full name" className="mt-1" /></div>
+                            <div><Label>Age</Label><Input type="number" value={person.age || ""} onChange={(e) => updateAccompanyingPerson(idx, "age", parseInt(e.target.value) || 0)} placeholder="Age" min="0" className="mt-1" /></div>
+                            <div><Label>Relationship</Label>
                               <Select value={person.relationship} onValueChange={(v) => updateAccompanyingPerson(idx, "relationship", v)}>
                                 <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                                 <SelectContent>{RELATIONSHIP_TYPES.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
@@ -387,23 +364,12 @@ export default function FacultyRegisterPage() {
                       ))}
                     </div>
 
-                    {/* Dietary & Special Needs */}
-                    <div className="grid grid-cols-2 gap-4">
-
                     {/* Hotel Accommodation */}
-                    <div className="col-span-2 space-y-4">
-                      <div className="flex items-center justify-between border-b pb-2">
-                        <h3 className="font-semibold text-gray-800 dark:text-white">Hotel Accommodation (Optional)</h3>
-                      </div>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">
-                        Book your stay at Novotel HICC, Hyderabad. Check-in: 2:00 PM | Check-out: 12:00 PM. Prices are exclusive of 18% GST.
-                      </p>
+                    <div className="space-y-4">
+                      <h3 className="font-semibold text-gray-800 dark:text-white border-b pb-2">Hotel Accommodation (Optional)</h3>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Book your stay at Novotel HICC, Hyderabad. Check-in: 2:00 PM | Check-out: 12:00 PM. Prices are exclusive of 18% GST.</p>
                       <div className="flex items-center gap-3">
-                        <Checkbox
-                          id="accommodationRequired"
-                          checked={formData.accommodationRequired}
-                          onCheckedChange={(checked) => updateField("accommodationRequired", !!checked)}
-                        />
+                        <Checkbox id="accommodationRequired" checked={formData.accommodationRequired} onCheckedChange={(checked) => updateField("accommodationRequired", !!checked)} />
                         <label htmlFor="accommodationRequired" className="text-sm font-medium cursor-pointer">I need hotel accommodation</label>
                       </div>
                       {formData.accommodationRequired && (
@@ -411,75 +377,44 @@ export default function FacultyRegisterPage() {
                           <div>
                             <Label>Room Type *</Label>
                             <div className="grid grid-cols-2 gap-3 mt-2">
-                              <div
-                                className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${formData.accommodationRoomType === 'single' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30' : 'border-gray-200 dark:border-gray-700 hover:border-blue-300'}`}
-                                onClick={() => updateField("accommodationRoomType", "single")}
-                              >
-                                <div className="flex items-center gap-2 mb-1">
-                                  <input type="radio" checked={formData.accommodationRoomType === 'single'} readOnly className="text-blue-600" />
-                                  <span className="font-semibold text-gray-800 dark:text-gray-200">Single Room</span>
+                              {(['single', 'sharing'] as const).map(type => (
+                                <div key={type} className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${formData.accommodationRoomType === type ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30' : 'border-gray-200 dark:border-gray-700 hover:border-blue-300'}`} onClick={() => updateField("accommodationRoomType", type)}>
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <input type="radio" checked={formData.accommodationRoomType === type} readOnly className="text-blue-600" />
+                                    <span className="font-semibold text-gray-800 dark:text-gray-200">{type === 'single' ? 'Single Room' : 'Sharing Room'}</span>
+                                  </div>
+                                  <p className="text-lg font-bold text-blue-600">₹{type === 'single' ? '10,000' : '7,500'} <span className="text-xs font-normal text-gray-500">/ night</span></p>
+                                  <p className="text-xs text-gray-500">+ 18% GST</p>
                                 </div>
-                                <p className="text-lg font-bold text-blue-600">₹10,000 <span className="text-xs font-normal text-gray-500">/ night</span></p>
-                                <p className="text-xs text-gray-500">+ 18% GST</p>
-                              </div>
-                              <div
-                                className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${formData.accommodationRoomType === 'sharing' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30' : 'border-gray-200 dark:border-gray-700 hover:border-blue-300'}`}
-                                onClick={() => updateField("accommodationRoomType", "sharing")}
-                              >
-                                <div className="flex items-center gap-2 mb-1">
-                                  <input type="radio" checked={formData.accommodationRoomType === 'sharing'} readOnly className="text-blue-600" />
-                                  <span className="font-semibold text-gray-800 dark:text-gray-200">Sharing Room</span>
-                                </div>
-                                <p className="text-lg font-bold text-blue-600">₹7,500 <span className="text-xs font-normal text-gray-500">/ night</span></p>
-                                <p className="text-xs text-gray-500">+ 18% GST</p>
-                              </div>
+                              ))}
                             </div>
                           </div>
                           <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <Label>Check-in Date * <span className="font-normal text-gray-500 text-xs">(2:00 PM)</span></Label>
-                              <Input type="date" value={formData.accommodationCheckIn} onChange={(e) => updateField("accommodationCheckIn", e.target.value)} min="2026-04-23" max="2026-04-26" className="mt-1" />
-                            </div>
-                            <div>
-                              <Label>Check-out Date * <span className="font-normal text-gray-500 text-xs">(12:00 PM)</span></Label>
-                              <Input type="date" value={formData.accommodationCheckOut} onChange={(e) => updateField("accommodationCheckOut", e.target.value)} min={formData.accommodationCheckIn || "2026-04-24"} max="2026-04-27" className="mt-1" />
-                            </div>
+                            <div><Label>Check-in Date *</Label><Input type="date" value={formData.accommodationCheckIn} onChange={(e) => updateField("accommodationCheckIn", e.target.value)} min="2026-04-23" max="2026-04-26" className="mt-1" /></div>
+                            <div><Label>Check-out Date *</Label><Input type="date" value={formData.accommodationCheckOut} onChange={(e) => updateField("accommodationCheckOut", e.target.value)} min={formData.accommodationCheckIn || "2026-04-24"} max="2026-04-27" className="mt-1" /></div>
                           </div>
-                          {formData.accommodationRoomType && formData.accommodationCheckIn && formData.accommodationCheckOut && (() => {
-                            const checkIn = new Date(formData.accommodationCheckIn)
-                            const checkOut = new Date(formData.accommodationCheckOut)
-                            const nights = Math.max(0, Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24)))
-                            const perNight = formData.accommodationRoomType === 'single' ? 10000 : 7500
-                            const total = nights * perNight
-                            return nights > 0 ? (
-                              <div className="bg-white dark:bg-gray-800 p-3 rounded-lg border border-blue-200 dark:border-blue-700">
-                                <div className="flex justify-between text-sm">
-                                  <span className="text-gray-600 dark:text-gray-400">{formData.accommodationRoomType === 'single' ? 'Single' : 'Sharing'} × {nights} night{nights > 1 ? 's' : ''}</span>
-                                  <span className="font-semibold text-gray-800 dark:text-gray-200">₹{total.toLocaleString('en-IN')}</span>
-                                </div>
-                                <p className="text-xs text-gray-500 mt-1">+ 18% GST will be added to the total bill</p>
+                          {accomCost.nights > 0 && (
+                            <div className="bg-white dark:bg-gray-800 p-3 rounded-lg border border-blue-200 dark:border-blue-700">
+                              <div className="flex justify-between text-sm">
+                                <span className="text-gray-600">{formData.accommodationRoomType === 'single' ? 'Single' : 'Sharing'} × {accomCost.nights} night{accomCost.nights > 1 ? 's' : ''}</span>
+                                <span className="font-semibold">₹{accomCost.total.toLocaleString('en-IN')}</span>
                               </div>
-                            ) : null
-                          })()}
+                              <p className="text-xs text-gray-500 mt-1">+ 18% GST will be added</p>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
-                      <div>
-                        <Label>Dietary Requirements</Label>
+
+                    {/* Dietary & Special Needs */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div><Label>Dietary Requirements</Label>
                         <Select value={formData.dietaryRequirements} onValueChange={(v) => updateField("dietaryRequirements", v)}>
                           <SelectTrigger className="mt-1"><SelectValue placeholder="Select if any" /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="none">None</SelectItem>
-                            <SelectItem value="vegetarian">Vegetarian</SelectItem>
-                            <SelectItem value="vegan">Vegan</SelectItem>
-                            <SelectItem value="halal">Halal</SelectItem>
-                          </SelectContent>
+                          <SelectContent><SelectItem value="none">None</SelectItem><SelectItem value="vegetarian">Vegetarian</SelectItem><SelectItem value="vegan">Vegan</SelectItem><SelectItem value="halal">Halal</SelectItem></SelectContent>
                         </Select>
                       </div>
-                      <div>
-                        <Label>Special Needs</Label>
-                        <Input value={formData.specialNeeds} onChange={(e) => updateField("specialNeeds", e.target.value)} placeholder="Any special requirements" className="mt-1" />
-                      </div>
+                      <div><Label>Special Needs</Label><Input value={formData.specialNeeds} onChange={(e) => updateField("specialNeeds", e.target.value)} placeholder="Any special requirements" className="mt-1" /></div>
                     </div>
 
                     {/* Terms */}
@@ -491,11 +426,147 @@ export default function FacultyRegisterPage() {
                     </div>
 
                     <Button type="submit" className="w-full bg-[#25406b] hover:bg-[#1d3357] py-6 text-lg" disabled={isLoading}>
-                      {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <><GraduationCap className="w-5 h-5 mr-2" />Complete Faculty Registration</>}
+                      {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : needsPayment ? <>Proceed to Payment →</> : <><GraduationCap className="w-5 h-5 mr-2" />Complete Faculty Registration</>}
                     </Button>
                   </form>
                 </CardContent>
               </Card>
+              )}
+
+              {/* STEP 2: Payment */}
+              {step === 2 && (
+              <Card className="bg-white dark:bg-gray-800 shadow-xl">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2"><CreditCard className="w-5 h-5 text-[#25406b]" /> Payment Details</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <form onSubmit={handlePaymentSubmit} className="space-y-6">
+                    {/* Price Summary */}
+                    <div className="bg-yellow-50 p-4 rounded-lg">
+                      <h3 className="text-base font-semibold text-gray-900 mb-3">Payment Summary</h3>
+                      <div className="space-y-2">
+                        <div className="flex justify-between"><span>Faculty Registration:</span><span className="font-medium text-green-600">FREE</span></div>
+                        {hasAccompanying && <div className="flex justify-between"><span>Accompanying Persons ({formData.accompanyingPersons.length}):</span><span className="font-medium">₹{accompCost.toLocaleString('en-IN')}</span></div>}
+                        {hasAccommodation && accomCost.nights > 0 && (
+                          <div className="flex justify-between">
+                            <span>Accommodation ({formData.accommodationRoomType === 'single' ? 'Single' : 'Sharing'} × {accomCost.nights} night{accomCost.nights > 1 ? 's' : ''}):</span>
+                            <span className="font-medium">₹{accomCost.total.toLocaleString('en-IN')}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between"><span>GST (18%):</span><span className="font-medium">₹{gst.toLocaleString('en-IN')}</span></div>
+                        <div className="border-t pt-2 mt-2">
+                          <div className="flex justify-between font-bold text-lg"><span>Total Amount:</span><span className="text-[#25406b]">₹{totalAmount.toLocaleString('en-IN')}</span></div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Bank Transfer Details */}
+                    <div className="bg-yellow-50 dark:bg-blue-900/20 border border-yellow-200 dark:border-blue-800 rounded-lg p-6">
+                      <h3 className="text-lg font-semibold text-blue-900 dark:text-yellow-100 mb-4 flex items-center"><Building className="w-5 h-5 mr-2" /> Bank Transfer Payment Details</h3>
+                      <div className="space-y-4 text-sm">
+                        {paymentConfig.bankDetails?.qrCodeUrl && (
+                          <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-yellow-200 text-center">
+                            <p className="font-medium text-gray-700 mb-3">Scan QR Code to Pay</p>
+                            <img src={paymentConfig.bankDetails.qrCodeUrl} alt="Payment QR Code" className="mx-auto w-48 h-48 border-2 border-gray-300 rounded-lg" />
+                            <p className="text-xs text-gray-500 mt-2">Scan with any UPI app</p>
+                          </div>
+                        )}
+                        {paymentConfig.bankDetails?.upiId && (
+                          <div className="bg-white p-4 rounded-lg border border-yellow-200">
+                            <span className="font-medium text-gray-700 block mb-2">UPI ID:</span>
+                            <div className="flex items-center justify-between bg-gray-50 p-3 rounded border">
+                              <p className="text-gray-800 font-mono break-all">{paymentConfig.bankDetails.upiId}</p>
+                              <button type="button" onClick={() => copyToClipboard(paymentConfig.bankDetails!.upiId!, "UPI ID")} className="ml-2 px-2 py-1 text-xs bg-yellow-100 text-[#25406b] rounded hover:bg-yellow-200">Copy</button>
+                            </div>
+                          </div>
+                        )}
+                        {paymentConfig.bankDetails?.accountName && (
+                          <div className="bg-white p-4 rounded-lg border border-yellow-200">
+                            <span className="font-medium text-gray-700 block mb-2">Account Name:</span>
+                            <div className="flex items-center justify-between bg-gray-50 p-3 rounded border">
+                              <p className="text-gray-800 font-medium">{paymentConfig.bankDetails.accountName}</p>
+                              <button type="button" onClick={() => copyToClipboard(paymentConfig.bankDetails!.accountName!, "Account name")} className="ml-2 px-2 py-1 text-xs bg-yellow-100 text-[#25406b] rounded hover:bg-yellow-200">Copy</button>
+                            </div>
+                          </div>
+                        )}
+                        {paymentConfig.bankDetails?.accountNumber && (
+                          <div className="bg-white p-4 rounded-lg border border-yellow-200">
+                            <span className="font-medium text-gray-700 block mb-2">Account Number:</span>
+                            <div className="flex items-center justify-between bg-gray-50 p-3 rounded border">
+                              <p className="text-gray-800 font-mono">{paymentConfig.bankDetails.accountNumber}</p>
+                              <button type="button" onClick={() => copyToClipboard(paymentConfig.bankDetails!.accountNumber!, "Account number")} className="ml-2 px-2 py-1 text-xs bg-yellow-100 text-[#25406b] rounded hover:bg-yellow-200">Copy</button>
+                            </div>
+                          </div>
+                        )}
+                        {paymentConfig.bankDetails?.ifscCode && (
+                          <div className="bg-white p-4 rounded-lg border border-yellow-200">
+                            <span className="font-medium text-gray-700 block mb-2">IFSC Code:</span>
+                            <div className="flex items-center justify-between bg-gray-50 p-3 rounded border">
+                              <p className="text-gray-800 font-mono">{paymentConfig.bankDetails.ifscCode}</p>
+                              <button type="button" onClick={() => copyToClipboard(paymentConfig.bankDetails!.ifscCode!, "IFSC code")} className="ml-2 px-2 py-1 text-xs bg-yellow-100 text-[#25406b] rounded hover:bg-yellow-200">Copy</button>
+                            </div>
+                          </div>
+                        )}
+                        {paymentConfig.bankDetails?.bankName && (
+                          <div className="bg-white p-4 rounded-lg border border-yellow-200">
+                            <span className="font-medium text-gray-700 block mb-2">Bank Name:</span>
+                            <div className="flex items-center justify-between bg-gray-50 p-3 rounded border">
+                              <p className="text-gray-800">{paymentConfig.bankDetails.bankName}</p>
+                              <button type="button" onClick={() => copyToClipboard(paymentConfig.bankDetails!.bankName!, "Bank name")} className="ml-2 px-2 py-1 text-xs bg-yellow-100 text-[#25406b] rounded hover:bg-yellow-200">Copy</button>
+                            </div>
+                          </div>
+                        )}
+                        <div className="border-t border-yellow-200 pt-3 mt-4">
+                          <p className="text-blue-800 font-medium">💡 Transfer Amount: ₹{totalAmount.toLocaleString('en-IN')}</p>
+                          <p className="text-xs text-[#25406b] mt-1">Please transfer the exact amount and enter the UTR number below</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* UTR Number */}
+                    <div>
+                      <Label>Bank Transfer UTR Number <span className="text-red-500">*</span></Label>
+                      <Input type="text" value={bankTransferUTR} onChange={(e) => setBankTransferUTR(e.target.value)} placeholder="Enter 12-digit UTR number" maxLength={12} className="mt-1" />
+                      <p className="text-xs text-gray-500 mt-1">The UTR (Unique Transaction Reference) number is provided by your bank after successful transfer</p>
+                      {bankTransferUTR && bankTransferUTR.length < 12 && <p className="text-xs text-amber-600 mt-1">Hint: If your UTR is less than 12 digits, add leading zeros (e.g. 000012345678)</p>}
+                    </div>
+
+                    {/* Payment Screenshot */}
+                    <div>
+                      <Label>Payment Screenshot <span className="text-red-500">*</span></Label>
+                      <div className={`border-2 border-dashed rounded-lg p-4 text-center mt-1 ${paymentScreenshot ? 'border-green-400' : 'border-gray-300'}`}>
+                        {paymentScreenshot ? (
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-center gap-2 text-green-600"><CheckCircle className="h-5 w-5" /><span className="font-medium">{paymentScreenshot.name}</span></div>
+                            <p className="text-xs text-gray-500">{(paymentScreenshot.size / 1024).toFixed(1)} KB</p>
+                            <Button type="button" variant="outline" size="sm" onClick={() => setPaymentScreenshot(null)} className="text-red-500">Remove</Button>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            <input type="file" accept="image/jpeg,image/png,image/gif,image/webp" onChange={(e) => {
+                              const file = e.target.files?.[0]
+                              if (file) { if (file.size > 5 * 1024 * 1024) { toast.error("Maximum file size is 5MB"); return }; setPaymentScreenshot(file) }
+                            }} className="hidden" id="payment-screenshot" />
+                            <label htmlFor="payment-screenshot" className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors">
+                              <FileText className="h-4 w-4" /><span>Upload Screenshot</span>
+                            </label>
+                            <p className="text-xs text-gray-500">Upload a screenshot of your payment confirmation (JPEG, PNG, max 5MB)</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex gap-3 justify-between pt-4 border-t">
+                      <Button type="button" variant="outline" onClick={() => { setStep(1); window.scrollTo(0, 0) }}>← Back to Details</Button>
+                      <Button type="submit" className="bg-[#25406b] hover:bg-[#1d3357] py-6 text-lg px-8" disabled={isLoading || !bankTransferUTR || bankTransferUTR.length < 12 || !paymentScreenshot}>
+                        {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <><GraduationCap className="w-5 h-5 mr-2" />Complete Registration</>}
+                      </Button>
+                    </div>
+                  </form>
+                </CardContent>
+              </Card>
+              )}
+
             </motion.div>
           </div>
         </section>

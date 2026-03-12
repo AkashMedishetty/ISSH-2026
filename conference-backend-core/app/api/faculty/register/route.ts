@@ -22,7 +22,8 @@ export async function POST(request: NextRequest) {
       dietaryRequirements, specialNeeds,
       accompanyingPersons,
       accommodationRequired, accommodationRoomType,
-      accommodationCheckIn, accommodationCheckOut
+      accommodationCheckIn, accommodationCheckOut,
+      payment: paymentData
     } = body
 
     // Validate required fields
@@ -121,6 +122,13 @@ export async function POST(request: NextRequest) {
         })),
         accommodation: accommodationData
       },
+      payment: needsPayment && paymentData ? {
+        method: 'bank-transfer',
+        status: 'pending',
+        amount: paymentData.amount || 0,
+        bankTransferUTR: paymentData.bankTransferUTR || '',
+        screenshotUrl: paymentData.screenshotUrl || ''
+      } : undefined,
       isActive: true
     })
 
