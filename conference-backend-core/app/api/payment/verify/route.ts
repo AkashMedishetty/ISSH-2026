@@ -377,41 +377,9 @@ export async function POST(request: NextRequest) {
         registrationId: user.registration.registrationId
       })
 
-      // Send registration confirmation email asynchronously
-      ;(async () => {
-        try {
-          let workshopDetails: Array<{id: string, name: string}> = []
-          if (user.registration.workshopSelections && user.registration.workshopSelections.length > 0) {
-            const Workshop = (await import('@/lib/models/Workshop')).default
-            const workshops = await Workshop.find({ 
-              id: { $in: user.registration.workshopSelections },
-              isActive: true 
-            })
-            workshopDetails = workshops.map((w: any) => ({ id: w.id, name: w.name }))
-          }
-
-          const { conferenceConfig } = await import('@/conference-backend-core/config/conference.config')
-          const registrationCategory = conferenceConfig.registration.categories.find(
-            (cat: any) => cat.key === user.registration.type
-          )
-          const registrationTypeLabel = registrationCategory?.label || user.registration.type
-
-          await EmailService.sendRegistrationConfirmation({
-            userId: user._id.toString(),
-            email: user.email,
-            name: `${user.profile.firstName} ${user.profile.lastName}`,
-            registrationId: user.registration.registrationId,
-            registrationType: user.registration.type,
-            registrationTypeLabel: registrationTypeLabel,
-            workshopSelections: workshopDetails,
-            accompanyingPersons: user.registration.accompanyingPersons || [],
-            accommodation: user.registration.accommodation?.required ? user.registration.accommodation : undefined
-          })
-          console.log('✅ Registration confirmation email sent to:', user.email)
-        } catch (emailError) {
-          console.error('⚠️ Failed to send registration confirmation email:', emailError)
-        }
-      })()
+      // Skip registration confirmation email — payment confirmation email
+      // is sent by the common code at the bottom of this route
+      console.log('ℹ️ Skipping registration email for gateway payment — payment confirmation will be sent')
     } else if (pendingRegistration) {
       // Legacy flow - pendingRegistration data passed from frontend
       console.log('Creating user after successful payment (legacy flow):', pendingRegistration.email)
@@ -471,6 +439,7 @@ export async function POST(request: NextRequest) {
             registrationId,
             type: pendingRegistration.registration?.type || 'non-member',
             status: 'paid',
+            paymentType: 'online',
             tier: pendingRegistration.payment?.tier || undefined,
             membershipNumber: pendingRegistration.registration?.membershipNumber || '',
             workshopSelections: pendingRegistration.registration?.workshopSelections || [],
@@ -534,43 +503,9 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        // Send registration confirmation + payment confirmation email asynchronously
-        ;(async () => {
-          try {
-            // Fetch workshop details for email
-            let workshopDetails: Array<{id: string, name: string}> = []
-            if (user.registration.workshopSelections && user.registration.workshopSelections.length > 0) {
-              const Workshop = (await import('@/lib/models/Workshop')).default
-              const workshops = await Workshop.find({ 
-                id: { $in: user.registration.workshopSelections },
-                isActive: true 
-              })
-              workshopDetails = workshops.map((w: any) => ({ id: w.id, name: w.name }))
-            }
-
-            // Fetch registration type label from conference config
-            const { conferenceConfig } = await import('@/conference-backend-core/config/conference.config')
-            const registrationCategory = conferenceConfig.registration.categories.find(
-              (cat: any) => cat.key === user.registration.type
-            )
-            const registrationTypeLabel = registrationCategory?.label || user.registration.type
-
-            await EmailService.sendRegistrationConfirmation({
-              userId: user._id.toString(),
-              email: user.email,
-              name: `${user.profile.firstName} ${user.profile.lastName}`,
-              registrationId: user.registration.registrationId,
-              registrationType: user.registration.type,
-              registrationTypeLabel: registrationTypeLabel,
-              workshopSelections: workshopDetails,
-              accompanyingPersons: user.registration.accompanyingPersons || [],
-              accommodation: user.registration.accommodation?.required ? user.registration.accommodation : undefined
-            })
-            console.log('✅ Registration confirmation email sent to:', user.email)
-          } catch (emailError) {
-            console.error('⚠️  Failed to send registration confirmation email (non-critical):', emailError)
-          }
-        })()
+        // Skip registration confirmation email here — payment confirmation email
+        // is sent by the common code at the bottom of this route
+        console.log('ℹ️ Skipping registration email for gateway payment — payment confirmation will be sent')
       } catch (userCreationError) {
         // CRITICAL: Payment succeeded but user creation failed
         console.error('❌ CRITICAL: Payment successful but user creation failed:', userCreationError)
