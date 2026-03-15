@@ -216,7 +216,12 @@ export async function POST(request: NextRequest) {
     
     return NextResponse.json({
       success: false,
-      message: 'Failed to create payment order'
+      message: error?.error?.description || error?.message || 'Failed to create payment order',
+      debug: {
+        statusCode: error?.statusCode,
+        errorCode: error?.error?.code,
+        errorDescription: error?.error?.description
+      }
     }, { status: 500 })
   }
 }
