@@ -941,7 +941,7 @@ export default function RegisterPage() {
 
           // Create Razorpay order
           // Generate a temporary registration ID for the order
-          const tempRegId = `TEMP-${Date.now()}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`
+          const tempRegId = `T${Date.now().toString(36).toUpperCase()}`
 
           const orderRes = await fetch('/api/payment/create-order', {
             method: 'POST',
