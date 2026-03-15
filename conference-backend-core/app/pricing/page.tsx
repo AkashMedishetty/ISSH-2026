@@ -28,8 +28,8 @@ export default function PricingPage() {
     },
     {
       tier: "Regular",
-      period: "15th Mar – 24th Apr",
-      deadline: "16/03/2026–24/04/2026",
+      period: "1st Apr – 24th Apr",
+      deadline: "01/04/2026–24/04/2026",
       isshMember: 6000,
       nonIsshMember: 7000,
       postgraduate: 3000,

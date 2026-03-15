@@ -45,7 +45,7 @@ export function PricingContent() {
           </div>
           <div className="p-1.5 md:p-3 text-center border-r border-white/20">
             <div className="font-bold text-[9px] md:text-sm">Regular</div>
-            <div className="text-[7px] md:text-xs opacity-80">16th Mar - 24th Apr</div>
+            <div className="text-[7px] md:text-xs opacity-80">1st Apr - 24th Apr</div>
           </div>
           <div className="p-1.5 md:p-3 text-center">
             <div className="font-bold text-[9px] md:text-sm">Spot</div>

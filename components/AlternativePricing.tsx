@@ -69,7 +69,7 @@ export default function AlternativePricing() {
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-[#0e192b]/50 rounded-full" />
               <span className="text-[#0e192b]/80 font-semibold">Regular:</span>
-              <span>18th March - 18th June 2026</span>
+              <span>1st April - 24th April 2026</span>
             </div>
           </div>
         </div>
@@ -108,7 +108,7 @@ export default function AlternativePricing() {
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-[#0e192b]/50 rounded-full" />
               <span className="text-[#0e192b]/80 font-semibold">Regular:</span>
-              <span>18th March - 18th June 2026</span>
+              <span>1st April - 24th April 2026</span>
             </div>
           </div>
         </motion.div>
