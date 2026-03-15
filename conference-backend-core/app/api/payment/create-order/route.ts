@@ -152,6 +152,9 @@ export async function POST(request: NextRequest) {
       notes: orderNotes
     }
 
+    console.log('Creating Razorpay order with key_id:', process.env.RAZORPAY_KEY_ID)
+    console.log('RAZORPAY_KEY_SECRET length:', process.env.RAZORPAY_KEY_SECRET?.length, 'first 4 chars:', process.env.RAZORPAY_KEY_SECRET?.substring(0, 4))
+    
     const order = await razorpay.orders.create(orderOptions)
 
     // Record payment attempt with tracking
@@ -196,8 +199,14 @@ export async function POST(request: NextRequest) {
       }
     })
 
-  } catch (error) {
-    console.error('Order creation error:', error)
+  } catch (error: any) {
+    console.error('Order creation error:', {
+      statusCode: error?.statusCode,
+      error: error?.error,
+      message: error?.message,
+      keyId: process.env.RAZORPAY_KEY_ID,
+      secretLength: process.env.RAZORPAY_KEY_SECRET?.length
+    })
     
     // Log the error
     const device = getDeviceInfo(request)
