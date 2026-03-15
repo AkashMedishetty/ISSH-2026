@@ -44,7 +44,8 @@ function getSubmissionCategoryLabel(value: string): string {
   const labels: Record<string, string> = {
     'award-paper': 'Award Paper',
     'free-paper': 'Free Paper',
-    'poster-presentation': 'E-Poster'
+    'poster-presentation': 'E-Poster',
+    'e-poster': 'E-Poster'
   }
   return labels[value] || value
 }
@@ -101,13 +102,16 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validate submissionCategory
-    if (!['award-paper', 'free-paper', 'poster-presentation'].includes(submissionCategory)) {
+    // Validate submissionCategory (accept both legacy and new keys)
+    if (!['award-paper', 'free-paper', 'poster-presentation', 'e-poster'].includes(submissionCategory)) {
       return NextResponse.json(
         { success: false, message: 'Invalid Submission Category selection' },
         { status: 400 }
       )
     }
+
+    // Normalize category key
+    const normalizedCategory = submissionCategory === 'e-poster' ? 'poster-presentation' : submissionCategory
 
     // Validate submissionTopic
     if (!isValidTopic(submittingFor, submissionTopic)) {
@@ -144,11 +148,11 @@ export async function POST(request: NextRequest) {
     // Check submission limits
     const existingAbstracts = await Abstract.find({ userId: user._id })
     const existingInCategory = existingAbstracts.find(
-      abs => abs.submittingFor === submittingFor && abs.submissionCategory === submissionCategory
+      abs => abs.submittingFor === submittingFor && abs.submissionCategory === normalizedCategory
     )
     if (existingInCategory) {
       return NextResponse.json(
-        { success: false, message: `You already have a ${getSubmissionCategoryLabel(submissionCategory)} submission for ${getSubmittingForLabel(submittingFor)} with ID: ${existingInCategory.abstractId}` },
+        { success: false, message: `You already have a ${getSubmissionCategoryLabel(normalizedCategory)} submission for ${getSubmittingForLabel(submittingFor)} with ID: ${existingInCategory.abstractId}` },
         { status: 400 }
       )
     }
@@ -180,9 +184,9 @@ export async function POST(request: NextRequest) {
       userId: user._id,
       registrationId,
       submittingFor,
-      submissionCategory,
+      submissionCategory: normalizedCategory,
       submissionTopic,
-      track: getSubmissionCategoryLabel(submissionCategory),
+      track: getSubmissionCategoryLabel(normalizedCategory),
       title,
       authors,
       keywords,
@@ -201,7 +205,7 @@ export async function POST(request: NextRequest) {
         registrationId: user.registration.registrationId,
         abstractId: abstract.abstractId,
         title: abstract.title,
-        track: `${getSubmittingForLabel(submittingFor)} - ${getSubmissionCategoryLabel(submissionCategory)} - ${submissionTopic}`,
+        track: `${getSubmittingForLabel(submittingFor)} - ${getSubmissionCategoryLabel(normalizedCategory)} - ${submissionTopic}`,
         authors: abstract.authors,
         submittedAt: abstract.submittedAt.toISOString()
       })
@@ -215,7 +219,7 @@ export async function POST(request: NextRequest) {
         abstractId: abstract.abstractId,
         title: abstract.title,
         submittingFor: getSubmittingForLabel(submittingFor),
-        submissionCategory: getSubmissionCategoryLabel(submissionCategory),
+        submissionCategory: getSubmissionCategoryLabel(normalizedCategory),
         submissionTopic,
         status: abstract.status,
         submittedAt: abstract.submittedAt

@@ -24,7 +24,8 @@ function getSubmissionCategoryLabel(value: string): string {
   const labels: Record<string, string> = {
     'award-paper': 'Award Paper',
     'free-paper': 'Free Paper',
-    'poster-presentation': 'E-Poster'
+    'poster-presentation': 'E-Poster',
+    'e-poster': 'E-Poster'
   }
   return labels[value] || value
 }
@@ -65,6 +66,18 @@ export async function POST(request: NextRequest) {
     // Accept JSON body with blob URL (file already uploaded via client upload)
     const body = await request.json()
     
+    console.log('📋 Abstract submit-auth body:', JSON.stringify({
+      submissionCategory: body.submissionCategory,
+      title: body.title ? body.title.substring(0, 50) : null,
+      authors: body.authors ? 'provided' : null,
+      abstract: body.abstract ? `${body.abstract.split(/\s+/).length} words` : null,
+      keywords: body.keywords ? 'provided' : null,
+      blobUrl: body.blobUrl ? 'provided' : null,
+      fileName: body.fileName,
+      registrationStatus: user.registration?.status,
+      userId: user._id.toString()
+    }))
+
     const {
       submissionCategory,
       title,
@@ -101,13 +114,17 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validate submissionCategory
-    if (!['award-paper', 'free-paper', 'poster-presentation'].includes(submissionCategory)) {
+    // Validate submissionCategory (accept both legacy and new keys)
+    const validCategories = ['award-paper', 'free-paper', 'poster-presentation', 'e-poster']
+    if (!validCategories.includes(submissionCategory)) {
       return NextResponse.json(
         { success: false, message: 'Invalid Submission Category selection' },
         { status: 400 }
       )
     }
+
+    // Normalize category key
+    const normalizedCategory = submissionCategory === 'e-poster' ? 'poster-presentation' : submissionCategory
 
     // Validate word count if provided
     if (abstractContent && abstractContent.trim()) {
@@ -123,11 +140,11 @@ export async function POST(request: NextRequest) {
     // Check submission limits - one per category
     const existingAbstracts = await Abstract.find({ userId: user._id })
     const existingInCategory = existingAbstracts.find(
-      abs => abs.submissionCategory === submissionCategory
+      abs => abs.submissionCategory === normalizedCategory
     )
     if (existingInCategory) {
       return NextResponse.json(
-        { success: false, message: `You already have a ${getSubmissionCategoryLabel(submissionCategory)} submission with ID: ${existingInCategory.abstractId}` },
+        { success: false, message: `You already have a ${getSubmissionCategoryLabel(normalizedCategory)} submission with ID: ${existingInCategory.abstractId}` },
         { status: 400 }
       )
     }
@@ -158,8 +175,8 @@ export async function POST(request: NextRequest) {
       abstractId,
       userId: user._id,
       registrationId: user.registration.registrationId,
-      submissionCategory,
-      track: getSubmissionCategoryLabel(submissionCategory),
+      submissionCategory: normalizedCategory,
+      track: getSubmissionCategoryLabel(normalizedCategory),
       title,
       authors,
       keywords,
@@ -178,7 +195,7 @@ export async function POST(request: NextRequest) {
         registrationId: user.registration.registrationId,
         abstractId: abstract.abstractId,
         title: abstract.title,
-        track: getSubmissionCategoryLabel(submissionCategory),
+        track: getSubmissionCategoryLabel(normalizedCategory),
         authors: abstract.authors,
         submittedAt: abstract.submittedAt.toISOString()
       })
@@ -191,7 +208,7 @@ export async function POST(request: NextRequest) {
       data: {
         abstractId: abstract.abstractId,
         title: abstract.title,
-        submissionCategory: getSubmissionCategoryLabel(submissionCategory),
+        submissionCategory: getSubmissionCategoryLabel(normalizedCategory),
         status: abstract.status,
         submittedAt: abstract.submittedAt
       }
