@@ -17,17 +17,19 @@ import { logPaymentError } from '@/conference-backend-core/lib/errors/service'
 import { logPaymentAction } from '@/conference-backend-core/lib/audit/service'
 import { calculateGST } from '@/conference-backend-core/lib/utils/gst'
 
-// Initialize Razorpay only if credentials are available
-let razorpay: Razorpay | null = null
-try {
-  if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
-    razorpay = new Razorpay({
-      key_id: process.env.RAZORPAY_KEY_ID,
-      key_secret: process.env.RAZORPAY_KEY_SECRET
-    })
+// Razorpay is initialized per-request to always pick up current env vars
+function getRazorpayInstance(): Razorpay | null {
+  try {
+    if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
+      return new Razorpay({
+        key_id: process.env.RAZORPAY_KEY_ID,
+        key_secret: process.env.RAZORPAY_KEY_SECRET
+      })
+    }
+  } catch (error) {
+    console.error('Failed to initialize Razorpay:', error)
   }
-} catch (error) {
-  console.error('Failed to initialize Razorpay:', error)
+  return null
 }
 
 // Retry configuration
@@ -311,6 +313,9 @@ export async function POST(request: NextRequest) {
         message: 'Invalid payment signature'
       }, { status: 400 })
     }
+
+    // Initialize Razorpay fresh for this request
+    const razorpay = getRazorpayInstance()
 
     // Check if Razorpay is initialized
     if (!razorpay) {
