@@ -40,13 +40,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         }
 
         return {
-          // Allow Word docs and PDFs up to 10MB
+          // Allow Word docs and PDFs up to 4MB
           allowedContentTypes: [
             'application/msword', // .doc
             'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
             'application/pdf', // .pdf
           ],
-          maximumSizeInBytes: 10 * 1024 * 1024, // 10MB
+          maximumSizeInBytes: 4 * 1024 * 1024, // 4MB
           addRandomSuffix: true,
           tokenPayload: JSON.stringify({
             registrationId,

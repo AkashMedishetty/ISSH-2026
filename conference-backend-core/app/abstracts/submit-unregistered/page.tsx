@@ -308,9 +308,9 @@ export default function SubmitUnregisteredAbstractPage() {
         return
       }
       
-      const maxSize = 10 * 1024 * 1024
+      const maxSize = 4 * 1024 * 1024
       if (selectedFile.size > maxSize) {
-        toast.error('File size must be less than 10MB')
+        toast.error('File size must be less than 4MB')
         return
       }
       setFile(selectedFile)
@@ -1175,7 +1175,7 @@ export default function SubmitUnregisteredAbstractPage() {
                             <div className="text-center">
                               <Upload className="w-10 h-10 mx-auto text-gray-400 mb-2" />
                               <p className="text-sm text-gray-600 font-medium">Click to upload</p>
-                              <p className="text-xs text-gray-400">Word (.doc, .docx) or PDF - Max 10MB</p>
+                              <p className="text-xs text-gray-400">Word (.doc, .docx) or PDF - Max 4MB</p>
                             </div>
                           )}
                         </label>
