@@ -41,7 +41,7 @@ export function PricingContent() {
           <div className="p-1.5 md:p-3 font-semibold border-r border-white/20">Category</div>
           <div className="p-1.5 md:p-3 text-center border-r border-white/20">
             <div className="font-bold text-[9px] md:text-sm">Early Bird</div>
-            <div className="text-[7px] md:text-xs opacity-80">Upto 15th Mar</div>
+            <div className="text-[7px] md:text-xs opacity-80">Upto 31st Mar</div>
           </div>
           <div className="p-1.5 md:p-3 text-center border-r border-white/20">
             <div className="font-bold text-[9px] md:text-sm">Regular</div>
@@ -126,7 +126,7 @@ export function PricingContent() {
           </li>
           <li className="flex items-start gap-1.5">
             <span className="text-[#852016] mt-0.5">•</span>
-            <span>Early bird rates apply only for payments received before 15th March.</span>
+            <span>Early bird rates apply only for payments received before 31st March.</span>
           </li>
           <li className="flex items-start gap-1.5 hidden sm:flex">
             <span className="text-[#852016] mt-0.5">•</span>

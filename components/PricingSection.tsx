@@ -64,7 +64,7 @@ export default function PricingSection() {
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-accent rounded-full" />
               <span className="text-accent font-semibold">Early Bird:</span>
-              <span>15th March 2026</span>
+              <span>31st March 2026</span>
             </div>
             <div className="hidden sm:block w-px h-4 bg-white/20" />
             <div className="flex items-center gap-2">
@@ -103,7 +103,7 @@ export default function PricingSection() {
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-accent rounded-full" />
               <span className="text-accent font-semibold">Early Bird:</span>
-              <span>15th March 2026</span>
+              <span>31st March 2026</span>
             </div>
             <div className="hidden sm:block w-px h-4 bg-white/20" />
             <div className="flex items-center gap-2">

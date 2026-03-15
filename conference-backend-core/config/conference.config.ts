@@ -351,7 +351,7 @@ export const conferenceConfig: ConferenceConfig = {
       earlyBird: {
         enabled: true,
         startDate: "2025-10-01",
-        endDate: "2026-03-15",
+        endDate: "2026-03-31",
         label: "Early Bird"
       },
       regular: {

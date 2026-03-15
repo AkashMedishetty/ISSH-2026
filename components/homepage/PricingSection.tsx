@@ -127,7 +127,7 @@ export function PricingSection() {
             </div>
             <div className="p-4 md:p-6 text-center border-r border-white/20">
               <div className="font-bold text-sm md:text-lg">Early Bird</div>
-              <div className="text-xs md:text-sm opacity-80">Upto 15th March</div>
+              <div className="text-xs md:text-sm opacity-80">Upto 31st March</div>
             </div>
             <div className="p-4 md:p-6 text-center border-r border-white/20">
               <div className="font-bold text-sm md:text-lg">Regular</div>

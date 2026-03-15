@@ -18,8 +18,8 @@ export default function PricingPage() {
   const pricingData = [
     {
       tier: "Early Bird",
-      period: "Upto 15th March",
-      deadline: "01/10/2025–15/03/2026",
+      period: "Upto 31st March",
+      deadline: "01/10/2025–31/03/2026",
       isshMember: 5000,
       nonIsshMember: 6000,
       postgraduate: 2500,

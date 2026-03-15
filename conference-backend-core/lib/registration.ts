@@ -9,8 +9,8 @@ export interface RegistrationWindows {
 
 // ISSH 2026 registration windows
 export const registrationWindows: RegistrationWindows = {
-	earlyBirdEnd: new Date("2026-03-15T23:59:59"),
-	regularStart: new Date("2026-03-16T00:00:00"),
+	earlyBirdEnd: new Date("2026-03-31T23:59:59"),
+	regularStart: new Date("2026-04-01T00:00:00"),
 	regularEnd: new Date("2026-04-24T23:59:59"),
 	spotStart: new Date("2026-04-25T00:00:00"),
 }
@@ -26,8 +26,8 @@ export function getTierByDate(date: Date): RegistrationTier {
 }
 
 export const registrationLabels = {
-	earlyBird: "Early Bird upto 15/03/2026",
-	regular: "Regular 16/03/2026–24/04/2026",
+	earlyBird: "Early Bird upto 31/03/2026",
+	regular: "Regular 01/04/2026–24/04/2026",
 	spot: "Spot at the Conference",
 }
 

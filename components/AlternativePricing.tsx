@@ -63,7 +63,7 @@ export default function AlternativePricing() {
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-[#fdb246] rounded-full" />
               <span className="text-[#fdb246] font-semibold">Early Bird:</span>
-              <span>15th March 2026</span>
+              <span>31st March 2026</span>
             </div>
             <div className="hidden sm:block w-px h-4 bg-[#0e192b]/20" />
             <div className="flex items-center gap-2">
@@ -102,7 +102,7 @@ export default function AlternativePricing() {
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-[#fdb246] rounded-full" />
               <span className="text-[#fdb246] font-semibold">Early Bird:</span>
-              <span>15th March 2026</span>
+              <span>31st March 2026</span>
             </div>
             <div className="hidden sm:block w-px h-4 bg-[#0e192b]/20" />
             <div className="flex items-center gap-2">
