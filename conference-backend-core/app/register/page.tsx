@@ -918,7 +918,164 @@ export default function RegisterPage() {
           }
         }
 
-        console.log('Making API call to /api/auth/register...')
+        console.log('Making API call...')
+
+        // For payment gateway: skip registration, create order directly, register after payment
+        if (formData.paymentMethod === 'pay-now') {
+          console.log('Gateway payment: creating Razorpay order first...')
+          
+          // Check email availability one more time
+          try {
+            const emailCheck = await fetch('/api/auth/check-email', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email: formData.email.trim().toLowerCase() })
+            })
+            const emailResult = await emailCheck.json()
+            if (!emailResult.available) {
+              toast({ title: "Email Already Registered", description: "This email is already registered. Please use a different email or sign in.", variant: "destructive" })
+              setLoading(false)
+              return
+            }
+          } catch {}
+
+          // Create Razorpay order
+          const orderRes = await fetch('/api/payment/create-order', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              amount: priceCalculation?.total || 0,
+              currency: priceCalculation?.currency || 'INR'
+            })
+          })
+          const orderData = await orderRes.json()
+          if (!orderData.success) {
+            toast({ title: "Payment Error", description: orderData.message || "Failed to create payment order", variant: "destructive" })
+            setLoading(false)
+            return
+          }
+
+          // Build pending registration data (sent to verify after payment)
+          const pendingData = {
+            email: formData.email.trim().toLowerCase(),
+            password: formData.password,
+            profile: {
+              title: formData.title,
+              firstName: formData.firstName,
+              lastName: formData.lastName,
+              phone: formData.phone,
+              age: parseInt(formData.age) || 0,
+              designation: formData.designation,
+              specialization: formData.specialization,
+              institution: formData.institution,
+              mciNumber: formData.mciNumber,
+              address: {
+                street: formData.address,
+                city: formData.city,
+                state: formData.state,
+                country: formData.country,
+                pincode: formData.pincode
+              },
+              dietaryRequirements: formData.dietaryRequirements,
+              specialNeeds: formData.specialNeeds,
+              hodFormUrl: hodFormUrl || undefined
+            },
+            registration: {
+              type: formData.registrationType,
+              membershipNumber: formData.membershipNumber,
+              workshopSelections: formData.workshopSelection,
+              accompanyingPersons: formData.accompanyingPersons,
+              accommodation: formData.accommodationRequired ? {
+                required: true,
+                roomType: formData.accommodationRoomType,
+                checkIn: formData.accommodationCheckIn,
+                checkOut: formData.accommodationCheckOut,
+                nights: priceCalculation?.accommodationNights || 0,
+                totalAmount: priceCalculation?.accommodationFees || 0
+              } : { required: false }
+            },
+            payment: {
+              method: 'pay-now',
+              amount: priceCalculation?.total || 0,
+              tier: priceCalculation?.currentTier?.name || undefined
+            }
+          }
+
+          toast({ title: "Opening Payment Gateway", description: "Complete payment to finish registration" })
+
+          const options = {
+            key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+            amount: orderData.data.amount,
+            currency: orderData.data.currency,
+            name: conferenceConfig.shortName,
+            description: 'Conference Registration Fee',
+            order_id: orderData.data.id,
+            prefill: {
+              name: `${formData.firstName} ${formData.lastName}`,
+              email: formData.email,
+              contact: formData.phone
+            },
+            theme: { color: conferenceConfig.theme.primary },
+            handler: async function (response: any) {
+              console.log('Payment successful, verifying and creating user...', response)
+              setLoading(true)
+              toast({ title: "Payment Successful!", description: "Completing your registration..." })
+
+              try {
+                const verifyResponse = await fetch('/api/payment/verify', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    razorpay_order_id: response.razorpay_order_id,
+                    razorpay_payment_id: response.razorpay_payment_id,
+                    razorpay_signature: response.razorpay_signature,
+                    pendingRegistration: pendingData
+                  })
+                })
+
+                const verifyResult = await verifyResponse.json()
+                setLoading(false)
+
+                if (verifyResult.success) {
+                  setPaymentMethod('gateway')
+                  setRegistrationData({
+                    email: pendingData.email,
+                    name: `${pendingData.profile.firstName} ${pendingData.profile.lastName}`,
+                    registrationId: verifyResult.data.registrationId,
+                    paymentId: response.razorpay_payment_id,
+                    amount: orderData.data.amount / 100,
+                    currency: orderData.data.currency
+                  })
+                  toast({ title: "Registration Complete!", description: "Check your email for confirmation." })
+                  setStep(4)
+                } else if (verifyResult.paymentSuccessful) {
+                  toast({ title: "Payment Successful", description: verifyResult.message || "Our team will complete your registration.", variant: "default" })
+                  alert(`✅ Payment Successful!\n\n${verifyResult.message}\n\nPayment ID: ${verifyResult.support?.paymentId}\nOrder ID: ${verifyResult.support?.orderId}\n\nPlease contact: ${verifyResult.support?.email}`)
+                } else {
+                  toast({ title: "Error", description: verifyResult.message || "Failed to complete registration", variant: "destructive" })
+                }
+              } catch (error) {
+                console.error('Payment verification error:', error)
+                setLoading(false)
+                toast({ title: "Error", description: "Failed to verify payment. Please contact support.", variant: "destructive" })
+              }
+            },
+            modal: {
+              ondismiss: function() {
+                setLoading(false)
+                toast({ title: "Payment Cancelled", description: "No charges applied. Please try again when ready.", variant: "destructive" })
+              }
+            }
+          }
+
+          // @ts-ignore
+          const rzp = new window.Razorpay(options)
+          rzp.open()
+          return
+        }
+
+        // For bank transfer: call register API directly (creates user immediately)
+        console.log('Bank transfer: calling register API...')
 
         const requestBody = {
           email: formData.email,
@@ -980,126 +1137,7 @@ export default function RegisterPage() {
         console.log('API Response:', result)
 
         if (result.success) {
-          // Check if payment is required (Razorpay gateway)
-          if (result.requiresPayment && result.data.razorpayOrder) {
-            console.log('Opening Razorpay payment gateway...')
-            toast({
-              title: "Validation Complete!",
-              description: "Opening payment gateway..."
-            })
-            
-            // Store pending registration data
-            const pendingData = result.data.pendingRegistration
-            
-            // Open Razorpay payment modal
-            const options = {
-              key: result.data.razorpayKey || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-              amount: result.data.razorpayOrder.amount,
-              currency: result.data.razorpayOrder.currency,
-              name: conferenceConfig.shortName,
-              description: 'Conference Registration Fee',
-              order_id: result.data.razorpayOrder.id,
-              prefill: {
-                name: `${pendingData.profile.firstName} ${pendingData.profile.lastName}`,
-                email: pendingData.email,
-                contact: pendingData.profile.phone
-              },
-              notes: {
-                registrationId: pendingData.registrationId
-              },
-              theme: {
-                color: conferenceConfig.theme.primary
-              },
-              handler: async function (response: any) {
-                // Payment successful - Now create user
-                console.log('Payment successful, creating user...', response)
-                
-                // Show loading state
-                setLoading(true)
-                toast({
-                  title: "Payment Successful!",
-                  description: "Processing your registration..."
-                })
-                
-                // Verify payment and create user on backend
-                try {
-                  const verifyResponse = await fetch('/api/payment/verify', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      razorpay_order_id: response.razorpay_order_id,
-                      razorpay_payment_id: response.razorpay_payment_id,
-                      razorpay_signature: response.razorpay_signature,
-                      // Send pending registration data to create user
-                      pendingRegistration: pendingData
-                    })
-                  })
-                  
-                  const verifyResult = await verifyResponse.json()
-                  setLoading(false) // Stop loading
-                  
-                  if (verifyResult.success) {
-                    // Store payment method and registration data for success page
-                    setPaymentMethod('gateway')
-                    setRegistrationData({
-                      email: pendingData.email,
-                      name: `${pendingData.profile.firstName} ${pendingData.profile.lastName}`,
-                      registrationId: pendingData.registrationId,
-                      paymentId: response.razorpay_payment_id,
-                      amount: result.data.razorpayOrder.amount / 100,
-                      currency: result.data.razorpayOrder.currency
-                    })
-                    
-                    toast({
-                      title: "Registration Complete!",
-                      description: "Check your email for confirmation."
-                    })
-                    // Show success page
-                    setStep(4)
-                  } else if (verifyResult.paymentSuccessful) {
-                    // CRITICAL CASE: Payment succeeded but registration failed
-                    toast({
-                      title: "Payment Successful",
-                      description: verifyResult.message || "Payment received. Our team will complete your registration.",
-                      variant: "default"
-                    })
-                    // Show special message
-                    alert(`✅ Payment Successful!\n\n${verifyResult.message}\n\nPayment ID: ${verifyResult.support?.paymentId}\nOrder ID: ${verifyResult.support?.orderId}\n\nPlease contact: ${verifyResult.support?.email}`)
-                  } else {
-                    toast({
-                      title: "Error",
-                      description: verifyResult.message || "Failed to complete registration",
-                      variant: "destructive"
-                    })
-                  }
-                } catch (error) {
-                  console.error('Payment verification error:', error)
-                  setLoading(false) // Stop loading on error
-                  toast({
-                    title: "Error",
-                    description: "Failed to verify payment. Please contact support.",
-                    variant: "destructive"
-                  })
-                }
-              },
-              modal: {
-                ondismiss: function() {
-                  toast({
-                    title: "Payment Cancelled",
-                    description: "No charges applied. Please try again when ready.",
-                    variant: "destructive"
-                  })
-                }
-              }
-            }
-            
-            // @ts-ignore
-            const rzp = new window.Razorpay(options)
-            rzp.open()
-            return
-          }
-
-          // For bank transfer or other methods
+          // Bank transfer success
           setPaymentMethod('bank-transfer')
           setRegistrationData({
             email: formData.email,
@@ -1111,9 +1149,6 @@ export default function RegisterPage() {
             title: "Registration Successful!",
             description: "Your account has been created. Please check your email for confirmation."
           })
-
-          console.log('Payment method:', formData.paymentMethod)
-          console.log('Price calculation:', priceCalculation)
 
           // Show success page - bank transfer payment pending approval
           setStep(4)

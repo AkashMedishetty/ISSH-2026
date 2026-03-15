@@ -417,32 +417,60 @@ export async function POST(request: NextRequest) {
       console.log('Creating user after successful payment (legacy flow):', pendingRegistration.email)
       
       try {
+        // Hash password if provided as plain text
+        const bcrypt = (await import('bcryptjs')).default
+        const hashedPassword = pendingRegistration.password.startsWith('$2') 
+          ? pendingRegistration.password 
+          : await bcrypt.hash(pendingRegistration.password, 12)
+
+        // Generate registration ID
+        const { generateRegistrationId } = await import('@/lib/utils/generateId')
+        let registrationId = pendingRegistration.registrationId
+        if (!registrationId) {
+          registrationId = await generateRegistrationId()
+          // Ensure uniqueness
+          let isUnique = false
+          let attempts = 0
+          while (!isUnique && attempts < 10) {
+            const existingReg = await User.findOne({ 'registration.registrationId': registrationId })
+            if (!existingReg) {
+              isUnique = true
+            } else {
+              registrationId = await generateRegistrationId()
+              attempts++
+            }
+          }
+        }
+
         // Create the user NOW after payment is verified
         user = await User.create({
           email: pendingRegistration.email,
-          password: pendingRegistration.password,
+          password: hashedPassword,
           profile: {
             title: pendingRegistration.profile.title,
             firstName: pendingRegistration.profile.firstName,
             lastName: pendingRegistration.profile.lastName,
             phone: pendingRegistration.profile.phone,
+            age: pendingRegistration.profile.age ? parseInt(pendingRegistration.profile.age) : undefined,
             designation: pendingRegistration.profile.designation,
+            specialization: pendingRegistration.profile.specialization || '',
             institution: pendingRegistration.profile.institution,
             address: {
               street: pendingRegistration.profile.address?.street || '',
               city: pendingRegistration.profile.address?.city || '',
               state: pendingRegistration.profile.address?.state || '',
-              country: pendingRegistration.profile.address?.country || '',
+              country: pendingRegistration.profile.address?.country || 'India',
               pincode: pendingRegistration.profile.address?.pincode || ''
             },
             dietaryRequirements: pendingRegistration.profile.dietaryRequirements || '',
             mciNumber: pendingRegistration.profile.mciNumber,
+            hodFormUrl: pendingRegistration.profile.hodFormUrl || '',
             specialNeeds: pendingRegistration.profile.specialNeeds || ''
           },
           registration: {
-            registrationId: pendingRegistration.registrationId,
+            registrationId,
             type: pendingRegistration.registration?.type || 'non-member',
-            status: 'confirmed', // Set to confirmed immediately since payment is successful
+            status: 'paid',
             tier: pendingRegistration.payment?.tier || undefined,
             membershipNumber: pendingRegistration.registration?.membershipNumber || '',
             workshopSelections: pendingRegistration.registration?.workshopSelections || [],
@@ -452,11 +480,19 @@ export async function POST(request: NextRequest) {
               dietaryRequirements: p.dietaryRequirements || '',
               age: p.age ?? 18
             })),
+            accommodation: pendingRegistration.registration?.accommodation?.required ? {
+              required: true,
+              roomType: pendingRegistration.registration.accommodation.roomType,
+              checkIn: pendingRegistration.registration.accommodation.checkIn,
+              checkOut: pendingRegistration.registration.accommodation.checkOut,
+              nights: pendingRegistration.registration.accommodation.nights || 0,
+              totalAmount: pendingRegistration.registration.accommodation.totalAmount || 0
+            } : { required: false },
             registrationDate: new Date()
           },
           payment: {
             method: 'pay-now',
-            status: 'verified', // Set to verified immediately
+            status: 'verified',
             amount: pendingRegistration.payment?.amount || 0,
             transactionId: razorpay_payment_id,
             paymentDate: new Date()
@@ -471,7 +507,34 @@ export async function POST(request: NextRequest) {
           registrationId: user.registration.registrationId
         })
 
-        // Send registration confirmation email asynchronously (don't wait)
+        // Book workshop seats after successful payment + user creation
+        if (pendingRegistration.registration?.workshopSelections?.length > 0) {
+          console.log('🎫 Booking workshop seats for:', pendingRegistration.registration.workshopSelections)
+          try {
+            const WorkshopModel = (await import('@/lib/models/Workshop')).default
+            for (const workshopId of pendingRegistration.registration.workshopSelections) {
+              const result = await WorkshopModel.findOneAndUpdate(
+                {
+                  id: workshopId,
+                  isActive: true,
+                  $or: [
+                    { maxSeats: 0 },
+                    { $expr: { $lt: ['$bookedSeats', '$maxSeats'] } }
+                  ]
+                },
+                { $inc: { bookedSeats: 1 } },
+                { new: true }
+              )
+              if (result) {
+                console.log(`✅ Seat booked: ${result.name} (${result.bookedSeats}/${result.maxSeats === 0 ? 'unlimited' : result.maxSeats})`)
+              }
+            }
+          } catch (wsError) {
+            console.error('⚠️ Workshop seat booking error (non-blocking):', wsError)
+          }
+        }
+
+        // Send registration confirmation + payment confirmation email asynchronously
         ;(async () => {
           try {
             // Fetch workshop details for email
